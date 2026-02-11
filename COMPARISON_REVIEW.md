@@ -24,8 +24,9 @@
 | Connected corner dragging | ✓ | ✓ | ✅ |
 | Parallel wall drag | ✓ | ✓ | ✅ |
 | Room presets (drag pre-made rooms) | ✓ | ✓ | ✅ |
+| Multi-select (marquee drag + shift-click) | ✓ | ✓ | ✅ |
 | Room shape templates (L, T, U shapes) | ✓ | Partial (presets) | 🟡 |
-| Import floor plan image (trace over) | ✓ | ✗ | ❌ |
+| Import floor plan image (trace over) | ✓ | ✓ (with scale calibration) | ✅ |
 | Smart Wizard (AI room generator) | ✓ | ✗ | 🚫 |
 
 ## 2. DOORS & WINDOWS
@@ -46,34 +47,34 @@
 
 | Feature | Planner5D | open3dFloorplan | Status |
 |---------|-----------|-----------------|--------|
-| Stairs (straight, L, spiral, U) | ✓ | ✗ | ❌ |
+| Stairs (straight) | ✓ | ✓ | ✅ |
+| Stairs (L, spiral, U shapes) | ✓ | ✗ | ❌ |
 | Arches | ✓ | ✗ | ❌ |
 | Partitions (half-walls, dividers) | ✓ | ✗ | ❌ |
 | Columns/pillars | ✓ | ✗ | ❌ |
 | Roofs (flat, gable, hip, mansard) | ✓ | ✗ | ❌ |
 | Fireplaces | ✓ | ✗ | ❌ |
 | Terraces/decks | ✓ | ✗ | ❌ |
-| Fences and gates | ✓ | ✗ | ❌ |
+| Fences and gates | ✓ | ✗ | 🚫 |
 
 ## 4. FURNITURE & OBJECTS
 
 | Feature | Planner5D | open3dFloorplan | Status |
 |---------|-----------|-----------------|--------|
-| Furniture catalog | ✓ (1000+ items) | ✓ (25 items) | 🟡 |
-| Room-based browsing (living room, kitchen, etc.) | ✓ | ✓ (6 categories) | 🟡 |
-| Category-based browsing | ✓ | ✗ | ❌ |
-| Search furniture by name | ✓ | ✗ | ❌ |
-| Photo-realistic thumbnails | ✓ | ✗ (emoji/SVG icons) | 🟡 |
+| Furniture catalog | ✓ (1000+ items) | ✓ (~43 items, 8 categories) | 🟡 |
+| Room-based browsing (living room, kitchen, etc.) | ✓ | ✓ (8 categories) | ✅ |
+| Search furniture by name | ✓ | ✓ | ✅ |
 | Snap furniture to wall | ✓ | ✓ | ✅ |
 | Furniture rotation | ✓ | ✓ | ✅ |
 | Furniture resize | ✓ | ✓ | ✅ |
 | Duplicate furniture | ✓ | ✓ | ✅ |
 | Per-item color/material override | ✓ | ✓ | ✅ |
 | Per-item dimension override | ✓ | ✓ | ✅ |
+| Decor items (rugs, plants, curtains, art, mirrors) | ✓ | ✓ (11 items) | ✅ |
+| Lighting fixtures (ceiling, floor, table, wall, pendant) | ✓ | ✓ (7 items + real 3D lights) | ✅ |
+| Photo-realistic thumbnails | ✓ | ✗ (architectural icons) | 🟡 |
 | Drag from catalog to canvas | ✓ (drag & drop) | ✓ (click to place) | 🟡 |
 | Appliance catalog (washer, dryer, AC, etc.) | ✓ | ✗ | ❌ |
-| Lighting fixtures (lamps, chandeliers, sconces) | ✓ | ✗ | ❌ |
-| Decor items (rugs, art, curtains, plants) | ✓ | ✗ | ❌ |
 
 ## 5. OUTDOOR / LANDSCAPE
 
@@ -82,7 +83,7 @@
 | Trees and plants | ✓ | ✗ | ❌ |
 | Paths and lawns | ✓ | ✗ | ❌ |
 | Patio furniture | ✓ | ✗ | ❌ |
-| Swimming pool | ✓ | ✗ | ❌ |
+| Swimming pool | ✓ | ✗ | 🚫 |
 | Outdoor lighting | ✓ | ✗ | ❌ |
 | Garage (vehicles, tools) | ✓ | ✗ | ❌ |
 
@@ -91,11 +92,13 @@
 | Feature | Planner5D | open3dFloorplan | Status |
 |---------|-----------|-----------------|--------|
 | Wall paint colors | ✓ (extensive) | ✓ (15 colors) | ✅ |
-| Wall textures (brick, stone, wood panel) | ✓ | ✗ (color only) | 🟡 |
+| Wall textures (brick, stone, wood panel) | ✓ | ✓ (6 textures: brick, stone, wood panel, concrete, subway tile) | ✅ |
 | Floor materials | ✓ (extensive) | ✓ (14 materials) | ✅ |
+| Wall texture in 2D (pattern overlay) | ✓ | ✓ | ✅ |
+| Wall texture in 3D (procedural maps) | ✓ | ✓ | ✅ |
 | Ceiling materials | ✓ | ✗ | ❌ |
 | Custom texture upload | ✓ | ✗ | ❌ |
-| Material preview in 3D | ✓ (realistic textures) | ✓ (flat colors) | 🟡 |
+| Material preview in 3D | ✓ (realistic textures) | ✓ (procedural canvas textures) | 🟡 |
 | Exterior wall materials (brick, siding) | ✓ | ✗ | ❌ |
 
 ## 7. 2D VIEW
@@ -110,9 +113,12 @@
 | Rulers on edges | ✓ | ✓ | ✅ |
 | Zoom to fit | ✓ | ✓ | ✅ |
 | Measurement tool | ✓ | ✓ | ✅ |
-| Top-down furniture icons | ✓ | ✓ | ✅ |
+| Top-down furniture icons | ✓ | ✓ (architectural canvas-drawn) | ✅ |
 | Selection handles (resize/rotate) | ✓ | ✓ | ✅ |
 | Context toolbar (duplicate/delete/flip) | ✓ | ✓ | ✅ |
+| Marquee drag-to-select (multi-select) | ✓ | ✓ | ✅ |
+| Shift-click multi-select | ✓ | ✓ | ✅ |
+| Background image with scale calibration | ✓ | ✓ (two-point scale + opacity + lock) | ✅ |
 | Mini-map / overview | ✓ | ✗ | ❌ |
 | Layer visibility toggles | ✓ | ✗ | ❌ |
 
@@ -121,19 +127,22 @@
 | Feature | Planner5D | open3dFloorplan | Status |
 |---------|-----------|-----------------|--------|
 | Orbit camera | ✓ | ✓ | ✅ |
-| First-person walkthrough | ✓ | ✓ | ✅ |
+| First-person walkthrough | ✓ | ✓ (WASD look, arrows move, sprint, eye height slider) | ✅ |
 | Procedural furniture models | ✓ (high-quality meshes) | ✓ (basic geometry) | 🟡 |
 | Wall color in 3D | ✓ | ✓ | ✅ |
+| Wall textures in 3D | ✓ | ✓ (procedural canvas textures) | ✅ |
 | Floor material in 3D | ✓ | ✓ | ✅ |
 | Ceiling rendering | ✓ | ✓ | ✅ |
-| Door/window 3D models | ✓ | ✓ | ✅ |
+| Door/window 3D models | ✓ | ✓ (frame, panel, handle, mullions, glass) | ✅ |
 | Baseboards | ✓ | ✓ | ✅ |
-| Realistic lighting/shadows | ✓ (PBR, shadows) | ✓ (basic 3-point) | 🟡 |
-| Exterior walls visible | ✓ (brick/siding) | ✓ (darker auto-color) | 🟡 |
+| Stairs in 3D | ✓ | ✓ (stepped geometry with treads/risers) | ✅ |
+| Real lighting from fixtures | ✓ | ✓ (PointLight/SpotLight on ceiling/pendant lights) | ✅ |
+| Realistic lighting/shadows | ✓ (PBR, shadows) | ✓ (3-point + fixture lights, PCF shadows) | 🟡 |
+| Exterior walls visible | ✓ (brick/siding) | ✓ (auto-darkened color) | 🟡 |
 | Photorealistic render (raytraced) | ✓ (premium) | ✗ | 🚫 |
 | Room labels in 3D | ✓ | ✓ | ✅ |
 | Ambient occlusion | ✓ | ✗ | ❌ |
-| Environment/skybox | ✓ | ✗ | ❌ |
+| Environment/skybox | ✓ | ✗ (gradient background) | ❌ |
 
 ## 9. MULTI-FLOOR
 
@@ -141,7 +150,7 @@
 |---------|-----------|-----------------|--------|
 | Multiple floors | ✓ | ✓ | ✅ |
 | Add/remove floors | ✓ | ✓ | ✅ |
-| Floor-to-floor stair connection | ✓ | ✗ | ❌ |
+| Stairs between floors | ✓ | ✓ (straight stairs with direction) | 🟡 |
 | See floor below (ghost/overlay) | ✓ | ✗ | ❌ |
 | 3D multi-floor stacking | ✓ | ✗ | ❌ |
 
@@ -175,73 +184,95 @@
 |---------|-----------|-----------------|--------|
 | Keyboard shortcuts | ✓ | ✓ | ✅ |
 | Tooltips / onboarding | ✓ (tutorial popups) | ✗ | ❌ |
-| Search across all objects | ✓ | ✗ | ❌ |
+| Search across all objects | ✓ | ✓ (furniture search) | 🟡 |
 | Collapsible sidebar | ✓ | ✗ | 🟡 |
 | Comments/annotations | ✓ | ✗ | ❌ |
-| Right-click context menu | ✓ | ✗ | ❌ |
+| Right-click context menu | ✓ | ✗ (right-click = measure) | ❌ |
+
+---
+
+## SCORE SUMMARY
+
+| Category | ✅ | 🟡 | ❌ | 🚫 |
+|----------|---|----|---|---|
+| Core Drawing & Editing | 13 | 1 | 0 | 1 |
+| Doors & Windows | 6 | 1 | 2 | 0 |
+| Construction Elements | 1 | 0 | 7 | 1 |
+| Furniture & Objects | 10 | 3 | 1 | 0 |
+| Outdoor / Landscape | 0 | 0 | 4 | 1 |
+| Materials & Textures | 5 | 1 | 3 | 0 |
+| 2D View | 13 | 0 | 2 | 0 |
+| 3D View | 10 | 3 | 2 | 1 |
+| Multi-Floor | 2 | 1 | 2 | 0 |
+| Export & Sharing | 5 | 0 | 3 | 0 |
+| Project Management | 3 | 0 | 3 | 0 |
+| UI/UX | 1 | 2 | 3 | 0 |
+| **TOTAL** | **69** | **12** | **32** | **4** |
+
+**Feature coverage: 69/113 complete (61%), 81/113 at least partial (72%)**
 
 ---
 
 ## PRIORITY RECOMMENDATIONS
 
 ### 🔴 High Priority (Core UX gaps)
-1. **Import floor plan image** — Trace over uploaded image (huge time saver)
-2. **Stairs** — Essential for multi-floor plans
-3. **Search/filter furniture** — Users need to find items quickly
-4. **Larger furniture catalog** — 25 items is very thin vs 1000+
-5. **3D screenshot** — Camera icon to capture 3D view
-6. **Cloud save (Firebase)** — Already planned
-7. **Project list** — Save/load multiple projects
+1. **Cloud save (Firebase)** — Already planned, essential for real usage
+2. **Project list / My Projects** — Save/load multiple projects
+3. **3D screenshot** — Camera icon to capture 3D view
+4. **Floor below ghost overlay** — See lower floor layout when editing upper
+5. **3D multi-floor stacking** — Visualize full building in 3D
 
 ### 🟡 Medium Priority (Polish & depth)
-8. **Drag & drop from catalog** — Currently click-to-place
-9. **Photo-realistic catalog thumbnails** — Big visual upgrade
-10. **Wall textures** — Brick, stone, wood paneling (not just flat color)
-11. **Decor items** — Rugs, plants, artwork, curtains
-12. **Lighting fixtures** — Lamps, chandeliers (affects 3D ambiance)
-13. **Floor below ghost overlay** — See lower floor when editing upper
-14. **Right-click context menu** — Standard UX pattern
-15. **Environment/skybox in 3D** — Sky, ground plane outside building
-16. **Onboarding tooltips** — Guide new users
+6. **Drag & drop from catalog** — Currently click-to-place
+7. **Photo-realistic catalog thumbnails** — Big visual upgrade
+8. **Larger furniture catalog** — ~43 items vs 1000+; add appliances, more variants
+9. **Right-click context menu** — Standard UX pattern
+10. **Environment/skybox in 3D** — Sky, ground plane outside building
+11. **Onboarding tooltips** — Guide new users
+12. **Stair variants** — L-shape, U-shape, spiral
+13. **Columns/pillars** — Structural element
+14. **Ambient occlusion** — Visual quality bump in 3D
+15. **Layer visibility toggles** — Show/hide furniture, dimensions, etc.
 
 ### 🟢 Low Priority (Nice-to-have)
-17. **Columns/pillars** — Structural element
-18. **Arches** — Decorative opening
-19. **Partitions/half-walls** — Room dividers
-20. **Roofs** — Exterior visualization
-21. **Outdoor elements** — Trees, paths, pools
-22. **Ceiling materials** — Per-room ceiling texture
-23. **Layer visibility toggles** — Show/hide furniture, dimensions, etc.
-24. **Mini-map** — Overview when zoomed in
-25. **Share link / embed** — Collaborative feature
-26. **Custom texture upload** — Power user feature
-27. **Ambient occlusion in 3D** — Visual quality bump
+16. **Arches** — Decorative opening
+17. **Partitions/half-walls** — Room dividers
+18. **Roofs** — Exterior visualization
+19. **Outdoor elements** — Trees, paths, patio
+20. **Ceiling materials** — Per-room ceiling texture
+21. **Mini-map** — Overview when zoomed in
+22. **Share link / embed** — Collaborative feature
+23. **Custom texture upload** — Power user feature
+24. **Exterior wall materials** — Brick/siding on outside
+25. **Collapsible sidebar** — Screen real estate
+26. **Comments/annotations** — Collaboration
 
 ### 🚫 Skip (Premium/niche)
 - AI Smart Wizard
 - Photorealistic raytraced rendering
-- Hire a designer marketplace
-- Fences and gates
 - Swimming pools
+- Fences and gates
 
 ---
 
-## SUMMARY
+## WHAT WE DO WELL
 
-**What we do well:**
-- Core wall drawing and editing is solid — snap, angle, magnetic, curves, split, connected corners
-- Door/window system is feature-complete (6 door types, 5 window types, 4-direction flip)
-- Export options are actually BETTER than planner5d (SVG, DXF/DWG without premium!)
-- Material/color system for walls and floors
-- First-person walkthrough with speed controls
-- Keyboard shortcuts, rulers, measurement tool
+- **Core wall drawing is solid** — snap, angle, magnetic, curves, split, connected corners, parallel drag
+- **Door/window system is feature-complete** — 6 door types, 5 window types, 4-direction flip, placement preview, distance dimensions
+- **Export is BETTER than planner5d** — SVG, DXF/DWG without premium, plus PDF, PNG, JSON
+- **Material system** — 15 wall colors + 6 wall textures + 14 floor materials, all in 2D and 3D
+- **Decor & lighting** — Rugs, plants, curtains, art + 7 lighting fixtures with real 3D light sources
+- **Stairs** — Straight stairs with treads/risers in both 2D and 3D
+- **Image import** — Trace-over with two-point scale calibration, opacity control, lock/unlock
+- **Multi-select** — Marquee drag + shift-click, bulk delete
+- **First-person walkthrough** — WASD look, arrow keys move, sprint, eye height/speed sliders
+- **Keyboard shortcuts** — Full set for all tools
 
-**Biggest gaps:**
-- Furniture catalog depth (25 vs 1000+ items)
-- No image import / trace-over
-- No stairs
-- No cloud save / multi-project
-- No search
-- 3D visual quality (flat colors vs textured materials)
-- No outdoor/landscape elements
-- No construction elements (columns, arches, roofs)
+## BIGGEST REMAINING GAPS
+
+- **No cloud save / multi-project** — Single localStorage project
+- **Furniture catalog depth** — ~43 vs 1000+ items
+- **No multi-floor 3D stacking** — Can't see full building
+- **No outdoor/landscape** — No trees, paths, pools
+- **Construction elements** — No columns, arches, roofs, fireplaces
+- **3D visual quality** — Procedural textures vs PBR realistic materials
