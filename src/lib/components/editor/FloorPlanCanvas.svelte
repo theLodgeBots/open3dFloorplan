@@ -958,18 +958,20 @@
     const cat = getCatalogItem(item.catalogId);
     if (!cat) return;
     const s = worldToScreen(item.position.x, item.position.y);
-    const w = cat.width * (item.scale?.x ?? 1) * zoom;
-    const d = cat.depth * (item.scale?.y ?? 1) * zoom;
+    // Use overridden dimensions or fall back to catalog defaults
+    const w = (item.width ?? cat.width) * (item.scale?.x ?? 1) * zoom;
+    const d = (item.depth ?? cat.depth) * (item.scale?.y ?? 1) * zoom;
     const angle = (item.rotation * Math.PI) / 180;
 
     ctx.save();
     ctx.translate(s.x, s.y);
     ctx.rotate(angle);
 
-    // Architectural top-down icon
-    const strokeColor = selected ? '#3b82f6' : cat.color;
+    // Architectural top-down icon - use overridden color or catalog default
+    const itemColor = item.color ?? cat.color;
+    const strokeColor = selected ? '#3b82f6' : itemColor;
     ctx.lineWidth = selected ? 2 : 1;
-    drawFurnitureIcon(ctx, item.catalogId, w, d, cat.color, strokeColor);
+    drawFurnitureIcon(ctx, item.catalogId, w, d, itemColor, strokeColor);
 
     // Label (only if large enough)
     const fontSize = Math.max(8, Math.min(12, Math.min(w, d) * 0.2));

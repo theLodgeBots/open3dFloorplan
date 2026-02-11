@@ -222,6 +222,13 @@ export function updateWindow(id: string, updates: Partial<Win>) {
   });
 }
 
+export function updateFurniture(id: string, updates: Partial<FurnitureItem>) {
+  mutate((f) => {
+    const fi = f.furniture.find((fi) => fi.id === id);
+    if (fi) Object.assign(fi, updates);
+  });
+}
+
 export function updateRoom(id: string, updates: Partial<{ name: string; floorTexture: string }>) {
   mutate((f) => {
     const r = f.rooms.find((r) => r.id === id);

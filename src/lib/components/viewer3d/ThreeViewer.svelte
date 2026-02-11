@@ -480,7 +480,15 @@
     for (const fi of floor.furniture) {
       const cat = getCatalogItem(fi.catalogId);
       if (!cat) continue;
-      const model = createFurnitureModel(fi.catalogId, cat);
+      // Create modified catalog definition with overrides
+      const furnitureDef = {
+        ...cat,
+        color: fi.color ?? cat.color,
+        width: fi.width ?? cat.width,
+        depth: fi.depth ?? cat.depth,
+        height: fi.height ?? cat.height,
+      };
+      const model = createFurnitureModel(fi.catalogId, furnitureDef);
       model.position.set(fi.position.x, 0, fi.position.y);
       model.rotation.y = -(fi.rotation * Math.PI) / 180;
       if (fi.scale) model.scale.set(fi.scale.x, 1, fi.scale.y);

@@ -46,6 +46,12 @@ export interface FurnitureItem {
   position: Point;
   rotation: number;
   scale: { x: number; y: number; z: number };
+  // Per-item overrides (optional — falls back to catalog defaults)
+  color?: string;
+  width?: number;   // cm
+  depth?: number;   // cm
+  height?: number;  // cm
+  material?: string; // material name/id
 }
 
 export interface Floor {

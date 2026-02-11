@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { activeFloor, selectedElementId, selectedRoomId, updateWall, updateDoor, updateWindow, updateRoom, detectedRoomsStore } from '$lib/stores/project';
+  import { activeFloor, selectedElementId, selectedRoomId, updateWall, updateDoor, updateWindow, updateRoom, updateFurniture, detectedRoomsStore } from '$lib/stores/project';
   import { floorMaterials, wallColors } from '$lib/utils/materials';
-  import type { Floor, Wall, Door, Window as Win, Room } from '$lib/models/types';
+  import { getCatalogItem } from '$lib/utils/furnitureCatalog';
+  import type { Floor, Wall, Door, Window as Win, Room, FurnitureItem } from '$lib/models/types';
 
   let floor: Floor | null = $state(null);
   let selId: string | null = $state(null);
@@ -16,6 +17,7 @@
   let selectedWall = $derived(floor?.walls.find(w => w.id === selId) ?? null);
   let selectedDoor = $derived(floor?.doors.find(d => d.id === selId) ?? null);
   let selectedWindow = $derived(floor?.windows.find(w => w.id === selId) ?? null);
+  let selectedFurniture = $derived(floor?.furniture.find(f => f.id === selId) ?? null);
   let selectedRoom = $derived(floor?.rooms.find(r => r.id === selRoomId) ?? detectedRooms.find(r => r.id === selRoomId) ?? null);
 
   // Helper to get the parent wall for selected door/window
@@ -101,6 +103,36 @@
     updateWindow(selectedWindow.id, { sillHeight: Number((e.target as HTMLInputElement).value) });
   }
 
+  // Furniture handlers
+  function onFurnitureColor(color: string) {
+    if (!selectedFurniture) return;
+    updateFurniture(selectedFurniture.id, { color });
+  }
+  function onFurnitureWidth(e: Event) {
+    if (!selectedFurniture) return;
+    updateFurniture(selectedFurniture.id, { width: Number((e.target as HTMLInputElement).value) });
+  }
+  function onFurnitureDepth(e: Event) {
+    if (!selectedFurniture) return;
+    updateFurniture(selectedFurniture.id, { depth: Number((e.target as HTMLInputElement).value) });
+  }
+  function onFurnitureHeight(e: Event) {
+    if (!selectedFurniture) return;
+    updateFurniture(selectedFurniture.id, { height: Number((e.target as HTMLInputElement).value) });
+  }
+  function onFurnitureMaterial(e: Event) {
+    if (!selectedFurniture) return;
+    updateFurniture(selectedFurniture.id, { material: (e.target as HTMLSelectElement).value });
+  }
+  function onFurnitureRotation(e: Event) {
+    if (!selectedFurniture) return;
+    updateFurniture(selectedFurniture.id, { rotation: Number((e.target as HTMLInputElement).value) });
+  }
+  function resetFurnitureDefaults() {
+    if (!selectedFurniture) return;
+    updateFurniture(selectedFurniture.id, { color: undefined, width: undefined, depth: undefined, height: undefined, material: undefined });
+  }
+
   // Door distance handlers
   function onDoorDistFromA(e: Event) {
     if (!selectedDoor || !selectedDoorWall) return;
@@ -180,7 +212,7 @@
     return match ? match.id : 'custom';
   });
 
-  let hasSelection = $derived(!!selectedWall || !!selectedDoor || !!selectedWindow || !!selectedRoom);
+  let hasSelection = $derived(!!selectedWall || !!selectedDoor || !!selectedWindow || !!selectedFurniture || !!selectedRoom);
 </script>
 
 {#if hasSelection}
@@ -339,6 +371,113 @@
         <span class="text-xs text-gray-500">Sill Height (cm)</span>
         <input type="number" value={selectedWindow.sillHeight} oninput={onWindowSill} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
+    </div>
+
+  {:else if selectedFurniture}
+    <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+      <span class="w-6 h-6 bg-purple-100 rounded flex items-center justify-center text-xs">
+        {getCatalogItem(selectedFurniture.catalogId)?.icon ?? '🪑'}
+      </span>
+      {getCatalogItem(selectedFurniture.catalogId)?.name ?? 'Furniture'} Properties
+    </h3>
+    <div class="space-y-3">
+      <!-- Color -->
+      <div>
+        <div class="flex items-center gap-1 mb-2">
+          <span class="text-xs text-gray-500">Color</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-gray-400">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="9" cy="9" r="2"/>
+            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+          </svg>
+        </div>
+        <div class="grid grid-cols-5 gap-1.5 mb-2">
+          {#each ['#ffffff', '#f5f5dc', '#d2b48c', '#daa520', '#8b4513', '#696969', '#191970', '#000000', '#dc143c', '#228b22'] as color}
+            <button
+              class="w-6 h-6 rounded border-2 hover:border-gray-300 transition-colors {(selectedFurniture.color ?? getCatalogItem(selectedFurniture.catalogId)?.color) === color ? 'border-blue-500 ring-1 ring-blue-200' : 'border-gray-200'}"
+              style="background-color: {color}"
+              title="Color: {color}"
+              onclick={() => onFurnitureColor(color)}
+            ></button>
+          {/each}
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-gray-500">Custom:</span>
+          <input 
+            type="color" 
+            value={selectedFurniture.color ?? getCatalogItem(selectedFurniture.catalogId)?.color ?? '#888888'} 
+            oninput={(e) => onFurnitureColor((e.target as HTMLInputElement).value)} 
+            class="w-8 h-6 rounded border border-gray-200 cursor-pointer" 
+          />
+        </div>
+      </div>
+      
+      <!-- Dimensions -->
+      <label class="block">
+        <span class="text-xs text-gray-500">Width (cm)</span>
+        <input 
+          type="number" 
+          value={selectedFurniture.width ?? getCatalogItem(selectedFurniture.catalogId)?.width ?? 100} 
+          oninput={onFurnitureWidth} 
+          class="w-full px-2 py-1 border border-gray-200 rounded text-sm" 
+        />
+      </label>
+      <label class="block">
+        <span class="text-xs text-gray-500">Depth (cm)</span>
+        <input 
+          type="number" 
+          value={selectedFurniture.depth ?? getCatalogItem(selectedFurniture.catalogId)?.depth ?? 80} 
+          oninput={onFurnitureDepth} 
+          class="w-full px-2 py-1 border border-gray-200 rounded text-sm" 
+        />
+      </label>
+      <label class="block">
+        <span class="text-xs text-gray-500">Height (cm)</span>
+        <input 
+          type="number" 
+          value={selectedFurniture.height ?? getCatalogItem(selectedFurniture.catalogId)?.height ?? 80} 
+          oninput={onFurnitureHeight} 
+          class="w-full px-2 py-1 border border-gray-200 rounded text-sm" 
+        />
+      </label>
+      
+      <!-- Material -->
+      <label class="block">
+        <span class="text-xs text-gray-500">Material</span>
+        <select 
+          value={selectedFurniture.material ?? 'Wood'} 
+          onchange={onFurnitureMaterial} 
+          class="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+        >
+          <option value="Wood">Wood</option>
+          <option value="Metal">Metal</option>
+          <option value="Fabric">Fabric</option>
+          <option value="Leather">Leather</option>
+          <option value="Glass">Glass</option>
+          <option value="Plastic">Plastic</option>
+          <option value="Stone">Stone</option>
+          <option value="Ceramic">Ceramic</option>
+        </select>
+      </label>
+      
+      <!-- Rotation -->
+      <label class="block">
+        <span class="text-xs text-gray-500">Rotation (degrees)</span>
+        <input 
+          type="number" 
+          value={selectedFurniture.rotation} 
+          oninput={onFurnitureRotation} 
+          class="w-full px-2 py-1 border border-gray-200 rounded text-sm" 
+        />
+      </label>
+      
+      <!-- Reset button -->
+      <button
+        onclick={resetFurnitureDefaults}
+        class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+      >
+        Reset to defaults
+      </button>
     </div>
 
   {:else if selectedRoom}
