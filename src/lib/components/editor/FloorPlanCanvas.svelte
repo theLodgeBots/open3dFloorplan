@@ -590,11 +590,15 @@
 
     if (doorType === 'single' || doorType === 'pocket') {
       // Single swing door / pocket door
+      // swingDir: left=-1 means hinge on left jamb, right=+1 means hinge on right jamb
+      // sideFlip: +1 = inward (normal side), -1 = outward (opposite side of wall)
       const r = door.width * zoom;
-      const hingeX = s.x - ux * halfDoor;
-      const hingeY = s.y - uy * halfDoor;
-      const startAngle = wallAngle;
-      const endAngle = wallAngle + swingDir * sideFlip * (Math.PI / 2);
+      // Hinge at left or right jamb of the door gap
+      const hingeX = s.x + ux * halfDoor * swingDir;
+      const hingeY = s.y + uy * halfDoor * swingDir;
+      // Arc swings from wall direction toward perpendicular (inward or outward)
+      const startAngle = wallAngle + (swingDir === 1 ? Math.PI : 0);
+      const endAngle = startAngle + (-swingDir) * sideFlip * (Math.PI / 2);
 
       if (doorType === 'pocket') {
         // Pocket: dashed line showing door recessed into wall
@@ -602,8 +606,8 @@
         ctx.strokeStyle = '#999';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(s.x - ux * halfDoor, s.y - uy * halfDoor);
-        ctx.lineTo(s.x - ux * halfDoor * 3, s.y - uy * halfDoor * 3);
+        ctx.moveTo(hingeX, hingeY);
+        ctx.lineTo(hingeX + ux * halfDoor * 2 * swingDir, hingeY + uy * halfDoor * 2 * swingDir);
         ctx.stroke();
         ctx.setLineDash([]);
       } else {
@@ -620,7 +624,7 @@
       ctx.strokeStyle = '#444';
       ctx.beginPath();
       ctx.moveTo(hingeX, hingeY);
-      const panelAngle = doorType === 'pocket' ? wallAngle : endAngle;
+      const panelAngle = doorType === 'pocket' ? startAngle : endAngle;
       ctx.lineTo(hingeX + r * Math.cos(panelAngle), hingeY + r * Math.sin(panelAngle));
       ctx.stroke();
 
