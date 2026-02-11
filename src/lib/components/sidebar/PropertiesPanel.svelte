@@ -100,6 +100,40 @@
     if (!selectedWindow) return;
     updateWindow(selectedWindow.id, { sillHeight: Number((e.target as HTMLInputElement).value) });
   }
+
+  // Door distance handlers
+  function onDoorDistFromA(e: Event) {
+    if (!selectedDoor || !selectedDoorWall) return;
+    const newDistFromA = Number((e.target as HTMLInputElement).value);
+    const wallLen = calcWallLength(selectedDoorWall);
+    const newPosition = Math.max(0.05, Math.min(0.95, newDistFromA / wallLen));
+    updateDoor(selectedDoor.id, { position: newPosition });
+  }
+  
+  function onDoorDistFromB(e: Event) {
+    if (!selectedDoor || !selectedDoorWall) return;
+    const newDistFromB = Number((e.target as HTMLInputElement).value);
+    const wallLen = calcWallLength(selectedDoorWall);
+    const newPosition = Math.max(0.05, Math.min(0.95, 1 - (newDistFromB / wallLen)));
+    updateDoor(selectedDoor.id, { position: newPosition });
+  }
+
+  // Window distance handlers
+  function onWindowDistFromA(e: Event) {
+    if (!selectedWindow || !selectedWindowWall) return;
+    const newDistFromA = Number((e.target as HTMLInputElement).value);
+    const wallLen = calcWallLength(selectedWindowWall);
+    const newPosition = Math.max(0.05, Math.min(0.95, newDistFromA / wallLen));
+    updateWindow(selectedWindow.id, { position: newPosition });
+  }
+  
+  function onWindowDistFromB(e: Event) {
+    if (!selectedWindow || !selectedWindowWall) return;
+    const newDistFromB = Number((e.target as HTMLInputElement).value);
+    const wallLen = calcWallLength(selectedWindowWall);
+    const newPosition = Math.max(0.05, Math.min(0.95, 1 - (newDistFromB / wallLen)));
+    updateWindow(selectedWindow.id, { position: newPosition });
+  }
   function updateDetectedRoom(id: string, updates: Partial<{ name: string; floorTexture: string }>) {
     detectedRoomsStore.update(rooms => rooms.map(r => r.id === id ? { ...r, ...updates } : r));
   }
@@ -222,6 +256,14 @@
         <input type="number" value={selectedDoor.width} oninput={onDoorWidth} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
+        <span class="text-xs text-gray-500">Distance from A (cm)</span>
+        <input type="number" value={doorDistFromA} oninput={onDoorDistFromA} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+      </label>
+      <label class="block">
+        <span class="text-xs text-gray-500">Distance from B (cm)</span>
+        <input type="number" value={doorDistFromB} oninput={onDoorDistFromB} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+      </label>
+      <label class="block">
         <span class="text-xs text-gray-500">Height (cm)</span>
         <input type="number" value={selectedDoor.height ?? 210} oninput={onDoorHeight} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
@@ -271,6 +313,14 @@
       <label class="block">
         <span class="text-xs text-gray-500">Width (cm)</span>
         <input type="number" value={selectedWindow.width} oninput={onWindowWidth} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+      </label>
+      <label class="block">
+        <span class="text-xs text-gray-500">Distance from A (cm)</span>
+        <input type="number" value={windowDistFromA} oninput={onWindowDistFromA} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+      </label>
+      <label class="block">
+        <span class="text-xs text-gray-500">Distance from B (cm)</span>
+        <input type="number" value={windowDistFromB} oninput={onWindowDistFromB} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
         <span class="text-xs text-gray-500">Height (cm)</span>
