@@ -23,5 +23,9 @@
 		"three": "^0.182.0",
 		"typescript": "^5.9.3",
 		"vite": "^7.3.1"
+	},
+	"dependencies": {
+		"@sveltejs/adapter-vercel": "^6.3.1",
+		"dxf-writer": "^1.18.4"
 	}
 }
