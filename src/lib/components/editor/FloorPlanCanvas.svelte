@@ -557,6 +557,7 @@
     const thickness = wallThicknessScreen(wall);
     const wallAngle = Math.atan2(uy, ux);
     const swingDir = door.swingDirection === 'left' ? 1 : -1;
+    const sideFlip = (door.flipSide ?? false) ? -1 : 1;
 
     // Clear wall area for door gap (background color)
     ctx.fillStyle = '#fafafa';
@@ -593,7 +594,7 @@
       const hingeX = s.x - ux * halfDoor;
       const hingeY = s.y - uy * halfDoor;
       const startAngle = wallAngle;
-      const endAngle = wallAngle + swingDir * (Math.PI / 2);
+      const endAngle = wallAngle + swingDir * sideFlip * (Math.PI / 2);
 
       if (doorType === 'pocket') {
         // Pocket: dashed line showing door recessed into wall
@@ -637,7 +638,7 @@
         const hy = s.y + uy * halfDoor * side;
         const arcSwing = side === -1 ? swingDir : -swingDir;
         const sa = wallAngle + Math.PI * (side === 1 ? 1 : 0);
-        const ea = sa + arcSwing * (Math.PI / 2);
+        const ea = sa + arcSwing * sideFlip * (Math.PI / 2);
 
         ctx.strokeStyle = '#666';
         ctx.lineWidth = 1;
@@ -667,7 +668,7 @@
     } else if (doorType === 'sliding') {
       // Sliding: two overlapping panels with arrow
       const panelW = halfDoor * 0.9;
-      const offset = thickness * 0.15;
+      const offset = thickness * 0.15 * sideFlip;
       // Panel 1 (fixed)
       ctx.strokeStyle = '#444';
       ctx.lineWidth = 2;

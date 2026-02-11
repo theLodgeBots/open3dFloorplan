@@ -58,6 +58,14 @@
     if (!selectedDoor) return;
     updateDoor(selectedDoor.id, { swingDirection: (e.target as HTMLSelectElement).value as 'left' | 'right' });
   }
+  function flipDoorHorizontal() {
+    if (!selectedDoor) return;
+    updateDoor(selectedDoor.id, { swingDirection: selectedDoor.swingDirection === 'left' ? 'right' : 'left' });
+  }
+  function flipDoorVertical() {
+    if (!selectedDoor) return;
+    updateDoor(selectedDoor.id, { flipSide: !(selectedDoor.flipSide ?? false) });
+  }
   function onWindowType(e: Event) {
     if (!selectedWindow) return;
     updateWindow(selectedWindow.id, { type: (e.target as HTMLSelectElement).value as Win['type'] });
@@ -217,6 +225,19 @@
           <option value="right">Right</option>
         </select>
       </label>
+      <div>
+        <span class="text-xs text-gray-500 block mb-1">Flip</span>
+        <div class="flex gap-2">
+          <button onclick={flipDoorHorizontal} class="flex-1 px-2 py-1.5 border border-gray-200 rounded text-sm hover:bg-blue-50 hover:border-blue-300 transition-colors flex items-center justify-center gap-1" title="Flip horizontal (swap hinge side)">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v12M3 5l-1 3 1 3M13 5l1 3-1 3"/><path d="M2 8h4M10 8h4" stroke-dasharray="2 1"/></svg>
+            Horizontal
+          </button>
+          <button onclick={flipDoorVertical} class="flex-1 px-2 py-1.5 border border-gray-200 rounded text-sm hover:bg-blue-50 hover:border-blue-300 transition-colors flex items-center justify-center gap-1" title="Flip vertical (swap opening side of wall)">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8h12M5 3L8 2l3 1M5 13l3 1 3-1"/><path d="M8 2v4M8 10v4" stroke-dasharray="2 1"/></svg>
+            Vertical
+          </button>
+        </div>
+      </div>
     </div>
 
   {:else if selectedWindow}

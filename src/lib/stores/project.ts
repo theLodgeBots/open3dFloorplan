@@ -100,7 +100,7 @@ export function addDoor(wallId: string, position: number, doorType: Door['type']
   };
   const { width, height } = defaults[doorType];
   mutate((f) => {
-    f.doors.push({ id, wallId, position, width, height, type: doorType, swingDirection: 'left' });
+    f.doors.push({ id, wallId, position, width, height, type: doorType, swingDirection: 'left', flipSide: false });
   });
   return id;
 }
