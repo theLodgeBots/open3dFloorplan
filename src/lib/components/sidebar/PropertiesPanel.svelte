@@ -227,19 +227,28 @@
         </button>
       </div>
       <div>
-        <span class="text-xs text-gray-500">Color</span>
-        <div class="flex gap-1 flex-wrap mt-1">
+        <div class="flex items-center gap-1 mb-2">
+          <span class="text-xs text-gray-500">Wall Color</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-gray-400">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="9" cy="9" r="2"/>
+            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+          </svg>
+        </div>
+        <div class="grid grid-cols-6 gap-1.5">
           {#each wallColors as wc}
             <button
-              class="w-6 h-6 rounded border-2 {selectedWall.color === wc.color ? 'border-blue-500' : 'border-gray-200'}"
+              class="w-7 h-7 rounded-md border-2 hover:border-gray-300 transition-colors {selectedWall.color === wc.color ? 'border-blue-500 ring-1 ring-blue-200' : 'border-gray-200'}"
               style="background-color: {wc.color}"
               title={wc.name}
               onclick={() => { if (selectedWall) updateWall(selectedWall.id, { color: wc.color }); }}
             ></button>
           {/each}
-          <label class="w-6 h-6 p-0 border-0 cursor-pointer">
-            <span class="sr-only">Custom color</span>
-            <input type="color" value={selectedWall.color} oninput={onWallColor} class="w-6 h-6 p-0 border-0 cursor-pointer" />
+        </div>
+        <div class="mt-2">
+          <label class="flex items-center gap-2">
+            <span class="text-xs text-gray-500">Custom:</span>
+            <input type="color" value={selectedWall.color} oninput={onWallColor} class="w-8 h-6 rounded border border-gray-200 cursor-pointer" />
           </label>
         </div>
       </div>
@@ -355,15 +364,50 @@
         <p class="text-sm text-gray-700">{selectedRoom.area} m²</p>
       </div>
       <div>
-        <span class="text-xs text-gray-500">Floor Material</span>
-        <div class="grid grid-cols-3 gap-1 mt-1">
+        <div class="flex items-center gap-1 mb-2">
+          <span class="text-xs text-gray-500">Floor Material</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-gray-400">
+            <path d="M3 3h18v18H3z"/>
+            <path d="M8 8h8v8H8z"/>
+          </svg>
+        </div>
+        <div class="grid grid-cols-3 gap-2">
           {#each floorMaterials as mat}
             <button
-              class="p-1 rounded border-2 text-xs {selectedRoom.floorTexture === mat.id ? 'border-blue-500' : 'border-gray-200'}"
+              class="p-2 rounded-lg border-2 hover:border-gray-300 transition-colors text-xs {selectedRoom.floorTexture === mat.id ? 'border-blue-500 ring-1 ring-blue-200' : 'border-gray-200'}"
+              title={mat.name}
               onclick={() => onRoomFloor(mat.id)}
             >
-              <div class="w-full h-6 rounded mb-1" style="background-color: {mat.color}"></div>
-              {mat.name}
+              <div class="w-full h-7 rounded-md mb-1.5 relative overflow-hidden" style="background-color: {mat.color}">
+                {#if mat.pattern === 'hardwood' || mat.pattern === 'bamboo' || mat.pattern === 'laminate'}
+                  <!-- Wood grain pattern -->
+                  <div class="absolute inset-0 opacity-20" style="background: repeating-linear-gradient(90deg, transparent, transparent 3px, rgba(0,0,0,0.1) 3px, rgba(0,0,0,0.1) 4px)"></div>
+                {:else if mat.pattern === 'tile'}
+                  <!-- Tile grid pattern -->
+                  <div class="absolute inset-0 opacity-30" style="background: repeating-linear-gradient(0deg, transparent, transparent 6px, rgba(255,255,255,0.3) 6px, rgba(255,255,255,0.3) 7px), repeating-linear-gradient(90deg, transparent, transparent 6px, rgba(255,255,255,0.3) 6px, rgba(255,255,255,0.3) 7px)"></div>
+                {:else if mat.pattern === 'carpet'}
+                  <!-- Carpet texture -->
+                  <div class="absolute inset-0 opacity-40" style="background: repeating-linear-gradient(45deg, transparent, transparent 1px, rgba(0,0,0,0.1) 1px, rgba(0,0,0,0.1) 2px)"></div>
+                {:else if mat.pattern === 'marble'}
+                  <!-- Marble veins -->
+                  <div class="absolute inset-0 opacity-20" style="background: radial-gradient(ellipse at center, rgba(0,0,0,0.1) 0%, transparent 50%)"></div>
+                {/if}
+                <!-- Small pattern indicator icon -->
+                <div class="absolute bottom-0 right-0 text-black text-opacity-30 text-xs">
+                  {#if mat.pattern === 'hardwood' || mat.pattern === 'bamboo' || mat.pattern === 'laminate'}
+                    ═
+                  {:else if mat.pattern === 'tile'}
+                    ⊞
+                  {:else if mat.pattern === 'carpet'}
+                    ≈
+                  {:else if mat.pattern === 'marble'}
+                    ◊
+                  {:else}
+                    ▪
+                  {/if}
+                </div>
+              </div>
+              <div class="text-center leading-3">{mat.name}</div>
             </button>
           {/each}
         </div>

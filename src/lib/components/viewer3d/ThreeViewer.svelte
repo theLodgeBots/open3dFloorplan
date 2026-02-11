@@ -8,6 +8,7 @@
   import { getCatalogItem } from '$lib/utils/furnitureCatalog';
   import { createFurnitureModel } from '$lib/utils/furnitureModels3d';
   import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
+  import { getMaterial } from '$lib/utils/materials';
 
   let container: HTMLDivElement;
   let renderer: THREE.WebGLRenderer;
@@ -486,8 +487,8 @@
       wallGroup.add(model);
     }
 
-    // Room floors with distinct colors + floating labels
-    const ROOM_COLORS = [0xbfdbfe, 0xfde68a, 0xbbf7d0, 0xfecaca, 0xddd6fe, 0xa5f3fc, 0xfed7aa];
+    // Room floors with materials + floating labels
+    const FALLBACK_ROOM_COLORS = [0xbfdbfe, 0xfde68a, 0xbbf7d0, 0xfecaca, 0xddd6fe, 0xa5f3fc, 0xfed7aa];
     const rooms = detectRooms(floor.walls);
     for (let ri = 0; ri < rooms.length; ri++) {
       const room = rooms[ri];
@@ -501,9 +502,29 @@
       shape.closePath();
 
       const geo = new THREE.ShapeGeometry(shape);
-      const color = ROOM_COLORS[ri % ROOM_COLORS.length];
-      const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.9, transparent: true, opacity: 0.5 });
-      const mesh = new THREE.Mesh(geo, mat);
+      
+      // Use room's floor material or fallback to color coding
+      let material: THREE.MeshStandardMaterial;
+      if (room.floorTexture) {
+        const floorMat = getMaterial(room.floorTexture);
+        material = new THREE.MeshStandardMaterial({ 
+          color: new THREE.Color(floorMat.color), 
+          roughness: floorMat.roughness ?? 0.8,
+          transparent: false,
+          opacity: 1.0
+        });
+      } else {
+        // Fallback to old color system for rooms without specific materials
+        const color = FALLBACK_ROOM_COLORS[ri % FALLBACK_ROOM_COLORS.length];
+        material = new THREE.MeshStandardMaterial({ 
+          color, 
+          roughness: 0.9, 
+          transparent: true, 
+          opacity: 0.5 
+        });
+      }
+      
+      const mesh = new THREE.Mesh(geo, material);
       // Rotate to lie on XZ plane, slightly above base floor
       mesh.rotation.x = -Math.PI / 2;
       mesh.position.y = 1;
