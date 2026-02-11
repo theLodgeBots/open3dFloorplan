@@ -10,7 +10,7 @@
   import { createFurnitureModel } from '$lib/utils/furnitureModels3d';
   import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
   import { getMaterial } from '$lib/utils/materials';
-  import { getWallTextureCanvas } from '$lib/utils/textureGenerator';
+  import { getWallTextureCanvas, setTextureLoadCallback } from '$lib/utils/textureGenerator';
 
   let container: HTMLDivElement;
   let renderer: THREE.WebGLRenderer;
@@ -855,6 +855,11 @@
   onMount(() => {
     init();
     animate();
+
+    // Rebuild 3D scene when photo textures finish loading
+    setTextureLoadCallback(() => {
+      if (currentFloor) buildWalls(currentFloor);
+    });
 
     const resizeObs = new ResizeObserver(onResize);
     resizeObs.observe(container);

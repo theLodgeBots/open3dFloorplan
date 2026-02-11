@@ -1,9 +1,55 @@
 /**
- * High-quality procedural texture generator for walls and floors.
- * Generates detailed, realistic tileable canvas textures.
+ * High-quality texture generator for walls and floors.
+ * Uses real photo textures from ambientCG (CC0) with procedural fallback.
  */
 
 const cache = new Map<string, HTMLCanvasElement>();
+const imageCache = new Map<string, HTMLImageElement>();
+const loadingSet = new Set<string>();
+
+/** Photo texture paths (served from /textures/) */
+const PHOTO_TEXTURES: Record<string, string> = {
+  'red-brick': '/textures/brick.jpg',
+  'exposed-brick': '/textures/exposed-brick.jpg',
+  'stone': '/textures/stone.jpg',
+  'wood-panel': '/textures/wood-panel.jpg',
+  'concrete-block': '/textures/concrete.jpg',
+  'subway-tile': '/textures/subway-tile.jpg',
+};
+
+/** Load a photo texture into cache and re-render when ready */
+function loadPhotoTexture(id: string, onLoad?: () => void): HTMLCanvasElement | null {
+  const cacheKey = `photo-${id}`;
+  if (cache.has(cacheKey)) return cache.get(cacheKey)!;
+
+  const url = PHOTO_TEXTURES[id];
+  if (!url) return null;
+
+  if (imageCache.has(id)) {
+    const img = imageCache.get(id)!;
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const cx = c.getContext('2d')!;
+    cx.drawImage(img, 0, 0);
+    cache.set(cacheKey, c);
+    return c;
+  }
+
+  // Start loading if not already
+  if (!loadingSet.has(id)) {
+    loadingSet.add(id);
+    const img = new Image();
+    img.onload = () => {
+      imageCache.set(id, img);
+      cache.delete(cacheKey); // clear so next call rebuilds
+      cache.delete(id); // clear procedural fallback too
+      if (onLoad) onLoad();
+    };
+    img.src = url;
+  }
+
+  return null; // not loaded yet — fallback to procedural
+}
 
 function getOrCreate(id: string, size: number, draw: (cx: CanvasRenderingContext2D, s: number) => void): HTMLCanvasElement {
   if (cache.has(id)) return cache.get(id)!;
@@ -435,7 +481,16 @@ export function generateHardwoodTexture(baseColor: string = '#c4a882'): HTMLCanv
 
 // ── MAIN ACCESSOR ──────────────────────────────────────────────
 
+/** Callback to invoke when a photo texture finishes loading (triggers re-render) */
+let onTextureLoadCallback: (() => void) | null = null;
+export function setTextureLoadCallback(cb: () => void) { onTextureLoadCallback = cb; }
+
 export function getWallTextureCanvas(textureId: string, color: string): HTMLCanvasElement | null {
+  // Try photo texture first
+  const photo = loadPhotoTexture(textureId, onTextureLoadCallback ?? undefined);
+  if (photo) return photo;
+
+  // Fallback to procedural
   switch (textureId) {
     case 'red-brick': return generateBrickTexture(color, 'standard');
     case 'exposed-brick': return generateBrickTexture(color, 'exposed');

@@ -8,7 +8,7 @@
   import { getCatalogItem } from '$lib/utils/furnitureCatalog';
   import { drawFurnitureIcon } from '$lib/utils/furnitureIcons';
   import { handleGlobalShortcut } from '$lib/utils/shortcuts';
-  import { getWallTextureCanvas } from '$lib/utils/textureGenerator';
+  import { getWallTextureCanvas, setTextureLoadCallback } from '$lib/utils/textureGenerator';
 
   let canvas: HTMLCanvasElement;
   let ctx: CanvasRenderingContext2D;
@@ -1951,6 +1951,8 @@
   onMount(() => {
     ctx = canvas.getContext('2d')!;
     resize();
+    // Re-render when photo textures finish loading
+    setTextureLoadCallback(() => { /* draw loop is already running via rAF */ });
     const resizeObs = new ResizeObserver(resize);
     resizeObs.observe(canvas.parentElement!);
     requestAnimationFrame(draw);
