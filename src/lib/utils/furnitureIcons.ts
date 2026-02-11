@@ -369,6 +369,209 @@ const drawTvStand: DrawFn = (ctx, w, d) => {
   ctx.stroke();
 };
 
+// Decor icons
+const drawRug: DrawFn = (ctx, w, d, color) => {
+  roundRect(ctx, -w/2, -d/2, w, d, 4);
+  ctx.fill(); ctx.stroke();
+  // Border pattern
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  roundRect(ctx, -w/2 + 4, -d/2 + 4, w - 8, d - 8, 3);
+  ctx.stroke();
+  // Inner pattern lines
+  ctx.lineWidth = 0.5;
+  for (let i = 1; i <= 3; i++) {
+    ctx.beginPath();
+    ctx.moveTo(-w/2 + 8, -d/2 + d * i / 4);
+    ctx.lineTo(w/2 - 8, -d/2 + d * i / 4);
+    ctx.stroke();
+  }
+};
+
+const drawRoundRug: DrawFn = (ctx, w, d, color) => {
+  ctx.beginPath();
+  ctx.ellipse(0, 0, w/2, d/2, 0, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+  // Inner ring
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, w/2 - 6, d/2 - 6, 0, 0, Math.PI * 2);
+  ctx.stroke();
+};
+
+const drawPlant: DrawFn = (ctx, w, d, color) => {
+  // Pot (trapezoid)
+  ctx.fillStyle = '#8B6914';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.3, d*0.1);
+  ctx.lineTo(w*0.3, d*0.1);
+  ctx.lineTo(w*0.25, d*0.45);
+  ctx.lineTo(-w*0.25, d*0.45);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  // Foliage circle
+  ctx.fillStyle = color + '90';
+  ctx.beginPath();
+  ctx.arc(0, -d*0.1, Math.min(w, d) * 0.4, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+};
+
+const drawCurtain: DrawFn = (ctx, w, d, color) => {
+  roundRect(ctx, -w/2, -d/2, w, d, 1);
+  ctx.fill(); ctx.stroke();
+  // Vertical fold lines
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 0.5;
+  for (let i = 1; i < 5; i++) {
+    ctx.beginPath();
+    ctx.moveTo(-w/2 + w * i / 5, -d/2 + 2);
+    ctx.lineTo(-w/2 + w * i / 5, d/2 - 2);
+    ctx.stroke();
+  }
+};
+
+const drawWallArt: DrawFn = (ctx, w, d, color) => {
+  // Frame
+  roundRect(ctx, -w/2, -d/2, w, d, 2);
+  ctx.fill(); ctx.stroke();
+  // Inner matting
+  ctx.fillStyle = '#ffffff80';
+  roundRect(ctx, -w/2 + 3, -d/2 + 3, w - 6, d - 6, 1);
+  ctx.fill(); ctx.stroke();
+  // Simple landscape indication
+  ctx.fillStyle = color + '40';
+  ctx.fillRect(-w/2 + 5, -d/2 + 5, w - 10, d - 10);
+};
+
+const drawMirror: DrawFn = (ctx, w, d) => {
+  roundRect(ctx, -w/2, -d/2, w, d, 2);
+  ctx.fillStyle = '#c0d8e880';
+  ctx.fill(); ctx.stroke();
+  // Reflection lines
+  ctx.strokeStyle = '#ffffff60';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-w*0.2, -d*0.3);
+  ctx.lineTo(-w*0.1, d*0.3);
+  ctx.stroke();
+};
+
+const drawClock: DrawFn = (ctx, w, d) => {
+  const r = Math.min(w, d) * 0.45;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+  // Clock hands
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, -r * 0.6);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(r * 0.4, 0);
+  ctx.stroke();
+};
+
+// Lighting icons
+const drawCeilingLight: DrawFn = (ctx, w, d) => {
+  const r = Math.min(w, d) * 0.4;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+  // Rays
+  ctx.strokeStyle = '#f59e0b80';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * r * 1.1, Math.sin(a) * r * 1.1);
+    ctx.lineTo(Math.cos(a) * r * 1.5, Math.sin(a) * r * 1.5);
+    ctx.stroke();
+  }
+};
+
+const drawChandelier: DrawFn = (ctx, w, d) => {
+  const r = Math.min(w, d) * 0.35;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+  // Decorative arms with bulbs
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const ex = Math.cos(a) * r * 1.4;
+    const ey = Math.sin(a) * r * 1.4;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * r * 0.6, Math.sin(a) * r * 0.6);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(ex, ey, 3, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+  }
+};
+
+const drawFloorLamp: DrawFn = (ctx, w, d) => {
+  // Base circle
+  const r = Math.min(w, d) * 0.35;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+  // Center pole
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.15, 0, Math.PI * 2);
+  ctx.fillStyle = '#555';
+  ctx.fill();
+};
+
+const drawTableLamp: DrawFn = (ctx, w, d) => {
+  const r = Math.min(w, d) * 0.4;
+  // Shade (circle)
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+  // Base
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.25, 0, Math.PI * 2);
+  ctx.fillStyle = '#666';
+  ctx.fill();
+};
+
+const drawWallSconce: DrawFn = (ctx, w, d) => {
+  roundRect(ctx, -w/2, -d/2, w, d, 2);
+  ctx.fill(); ctx.stroke();
+  // Light indication
+  ctx.beginPath();
+  ctx.arc(0, 0, Math.min(w, d) * 0.25, 0, Math.PI * 2);
+  ctx.fillStyle = '#fef08a80';
+  ctx.fill();
+};
+
+const drawPendantLight: DrawFn = (ctx, w, d) => {
+  const r = Math.min(w, d) * 0.4;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+  // Inner glow
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.5, 0, Math.PI * 2);
+  ctx.fillStyle = '#fef08a60';
+  ctx.fill();
+};
+
+const drawRecessedLight: DrawFn = (ctx, w, d) => {
+  const r = Math.min(w, d) * 0.45;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.6, 0, Math.PI * 2);
+  ctx.strokeStyle = '#fef08a80';
+  ctx.stroke();
+};
+
 /** Registry mapping catalogId → custom draw function */
 const iconDrawers: Record<string, DrawFn> = {
   sofa: drawSofa,
@@ -396,6 +599,26 @@ const iconDrawers: Record<string, DrawFn> = {
   office_chair: drawOfficeChair,
   dining_table: drawDiningTable,
   dining_chair: drawDiningChair,
+  // Decor
+  rug: drawRug,
+  round_rug: drawRoundRug,
+  runner_rug: drawRug,
+  potted_plant: drawPlant,
+  floor_plant: drawPlant,
+  hanging_plant: drawPlant,
+  curtain: drawCurtain,
+  sheer_curtain: drawCurtain,
+  wall_art: drawWallArt,
+  mirror: drawMirror,
+  clock: drawClock,
+  // Lighting
+  ceiling_light: drawCeilingLight,
+  chandelier: drawChandelier,
+  recessed_light: drawRecessedLight,
+  floor_lamp: drawFloorLamp,
+  table_lamp: drawTableLamp,
+  wall_sconce: drawWallSconce,
+  pendant_light: drawPendantLight,
 };
 
 /**

@@ -42,6 +42,26 @@ export const furnitureCatalog: FurnitureDef[] = [
   // Dining
   { id: 'dining_table', name: 'Dining Table', category: 'Dining', icon: '🍽️', color: '#f59e0b', width: 120, depth: 80, height: 75 },
   { id: 'dining_chair', name: 'Dining Chair', category: 'Dining', icon: '🪑', color: '#d97706', width: 45, depth: 45, height: 90 },
+  // Decor
+  { id: 'rug', name: 'Rug', category: 'Decor', icon: '🟫', color: '#c2956b', width: 200, depth: 300, height: 1 },
+  { id: 'round_rug', name: 'Round Rug', category: 'Decor', icon: '⭕', color: '#b87d5e', width: 200, depth: 200, height: 1 },
+  { id: 'runner_rug', name: 'Runner Rug', category: 'Decor', icon: '🟫', color: '#a0694e', width: 80, depth: 250, height: 1 },
+  { id: 'potted_plant', name: 'Potted Plant', category: 'Decor', icon: '🪴', color: '#4ade80', width: 40, depth: 40, height: 60 },
+  { id: 'floor_plant', name: 'Floor Plant', category: 'Decor', icon: '🌿', color: '#22c55e', width: 50, depth: 50, height: 120 },
+  { id: 'hanging_plant', name: 'Hanging Plant', category: 'Decor', icon: '🌱', color: '#86efac', width: 30, depth: 30, height: 40 },
+  { id: 'curtain', name: 'Curtain', category: 'Decor', icon: '🪟', color: '#e2c9a6', width: 120, depth: 10, height: 260 },
+  { id: 'sheer_curtain', name: 'Sheer Curtain', category: 'Decor', icon: '🪟', color: '#f5f0e8', width: 120, depth: 10, height: 260 },
+  { id: 'wall_art', name: 'Wall Art', category: 'Decor', icon: '🖼️', color: '#f59e0b', width: 80, depth: 5, height: 60 },
+  { id: 'mirror', name: 'Mirror', category: 'Decor', icon: '🪞', color: '#94a3b8', width: 60, depth: 5, height: 90 },
+  { id: 'clock', name: 'Clock', category: 'Decor', icon: '🕐', color: '#1e293b', width: 30, depth: 5, height: 30 },
+  // Lighting
+  { id: 'ceiling_light', name: 'Ceiling Light', category: 'Lighting', icon: '💡', color: '#fef08a', width: 40, depth: 40, height: 15 },
+  { id: 'chandelier', name: 'Chandelier', category: 'Lighting', icon: '✨', color: '#fcd34d', width: 60, depth: 60, height: 50 },
+  { id: 'recessed_light', name: 'Recessed Light', category: 'Lighting', icon: '🔆', color: '#fef9c3', width: 15, depth: 15, height: 5 },
+  { id: 'floor_lamp', name: 'Floor Lamp', category: 'Lighting', icon: '🪔', color: '#e5e7eb', width: 40, depth: 40, height: 160 },
+  { id: 'table_lamp', name: 'Table Lamp', category: 'Lighting', icon: '💡', color: '#fde68a', width: 25, depth: 25, height: 45 },
+  { id: 'wall_sconce', name: 'Wall Sconce', category: 'Lighting', icon: '🔅', color: '#fef3c7', width: 15, depth: 10, height: 20 },
+  { id: 'pendant_light', name: 'Pendant Light', category: 'Lighting', icon: '💡', color: '#fbbf24', width: 30, depth: 30, height: 30 },
 ];
 
 export function getCatalogItem(id: string): FurnitureDef | undefined {

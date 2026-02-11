@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { selectedTool, placingFurnitureId, placingDoorType, placingWindowType } from '$lib/stores/project';
+  import { selectedTool, placingFurnitureId, placingDoorType, placingWindowType, placingStair, addStair, activeFloor, setBackgroundImage } from '$lib/stores/project';
   import type { Tool } from '$lib/stores/project';
   import type { Door, Window as Win } from '$lib/models/types';
   import { roomPresets, placePreset } from '$lib/utils/roomPresets';
@@ -75,6 +75,42 @@
     setTool('window');
   }
 
+  let isPlacingStair = $state(false);
+  placingStair.subscribe(v => { isPlacingStair = v; });
+
+  function onPlaceStair() {
+    placingStair.set(true);
+    selectedTool.set('select');
+    placingFurnitureId.set(null);
+  }
+
+  function onImportImage() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Warning: Image is larger than 5MB. This may slow down the application.');
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        setBackgroundImage({
+          dataUrl,
+          position: { x: 0, y: 0 },
+          scale: 1,
+          opacity: 0.4,
+          rotation: 0,
+          locked: false,
+        });
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  }
+
   const categoryColors: Record<string, string> = {
     'Living Room': '#a78bfa',
     'Bedroom': '#60a5fa',
@@ -82,6 +118,8 @@
     'Bathroom': '#93c5fd',
     'Office': '#34d399',
     'Dining': '#f59e0b',
+    'Decor': '#c2956b',
+    'Lighting': '#fbbf24',
   };
 </script>
 
@@ -128,6 +166,34 @@
           <div class="text-left">
             <div class="font-medium">Draw Wall <span class="text-gray-400 text-xs ml-1">W</span></div>
             <div class="text-xs text-gray-400">Click to draw, dbl-click to finish</div>
+          </div>
+        </button>
+
+        <h3 class="text-xs font-semibold text-gray-400 uppercase mb-2 mt-3">Structure</h3>
+        <button
+          class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors {isPlacingStair ? 'bg-blue-50 text-slate-800 ring-1 ring-blue-200' : 'hover:bg-gray-50 text-gray-700'}"
+          onclick={onPlaceStair}
+        >
+          <div class="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center {isPlacingStair ? 'bg-blue-100' : ''}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 5h-5V2h-3v6h-4V5H7v6H2v3h5v3h3v-3h4v3h3v-6h5z"/></svg>
+          </div>
+          <div class="text-left">
+            <div class="font-medium">Add Stairs</div>
+            <div class="text-xs text-gray-400">Click to place stairs</div>
+          </div>
+        </button>
+
+        <h3 class="text-xs font-semibold text-gray-400 uppercase mb-2 mt-3">Import</h3>
+        <button
+          class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors hover:bg-gray-50 text-gray-700"
+          onclick={onImportImage}
+        >
+          <div class="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+          </div>
+          <div class="text-left">
+            <div class="font-medium">Import Image</div>
+            <div class="text-xs text-gray-400">Floor plan background</div>
           </div>
         </button>
 

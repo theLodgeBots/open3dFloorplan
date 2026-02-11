@@ -112,6 +112,58 @@ export function createFurnitureModel(catalogId: string, def: FurnitureDef): THRE
     case 'dining_chair':
       createDiningChair(group, w, d, h, color);
       break;
+    // Decor
+    case 'rug':
+    case 'runner_rug':
+      createRug(group, w, d, h, color);
+      break;
+    case 'round_rug':
+      createRoundRug(group, w, d, h, color);
+      break;
+    case 'potted_plant':
+      createPottedPlant(group, w, d, h, color);
+      break;
+    case 'floor_plant':
+      createFloorPlant(group, w, d, h, color);
+      break;
+    case 'hanging_plant':
+      createHangingPlant(group, w, d, h, color);
+      break;
+    case 'curtain':
+    case 'sheer_curtain':
+      createCurtain(group, w, d, h, color, catalogId === 'sheer_curtain');
+      break;
+    case 'wall_art':
+      createWallArt(group, w, d, h, color);
+      break;
+    case 'mirror':
+      createMirror(group, w, d, h, color);
+      break;
+    case 'clock':
+      createClock(group, w, d, h, color);
+      break;
+    // Lighting
+    case 'ceiling_light':
+      createCeilingLight(group, w, d, h, color);
+      break;
+    case 'chandelier':
+      createChandelier(group, w, d, h, color);
+      break;
+    case 'recessed_light':
+      createRecessedLight(group, w, d, h, color);
+      break;
+    case 'floor_lamp':
+      createFloorLamp(group, w, d, h, color);
+      break;
+    case 'table_lamp':
+      createTableLamp(group, w, d, h, color);
+      break;
+    case 'wall_sconce':
+      createWallSconce(group, w, d, h, color);
+      break;
+    case 'pendant_light':
+      createPendantLight(group, w, d, h, color);
+      break;
     default:
       // Fallback to simple box
       const geometry = new THREE.BoxGeometry(w, h, d);
@@ -691,19 +743,16 @@ function createDiningChair(group: THREE.Group, w: number, d: number, h: number, 
   const legColor = createMaterial(color, 0.7, 0.1);
   legColor.color.multiplyScalar(0.8);
 
-  // Seat
   const seatGeo = new THREE.BoxGeometry(w * 0.9, h * 0.1, d * 0.9);
   const seatMesh = new THREE.Mesh(seatGeo, seatColor);
   seatMesh.position.set(0, h * 0.5, 0);
   group.add(seatMesh);
 
-  // Back — at negative Z (back in 2D)
   const backGeo = new THREE.BoxGeometry(w * 0.9, h * 0.4, d * 0.1);
   const backMesh = new THREE.Mesh(backGeo, seatColor);
   backMesh.position.set(0, h * 0.7, -d * 0.4);
   group.add(backMesh);
 
-  // 4 legs
   const legGeo = new THREE.BoxGeometry(w * 0.05, h * 0.5, d * 0.05);
   const positions = [
     [-w * 0.35, h * 0.25, -d * 0.35],
@@ -711,10 +760,288 @@ function createDiningChair(group: THREE.Group, w: number, d: number, h: number, 
     [-w * 0.35, h * 0.25, d * 0.35],
     [w * 0.35, h * 0.25, d * 0.35]
   ];
-
   positions.forEach(pos => {
     const leg = new THREE.Mesh(legGeo, legColor);
     leg.position.set(pos[0], pos[1], pos[2]);
     group.add(leg);
   });
+}
+
+// Decor furniture
+function createRug(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const mat = createMaterial(color, 0.95, 0.0);
+  const geo = new THREE.BoxGeometry(w, h, d);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.y = h / 2;
+  mesh.receiveShadow = true;
+  group.add(mesh);
+  // Border
+  const borderMat = createMaterial(color, 0.9, 0.0);
+  borderMat.color.multiplyScalar(0.7);
+  const borderGeo = new THREE.BoxGeometry(w + 2, h * 0.5, d + 2);
+  const borderMesh = new THREE.Mesh(borderGeo, borderMat);
+  borderMesh.position.y = h * 0.25;
+  group.add(borderMesh);
+}
+
+function createRoundRug(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const mat = createMaterial(color, 0.95, 0.0);
+  const r = Math.min(w, d) / 2;
+  const geo = new THREE.CylinderGeometry(r, r, h, 32);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.y = h / 2;
+  mesh.receiveShadow = true;
+  group.add(mesh);
+}
+
+function createPottedPlant(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const potMat = createMaterial('#8B6914', 0.8, 0.1);
+  const potGeo = new THREE.CylinderGeometry(w * 0.3, w * 0.25, h * 0.4, 12);
+  const potMesh = new THREE.Mesh(potGeo, potMat);
+  potMesh.position.y = h * 0.2;
+  group.add(potMesh);
+  // Foliage
+  const leafMat = createMaterial(color, 0.9, 0.0);
+  const leafGeo = new THREE.SphereGeometry(w * 0.4, 12, 12);
+  const leafMesh = new THREE.Mesh(leafGeo, leafMat);
+  leafMesh.position.y = h * 0.65;
+  group.add(leafMesh);
+}
+
+function createFloorPlant(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const potMat = createMaterial('#6b4423', 0.8, 0.1);
+  const potGeo = new THREE.CylinderGeometry(w * 0.25, w * 0.2, h * 0.25, 12);
+  const potMesh = new THREE.Mesh(potGeo, potMat);
+  potMesh.position.y = h * 0.125;
+  group.add(potMesh);
+  // Trunk
+  const trunkMat = createMaterial('#5d4037', 0.9, 0.0);
+  const trunkGeo = new THREE.CylinderGeometry(w * 0.04, w * 0.05, h * 0.5, 8);
+  const trunkMesh = new THREE.Mesh(trunkGeo, trunkMat);
+  trunkMesh.position.y = h * 0.5;
+  group.add(trunkMesh);
+  // Foliage cluster
+  const leafMat = createMaterial(color, 0.9, 0.0);
+  for (let i = 0; i < 3; i++) {
+    const r = w * (0.2 + i * 0.05);
+    const geo = new THREE.SphereGeometry(r, 10, 10);
+    const mesh = new THREE.Mesh(geo, leafMat);
+    mesh.position.set((i - 1) * w * 0.1, h * 0.75 + i * h * 0.05, 0);
+    group.add(mesh);
+  }
+}
+
+function createHangingPlant(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const potMat = createMaterial('#8B6914', 0.8, 0.1);
+  const potGeo = new THREE.CylinderGeometry(w * 0.25, w * 0.2, h * 0.3, 10);
+  const potMesh = new THREE.Mesh(potGeo, potMat);
+  potMesh.position.y = h * 0.85;
+  group.add(potMesh);
+  // Trailing foliage
+  const leafMat = createMaterial(color, 0.9, 0.0);
+  const leafGeo = new THREE.SphereGeometry(w * 0.35, 10, 10);
+  leafGeo.scale(1, 1.5, 1);
+  const leafMesh = new THREE.Mesh(leafGeo, leafMat);
+  leafMesh.position.y = h * 0.5;
+  group.add(leafMesh);
+}
+
+function createCurtain(group: THREE.Group, w: number, d: number, h: number, color: string, sheer: boolean): void {
+  const mat = createMaterial(color, 0.95, 0.0);
+  if (sheer) { mat.transparent = true; mat.opacity = 0.5; }
+  // Two panels
+  for (const side of [-1, 1]) {
+    const panelGeo = new THREE.BoxGeometry(w * 0.45, h, d);
+    const panel = new THREE.Mesh(panelGeo, mat);
+    panel.position.set(side * w * 0.275, h / 2, 0);
+    group.add(panel);
+  }
+  // Rod
+  const rodMat = createMaterial('#555', 0.3, 0.8);
+  const rodGeo = new THREE.CylinderGeometry(1.5, 1.5, w * 1.1, 8);
+  rodGeo.rotateZ(Math.PI / 2);
+  const rod = new THREE.Mesh(rodGeo, rodMat);
+  rod.position.y = h * 0.98;
+  group.add(rod);
+}
+
+function createWallArt(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const frameMat = createMaterial('#333', 0.6, 0.2);
+  const frameGeo = new THREE.BoxGeometry(w, h, d);
+  const frameMesh = new THREE.Mesh(frameGeo, frameMat);
+  frameMesh.position.y = h / 2 + 120; // Hung at ~120cm
+  group.add(frameMesh);
+  // Canvas
+  const canvasMat = createMaterial(color, 0.9, 0.0);
+  const canvasGeo = new THREE.BoxGeometry(w - 4, h - 4, d * 0.5);
+  const canvasMesh = new THREE.Mesh(canvasGeo, canvasMat);
+  canvasMesh.position.set(0, h / 2 + 120, d * 0.3);
+  group.add(canvasMesh);
+}
+
+function createMirror(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const frameMat = createMaterial('#555', 0.5, 0.3);
+  const frameGeo = new THREE.BoxGeometry(w, h, d);
+  const frameMesh = new THREE.Mesh(frameGeo, frameMat);
+  frameMesh.position.y = h / 2 + 100;
+  group.add(frameMesh);
+  const glassMat = createMaterial('#e0e8f0', 0.05, 0.9);
+  const glassGeo = new THREE.BoxGeometry(w - 4, h - 4, 1);
+  const glassMesh = new THREE.Mesh(glassGeo, glassMat);
+  glassMesh.position.set(0, h / 2 + 100, d * 0.4);
+  group.add(glassMesh);
+}
+
+function createClock(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const mat = createMaterial(color, 0.6, 0.2);
+  const r = Math.min(w, d) / 2;
+  const geo = new THREE.CylinderGeometry(r, r, d, 24);
+  geo.rotateX(Math.PI / 2);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.y = r + 140;
+  group.add(mesh);
+  // Face
+  const faceMat = createMaterial('#fff', 0.9, 0.0);
+  const faceGeo = new THREE.CylinderGeometry(r * 0.9, r * 0.9, 1, 24);
+  faceGeo.rotateX(Math.PI / 2);
+  const face = new THREE.Mesh(faceGeo, faceMat);
+  face.position.set(0, r + 140, d * 0.4);
+  group.add(face);
+}
+
+// Lighting fixtures
+function createCeilingLight(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const mat = createMaterial(color, 0.3, 0.1);
+  const r = Math.min(w, d) / 2;
+  const geo = new THREE.CylinderGeometry(r, r * 0.8, h, 24);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.y = 260 - h / 2; // Mounted on ceiling
+  group.add(mesh);
+  // Add actual light
+  const light = new THREE.PointLight(0xfff5e0, 0.8, 500);
+  light.position.y = 260 - h;
+  light.castShadow = true;
+  group.add(light);
+}
+
+function createChandelier(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const mat = createMaterial(color, 0.3, 0.5);
+  // Central body
+  const bodyGeo = new THREE.SphereGeometry(w * 0.15, 12, 12);
+  const body = new THREE.Mesh(bodyGeo, mat);
+  body.position.y = 260 - h * 0.5;
+  group.add(body);
+  // Arms with bulbs
+  const armMat = createMaterial('#888', 0.3, 0.8);
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const r = w * 0.35;
+    const armGeo = new THREE.CylinderGeometry(1.5, 1.5, r, 6);
+    armGeo.rotateZ(Math.PI / 2);
+    const arm = new THREE.Mesh(armGeo, armMat);
+    arm.position.set(Math.cos(a) * r * 0.5, 260 - h * 0.5, Math.sin(a) * r * 0.5);
+    arm.rotation.y = -a;
+    group.add(arm);
+    // Bulb
+    const bulbGeo = new THREE.SphereGeometry(4, 8, 8);
+    const bulbMat = createMaterial('#fffde0', 0.1, 0.0);
+    bulbMat.emissive = new THREE.Color(0xfff5c0);
+    bulbMat.emissiveIntensity = 0.5;
+    const bulb = new THREE.Mesh(bulbGeo, bulbMat);
+    bulb.position.set(Math.cos(a) * r, 260 - h * 0.6, Math.sin(a) * r);
+    group.add(bulb);
+  }
+  // Light
+  const light = new THREE.PointLight(0xfff5e0, 1.2, 800);
+  light.position.y = 260 - h;
+  light.castShadow = true;
+  group.add(light);
+}
+
+function createRecessedLight(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const mat = createMaterial(color, 0.2, 0.1);
+  const r = Math.min(w, d) / 2;
+  const geo = new THREE.CylinderGeometry(r, r, h, 16);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.y = 260 - h / 2;
+  group.add(mesh);
+  const light = new THREE.SpotLight(0xfff5e0, 0.6, 400, Math.PI / 4, 0.5);
+  light.position.y = 258;
+  light.target.position.set(0, 0, 0);
+  group.add(light);
+  group.add(light.target);
+}
+
+function createFloorLamp(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  // Base
+  const baseMat = createMaterial('#333', 0.5, 0.8);
+  const baseGeo = new THREE.CylinderGeometry(w * 0.25, w * 0.3, 5, 16);
+  const base = new THREE.Mesh(baseGeo, baseMat);
+  base.position.y = 2.5;
+  group.add(base);
+  // Pole
+  const poleGeo = new THREE.CylinderGeometry(2, 2, h * 0.85, 8);
+  const pole = new THREE.Mesh(poleGeo, baseMat);
+  pole.position.y = h * 0.425 + 5;
+  group.add(pole);
+  // Shade
+  const shadeMat = createMaterial(color, 0.9, 0.0);
+  const shadeGeo = new THREE.CylinderGeometry(w * 0.3, w * 0.2, h * 0.15, 16, 1, true);
+  const shade = new THREE.Mesh(shadeGeo, shadeMat);
+  shade.position.y = h * 0.925;
+  group.add(shade);
+  const light = new THREE.PointLight(0xfff5e0, 0.5, 300);
+  light.position.y = h * 0.9;
+  group.add(light);
+}
+
+function createTableLamp(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const baseMat = createMaterial('#555', 0.5, 0.5);
+  const baseGeo = new THREE.CylinderGeometry(w * 0.2, w * 0.25, h * 0.15, 12);
+  const base = new THREE.Mesh(baseGeo, baseMat);
+  base.position.y = h * 0.075;
+  group.add(base);
+  const poleGeo = new THREE.CylinderGeometry(1.5, 1.5, h * 0.5, 8);
+  const pole = new THREE.Mesh(poleGeo, baseMat);
+  pole.position.y = h * 0.4;
+  group.add(pole);
+  const shadeMat = createMaterial(color, 0.9, 0.0);
+  const shadeGeo = new THREE.CylinderGeometry(w * 0.35, w * 0.45, h * 0.35, 16, 1, true);
+  const shade = new THREE.Mesh(shadeGeo, shadeMat);
+  shade.position.y = h * 0.825;
+  group.add(shade);
+  const light = new THREE.PointLight(0xfff5e0, 0.3, 200);
+  light.position.y = h * 0.8;
+  group.add(light);
+}
+
+function createWallSconce(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const mat = createMaterial(color, 0.5, 0.2);
+  const geo = new THREE.BoxGeometry(w, h, d);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.y = 180; // Mounted at 180cm
+  group.add(mesh);
+  const light = new THREE.PointLight(0xfff5e0, 0.3, 200);
+  light.position.y = 180;
+  group.add(light);
+}
+
+function createPendantLight(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  // Wire
+  const wireMat = createMaterial('#333', 0.3, 0.8);
+  const wireGeo = new THREE.CylinderGeometry(0.5, 0.5, 60, 4);
+  const wire = new THREE.Mesh(wireGeo, wireMat);
+  wire.position.y = 260 - 30;
+  group.add(wire);
+  // Shade
+  const mat = createMaterial(color, 0.5, 0.2);
+  const r = Math.min(w, d) / 2;
+  const shadeGeo = new THREE.CylinderGeometry(r * 0.3, r, h, 16, 1, true);
+  const shade = new THREE.Mesh(shadeGeo, mat);
+  shade.position.y = 260 - 60 - h / 2;
+  group.add(shade);
+  const light = new THREE.PointLight(0xfff5e0, 0.6, 400);
+  light.position.y = 260 - 60 - h;
+  light.castShadow = true;
+  group.add(light);
 }

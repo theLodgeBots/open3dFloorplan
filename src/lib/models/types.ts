@@ -9,6 +9,7 @@ export interface Wall {
   color: string;
   /** Optional quadratic bezier control point for curved walls */
   curvePoint?: Point;
+  texture?: string;
 }
 
 export interface Room {
@@ -54,6 +55,25 @@ export interface FurnitureItem {
   material?: string; // material name/id
 }
 
+export interface Stair {
+  id: string;
+  position: Point;
+  rotation: number;
+  width: number;   // default 100cm
+  depth: number;   // default 300cm
+  riserCount: number; // default 14
+  direction: 'up' | 'down';
+}
+
+export interface BackgroundImage {
+  dataUrl: string;
+  position: Point;
+  scale: number;
+  opacity: number;
+  rotation: number;
+  locked: boolean;
+}
+
 export interface Floor {
   id: string;
   name: string;
@@ -63,6 +83,8 @@ export interface Floor {
   doors: Door[];
   windows: Window[];
   furniture: FurnitureItem[];
+  stairs: Stair[];
+  backgroundImage?: BackgroundImage;
 }
 
 export interface Project {

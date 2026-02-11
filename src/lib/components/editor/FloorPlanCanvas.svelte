@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { activeFloor, selectedTool, selectedElementId, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall, moveWallParallel, splitWall, snapEnabled } from '$lib/stores/project';
-  import type { Point, Wall, Door, Window as Win, FurnitureItem } from '$lib/models/types';
+  import { activeFloor, selectedTool, selectedElementId, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall, moveWallParallel, splitWall, snapEnabled, placingStair, addStair, moveStair, updateStair, calibrationMode, calibrationPoints, updateBackgroundImage } from '$lib/stores/project';
+  import type { Point, Wall, Door, Window as Win, FurnitureItem, Stair } from '$lib/models/types';
   import type { Floor, Room } from '$lib/models/types';
   import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
   import { getMaterial } from '$lib/utils/materials';
@@ -67,6 +67,12 @@
   let currentDoorType: Door['type'] = $state('single');
   let currentWindowType: Win['type'] = $state('standard');
   let currentSnapEnabled: boolean = $state(true);
+  let isPlacingStair: boolean = $state(false);
+  let draggingStairId: string | null = $state(null);
+  let stairDragOffset: Point = { x: 0, y: 0 };
+  let isCalibrating: boolean = $state(false);
+  let calPoints: Point[] = $state([]);
+  let bgImage: HTMLImageElement | null = $state(null);
 
   // Wall endpoint drag state (includes all connected walls at the corner)
   let draggingWallEndpoint: { wallId: string; endpoint: 'start' | 'end' } | null = $state(null);
@@ -594,6 +600,78 @@
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
+
+    // Wall texture pattern overlay
+    if (w.texture) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(s.x + nx, s.y + ny);
+      ctx.lineTo(e.x + nx, e.y + ny);
+      ctx.lineTo(e.x - nx, e.y - ny);
+      ctx.lineTo(s.x - nx, s.y - ny);
+      ctx.closePath();
+      ctx.clip();
+      ctx.globalAlpha = 0.3;
+      const angle = Math.atan2(dy, dx);
+      const cx = (s.x + e.x) / 2;
+      const cy = (s.y + e.y) / 2;
+      ctx.translate(cx, cy);
+      ctx.rotate(angle);
+      const halfLen = len / 2;
+      const halfThick = thickness / 2;
+      if (w.texture === 'brick' || w.texture === 'exposed-brick') {
+        ctx.strokeStyle = '#00000060';
+        ctx.lineWidth = 0.5;
+        const bh = Math.max(4, 6 * zoom), bw = Math.max(8, 14 * zoom);
+        for (let row = -halfThick; row < halfThick; row += bh) {
+          const offset = (Math.floor(row / bh) % 2) * bw / 2;
+          for (let col = -halfLen + offset; col < halfLen; col += bw) {
+            ctx.strokeRect(col, row, bw - 1, bh - 1);
+          }
+        }
+      } else if (w.texture === 'stone') {
+        ctx.strokeStyle = '#00000050';
+        ctx.lineWidth = 0.5;
+        const ss = Math.max(6, 10 * zoom);
+        for (let row = -halfThick; row < halfThick; row += ss) {
+          for (let col = -halfLen; col < halfLen; col += ss * 1.3) {
+            const ox = (Math.random() - 0.5) * 2;
+            const oy = (Math.random() - 0.5) * 2;
+            ctx.beginPath();
+            ctx.ellipse(col + ss * 0.65 + ox, row + ss * 0.5 + oy, ss * 0.5, ss * 0.35, ox * 0.3, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+        }
+      } else if (w.texture === 'wood-panel') {
+        ctx.strokeStyle = '#00000040';
+        ctx.lineWidth = 0.5;
+        const pw = Math.max(8, 12 * zoom);
+        for (let col = -halfLen; col < halfLen; col += pw) {
+          ctx.beginPath();
+          ctx.moveTo(col, -halfThick);
+          ctx.lineTo(col, halfThick);
+          ctx.stroke();
+        }
+      } else if (w.texture === 'concrete') {
+        ctx.fillStyle = '#00000015';
+        const gs = Math.max(3, 5 * zoom);
+        for (let row = -halfThick; row < halfThick; row += gs) {
+          for (let col = -halfLen; col < halfLen; col += gs) {
+            if (Math.random() > 0.7) ctx.fillRect(col, row, gs * 0.8, gs * 0.8);
+          }
+        }
+      } else if (w.texture === 'tile') {
+        ctx.strokeStyle = '#00000040';
+        ctx.lineWidth = 0.5;
+        const ts = Math.max(6, 10 * zoom);
+        for (let row = -halfThick; row < halfThick; row += ts) {
+          for (let col = -halfLen; col < halfLen; col += ts * 2) {
+            ctx.strokeRect(col, row, ts * 2 - 1, ts - 1);
+          }
+        }
+      }
+      ctx.restore();
+    }
 
     // Dimension line with arrowheads (architectural style)
     const wlen = wallLength(w);
@@ -1633,12 +1711,92 @@
     ctx.restore();
   }
 
+  function drawBackgroundImage() {
+    if (!bgImage || !currentFloor?.backgroundImage) return;
+    const bg = currentFloor.backgroundImage;
+    const s = worldToScreen(bg.position.x, bg.position.y);
+    ctx.save();
+    ctx.globalAlpha = bg.opacity;
+    ctx.translate(s.x, s.y);
+    ctx.rotate(bg.rotation * Math.PI / 180);
+    const sw = bgImage.width * bg.scale * zoom;
+    const sh = bgImage.height * bg.scale * zoom;
+    ctx.drawImage(bgImage, -sw / 2, -sh / 2, sw, sh);
+    ctx.restore();
+  }
+
+  function drawStair(stair: Stair, selected: boolean) {
+    const s = worldToScreen(stair.position.x, stair.position.y);
+    const w = stair.width * zoom;
+    const d = stair.depth * zoom;
+    const angle = (stair.rotation * Math.PI) / 180;
+
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.rotate(angle);
+
+    // Stair outline
+    ctx.fillStyle = selected ? '#bfdbfe80' : '#e5e7eb80';
+    ctx.strokeStyle = selected ? '#3b82f6' : '#555';
+    ctx.lineWidth = selected ? 2 : 1;
+    ctx.fillRect(-w / 2, -d / 2, w, d);
+    ctx.strokeRect(-w / 2, -d / 2, w, d);
+
+    // Tread lines
+    const treadSpacing = d / stair.riserCount;
+    ctx.strokeStyle = selected ? '#3b82f6' : '#888';
+    ctx.lineWidth = 0.5;
+    for (let i = 1; i < stair.riserCount; i++) {
+      const y = -d / 2 + i * treadSpacing;
+      ctx.beginPath();
+      ctx.moveTo(-w / 2, y);
+      ctx.lineTo(w / 2, y);
+      ctx.stroke();
+    }
+
+    // Direction arrow
+    ctx.fillStyle = selected ? '#3b82f6' : '#555';
+    ctx.strokeStyle = selected ? '#3b82f6' : '#555';
+    ctx.lineWidth = 1.5;
+    const arrowY = stair.direction === 'up' ? -d / 2 + d * 0.15 : d / 2 - d * 0.15;
+    const arrowDir = stair.direction === 'up' ? -1 : 1;
+    ctx.beginPath();
+    ctx.moveTo(0, arrowY + arrowDir * d * 0.3);
+    ctx.lineTo(0, arrowY);
+    ctx.stroke();
+    // Arrowhead
+    ctx.beginPath();
+    ctx.moveTo(0, arrowY);
+    ctx.lineTo(-w * 0.1, arrowY + arrowDir * d * 0.08);
+    ctx.lineTo(w * 0.1, arrowY + arrowDir * d * 0.08);
+    ctx.closePath();
+    ctx.fill();
+
+    // Label
+    ctx.fillStyle = '#374151';
+    ctx.font = `${Math.max(8, 10 * zoom)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(stair.direction === 'up' ? 'UP' : 'DN', 0, 0);
+
+    if (selected) {
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 3]);
+      ctx.strokeRect(-w / 2 - 2, -d / 2 - 2, w + 4, d + 4);
+      ctx.setLineDash([]);
+    }
+
+    ctx.restore();
+  }
+
   function draw() {
     if (!ctx) return;
     ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = '#f8f9fa';
     ctx.fillRect(0, 0, width, height);
     drawGrid();
+    drawBackgroundImage();
 
     const floor = currentFloor;
     if (!floor) { requestAnimationFrame(draw); return; }
@@ -1690,6 +1848,45 @@
         ctx.beginPath();
         ctx.moveTo(s.x, s.y);
         ctx.lineTo(e.x, e.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+
+    // Stairs
+    if (floor.stairs) {
+      for (const stair of floor.stairs) {
+        drawStair(stair, stair.id === selId);
+      }
+    }
+
+    // Stair placement preview
+    if (isPlacingStair) {
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      const preview: Stair = { id: 'preview', position: mousePos, rotation: 0, width: 100, depth: 300, riserCount: 14, direction: 'up' };
+      drawStair(preview, false);
+      ctx.restore();
+    }
+
+    // Calibration points
+    if (isCalibrating && calPoints.length > 0) {
+      ctx.fillStyle = '#ef4444';
+      for (const pt of calPoints) {
+        const sp = worldToScreen(pt.x, pt.y);
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (calPoints.length === 2) {
+        const sp1 = worldToScreen(calPoints[0].x, calPoints[0].y);
+        const sp2 = worldToScreen(calPoints[1].x, calPoints[1].y);
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(sp1.x, sp1.y);
+        ctx.lineTo(sp2.x, sp2.y);
         ctx.stroke();
         ctx.setLineDash([]);
       }
@@ -1784,8 +1981,20 @@
     const unsub8 = placingDoorType.subscribe((t) => { currentDoorType = t; });
     const unsub9 = placingWindowType.subscribe((t) => { currentWindowType = t; });
     const unsub10 = snapEnabled.subscribe((v) => { currentSnapEnabled = v; });
+    const unsub11 = placingStair.subscribe((v) => { isPlacingStair = v; });
+    const unsub12 = calibrationMode.subscribe((v) => { isCalibrating = v; });
+    const unsub13 = calibrationPoints.subscribe((pts) => { calPoints = pts; });
+    const unsub14 = activeFloor.subscribe((f) => {
+      if (f?.backgroundImage?.dataUrl && (!bgImage || bgImage.src !== f.backgroundImage.dataUrl)) {
+        const img = new Image();
+        img.onload = () => { bgImage = img; };
+        img.src = f.backgroundImage.dataUrl;
+      } else if (!f?.backgroundImage) {
+        bgImage = null;
+      }
+    });
 
-    return () => { resizeObs.disconnect(); unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); unsub8(); unsub9(); unsub10(); };
+    return () => { resizeObs.disconnect(); unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); unsub8(); unsub9(); unsub10(); unsub11(); unsub12(); unsub13(); unsub14(); };
   });
 
   function zoomToFit() {
@@ -1879,6 +2088,19 @@
     return null;
   }
 
+  function findStairAt(p: Point): Stair | null {
+    if (!currentFloor?.stairs) return null;
+    for (const stair of [...currentFloor.stairs].reverse()) {
+      const dx = p.x - stair.position.x;
+      const dy = p.y - stair.position.y;
+      const angle = -(stair.rotation * Math.PI) / 180;
+      const rx = dx * Math.cos(angle) - dy * Math.sin(angle);
+      const ry = dx * Math.sin(angle) + dy * Math.cos(angle);
+      if (Math.abs(rx) < stair.width / 2 && Math.abs(ry) < stair.depth / 2) return stair;
+    }
+    return null;
+  }
+
   function findDoorAt(p: Point): Door | null {
     if (!currentFloor) return null;
     for (const d of currentFloor.doors) {
@@ -1960,6 +2182,36 @@
     const rect = canvas.getBoundingClientRect();
     const wp = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
     const tool = currentTool;
+
+    // Calibration mode click
+    if (isCalibrating) {
+      calibrationPoints.update(pts => {
+        const newPts = [...pts, { x: wp.x, y: wp.y }];
+        if (newPts.length >= 2) {
+          const dist = Math.hypot(newPts[1].x - newPts[0].x, newPts[1].y - newPts[0].y);
+          const realDist = prompt('Enter the real-world distance between these two points (in cm):');
+          if (realDist && Number(realDist) > 0) {
+            const pixelsPerCm = dist / Number(realDist);
+            if (currentFloor?.backgroundImage) {
+              updateBackgroundImage({ scale: currentFloor.backgroundImage.scale * (1 / pixelsPerCm) });
+            }
+          }
+          calibrationMode.set(false);
+          return [];
+        }
+        return newPts;
+      });
+      return;
+    }
+
+    // Stair placement
+    if (isPlacingStair) {
+      const pos = { x: snap(wp.x), y: snap(wp.y) };
+      const id = addStair(pos);
+      selectedElementId.set(id);
+      placingStair.set(false);
+      return;
+    }
 
     if (tool === 'furniture' && currentPlacingId) {
       const wallSnap = snapFurnitureToWall(wp, currentPlacingId, currentPlacingRotation);
@@ -2061,6 +2313,15 @@
         selectedElementId.set(win.id);
         selectedRoomId.set(null);
         draggingWindowId = win.id;
+        return;
+      }
+      // Check stairs
+      const stair = findStairAt(wp);
+      if (stair) {
+        selectedElementId.set(stair.id);
+        selectedRoomId.set(null);
+        draggingStairId = stair.id;
+        stairDragOffset = { x: wp.x - stair.position.x, y: wp.y - stair.position.y };
         return;
       }
       // Check furniture
@@ -2241,6 +2502,10 @@
         }
       }
     }
+    if (draggingStairId && currentFloor?.stairs) {
+      const basePos = { x: mousePos.x - stairDragOffset.x, y: mousePos.y - stairDragOffset.y };
+      moveStair(draggingStairId, { x: snap(basePos.x), y: snap(basePos.y) });
+    }
     if (draggingFurnitureId) {
       const basePos = { x: mousePos.x - dragOffset.x, y: mousePos.y - dragOffset.y };
       const fi = currentFloor?.furniture.find(f => f.id === draggingFurnitureId);
@@ -2304,6 +2569,7 @@
     draggingWallParallel = null;
     draggingCurveHandle = null;
     draggingFurnitureId = null;
+    draggingStairId = null;
     draggingDoorId = null;
     draggingWindowId = null;
     draggingHandle = null;

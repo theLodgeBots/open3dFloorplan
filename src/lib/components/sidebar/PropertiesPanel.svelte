@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { activeFloor, selectedElementId, selectedRoomId, updateWall, updateDoor, updateWindow, updateRoom, updateFurniture, detectedRoomsStore } from '$lib/stores/project';
+  import { activeFloor, selectedElementId, selectedRoomId, updateWall, updateDoor, updateWindow, updateRoom, updateFurniture, detectedRoomsStore, updateStair, updateBackgroundImage, setBackgroundImage, calibrationMode, calibrationPoints } from '$lib/stores/project';
   import { floorMaterials, wallColors } from '$lib/utils/materials';
   import { getCatalogItem } from '$lib/utils/furnitureCatalog';
-  import type { Floor, Wall, Door, Window as Win, Room, FurnitureItem } from '$lib/models/types';
+  import type { Floor, Wall, Door, Window as Win, Room, FurnitureItem, Stair } from '$lib/models/types';
 
   let floor: Floor | null = $state(null);
   let selId: string | null = $state(null);
@@ -18,6 +18,8 @@
   let selectedDoor = $derived(floor?.doors.find(d => d.id === selId) ?? null);
   let selectedWindow = $derived(floor?.windows.find(w => w.id === selId) ?? null);
   let selectedFurniture = $derived(floor?.furniture.find(f => f.id === selId) ?? null);
+  let selectedStair = $derived(floor?.stairs?.find(s => s.id === selId) ?? null);
+  let hasBgImage = $derived(!!floor?.backgroundImage);
   let selectedRoom = $derived(floor?.rooms.find(r => r.id === selRoomId) ?? detectedRooms.find(r => r.id === selRoomId) ?? null);
 
   // Helper to get the parent wall for selected door/window
@@ -212,7 +214,7 @@
     return match ? match.id : 'custom';
   });
 
-  let hasSelection = $derived(!!selectedWall || !!selectedDoor || !!selectedWindow || !!selectedFurniture || !!selectedRoom);
+  let hasSelection = $derived(!!selectedWall || !!selectedDoor || !!selectedWindow || !!selectedFurniture || !!selectedRoom || !!selectedStair || hasBgImage);
 </script>
 
 {#if hasSelection}
@@ -282,6 +284,25 @@
             <span class="text-xs text-gray-500">Custom:</span>
             <input type="color" value={selectedWall.color} oninput={onWallColor} class="w-8 h-6 rounded border border-gray-200 cursor-pointer" />
           </label>
+        </div>
+      </div>
+      <!-- Wall Textures -->
+      <div>
+        <div class="flex items-center gap-1 mb-2">
+          <span class="text-xs text-gray-500">Wall Texture</span>
+        </div>
+        <div class="grid grid-cols-3 gap-1.5">
+          <button
+            class="p-1.5 rounded-md border-2 text-[10px] text-center {!selectedWall.texture ? 'border-blue-500 ring-1 ring-blue-200' : 'border-gray-200 hover:border-gray-300'}"
+            onclick={() => { if (selectedWall) updateWall(selectedWall.id, { texture: undefined }); }}
+          >None</button>
+          {#each wallColors.filter(wc => wc.texture) as wc}
+            <button
+              class="p-1.5 rounded-md border-2 text-[10px] text-center {selectedWall.texture === wc.id ? 'border-blue-500 ring-1 ring-blue-200' : 'border-gray-200 hover:border-gray-300'}"
+              style="background-color: {wc.color}20"
+              onclick={() => { if (selectedWall) updateWall(selectedWall.id, { texture: wc.id, color: wc.color }); }}
+            >{wc.name}</button>
+          {/each}
         </div>
       </div>
     </div>
@@ -550,6 +571,75 @@
             </button>
           {/each}
         </div>
+      </div>
+    </div>
+
+  {:else if selectedStair}
+    <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+      <span class="w-6 h-6 bg-gray-200 rounded flex items-center justify-center text-xs">🪜</span>
+      Stair Properties
+    </h3>
+    <div class="space-y-3">
+      <label class="block">
+        <span class="text-xs text-gray-500">Width (cm)</span>
+        <input type="number" value={selectedStair.width} oninput={(e) => updateStair(selectedStair!.id, { width: Number((e.target as HTMLInputElement).value) })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+      </label>
+      <label class="block">
+        <span class="text-xs text-gray-500">Depth (cm)</span>
+        <input type="number" value={selectedStair.depth} oninput={(e) => updateStair(selectedStair!.id, { depth: Number((e.target as HTMLInputElement).value) })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+      </label>
+      <label class="block">
+        <span class="text-xs text-gray-500">Risers</span>
+        <input type="number" value={selectedStair.riserCount} min="3" max="30" oninput={(e) => updateStair(selectedStair!.id, { riserCount: Number((e.target as HTMLInputElement).value) })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+      </label>
+      <label class="block">
+        <span class="text-xs text-gray-500">Direction</span>
+        <div class="flex gap-2">
+          <button onclick={() => updateStair(selectedStair!.id, { direction: 'up' })} class="flex-1 px-2 py-1.5 border rounded text-sm transition-colors {selectedStair.direction === 'up' ? 'bg-blue-100 border-blue-400 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}">Up ↑</button>
+          <button onclick={() => updateStair(selectedStair!.id, { direction: 'down' })} class="flex-1 px-2 py-1.5 border rounded text-sm transition-colors {selectedStair.direction === 'down' ? 'bg-blue-100 border-blue-400 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}">Down ↓</button>
+        </div>
+      </label>
+      <label class="block">
+        <span class="text-xs text-gray-500">Rotation (degrees)</span>
+        <input type="number" value={selectedStair.rotation} oninput={(e) => updateStair(selectedStair!.id, { rotation: Number((e.target as HTMLInputElement).value) })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+      </label>
+    </div>
+  {/if}
+
+  <!-- Background Image Controls (always show when bg image exists) -->
+  {#if hasBgImage && floor?.backgroundImage}
+    <div class="mt-4 pt-3 border-t border-gray-200">
+      <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+        <span class="w-6 h-6 bg-blue-100 rounded flex items-center justify-center text-xs">🖼️</span>
+        Background Image
+      </h3>
+      <div class="space-y-3">
+        <label class="block">
+          <span class="text-xs text-gray-500">Opacity</span>
+          <input type="range" min="0.05" max="1" step="0.05" value={floor.backgroundImage.opacity} oninput={(e) => updateBackgroundImage({ opacity: Number((e.target as HTMLInputElement).value) })} class="w-full" />
+        </label>
+        <label class="block">
+          <span class="text-xs text-gray-500">Scale</span>
+          <input type="range" min="0.1" max="5" step="0.05" value={floor.backgroundImage.scale} oninput={(e) => updateBackgroundImage({ scale: Number((e.target as HTMLInputElement).value) })} class="w-full" />
+        </label>
+        <label class="block">
+          <span class="text-xs text-gray-500">Rotation</span>
+          <input type="number" value={floor.backgroundImage.rotation} oninput={(e) => updateBackgroundImage({ rotation: Number((e.target as HTMLInputElement).value) })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        </label>
+        <div class="flex gap-2">
+          <button
+            onclick={() => updateBackgroundImage({ locked: !floor!.backgroundImage!.locked })}
+            class="flex-1 px-2 py-1.5 border rounded text-sm {floor.backgroundImage.locked ? 'bg-amber-100 border-amber-400 text-amber-700' : 'border-gray-200 hover:bg-gray-50'}"
+          >{floor.backgroundImage.locked ? '🔒 Locked' : '🔓 Unlocked'}</button>
+          <button
+            onclick={() => { calibrationPoints.set([]); calibrationMode.set(true); }}
+            class="flex-1 px-2 py-1.5 border rounded text-sm border-gray-200 hover:bg-gray-50"
+          >📏 Set Scale</button>
+        </div>
+        <button
+          onclick={() => setBackgroundImage(undefined)}
+          class="w-full px-2 py-1.5 border border-red-300 rounded text-sm text-red-600 hover:bg-red-50"
+        >Remove Image</button>
       </div>
     </div>
   {/if}

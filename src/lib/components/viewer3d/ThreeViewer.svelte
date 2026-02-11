@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { activeFloor } from '$lib/stores/project';
-  import type { Floor, Wall, Door, Window as Win, Room } from '$lib/models/types';
+  import type { Floor, Wall, Door, Window as Win, Room, Stair } from '$lib/models/types';
+  import { wallColors, type WallColor } from '$lib/utils/materials';
   import * as THREE from 'three';
   import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
   import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
@@ -174,6 +175,116 @@
     controls.update();
   }
 
+  function generateWallTexture(textureId: string, color: string): THREE.CanvasTexture {
+    const size = 512;
+    const c = document.createElement('canvas');
+    c.width = size; c.height = size;
+    const cx = c.getContext('2d')!;
+    cx.fillStyle = color;
+    cx.fillRect(0, 0, size, size);
+    
+    const wc = wallColors.find(w => w.id === textureId);
+    const texType = wc?.texture;
+    
+    if (texType === 'brick') {
+      const bh = 30, bw = 70;
+      cx.strokeStyle = '#00000040';
+      cx.lineWidth = 2;
+      for (let row = 0; row < size; row += bh) {
+        const offset = (Math.floor(row / bh) % 2) * bw / 2;
+        for (let col = -bw; col < size + bw; col += bw) {
+          cx.fillStyle = `hsl(${10 + Math.random() * 10}, ${40 + Math.random() * 20}%, ${35 + Math.random() * 15}%)`;
+          cx.fillRect(col + offset + 1, row + 1, bw - 2, bh - 2);
+          cx.strokeRect(col + offset, row, bw, bh);
+        }
+      }
+    } else if (texType === 'stone') {
+      for (let i = 0; i < 30; i++) {
+        const x = Math.random() * size, y = Math.random() * size;
+        const sw = 40 + Math.random() * 60, sh = 30 + Math.random() * 50;
+        cx.fillStyle = `hsl(0, 0%, ${50 + Math.random() * 30}%)`;
+        cx.beginPath();
+        cx.ellipse(x, y, sw / 2, sh / 2, Math.random() * Math.PI, 0, Math.PI * 2);
+        cx.fill();
+        cx.strokeStyle = '#00000030';
+        cx.lineWidth = 1;
+        cx.stroke();
+      }
+    } else if (texType === 'wood-panel') {
+      for (let x = 0; x < size; x += 60) {
+        cx.fillStyle = `hsl(30, ${30 + Math.random() * 20}%, ${40 + Math.random() * 15}%)`;
+        cx.fillRect(x, 0, 58, size);
+        cx.strokeStyle = '#00000030';
+        cx.lineWidth = 1;
+        cx.strokeRect(x, 0, 58, size);
+        // Wood grain
+        cx.strokeStyle = '#00000015';
+        for (let g = 0; g < 8; g++) {
+          const gy = Math.random() * size;
+          cx.beginPath();
+          cx.moveTo(x + 2, gy);
+          cx.lineTo(x + 56, gy + (Math.random() - 0.5) * 20);
+          cx.stroke();
+        }
+      }
+    } else if (texType === 'concrete') {
+      for (let i = 0; i < 500; i++) {
+        cx.fillStyle = `rgba(0,0,0,${Math.random() * 0.1})`;
+        cx.fillRect(Math.random() * size, Math.random() * size, 2 + Math.random() * 4, 2 + Math.random() * 4);
+      }
+    } else if (texType === 'tile') {
+      const ts = 80;
+      cx.strokeStyle = '#ffffff60';
+      cx.lineWidth = 2;
+      for (let y = 0; y < size; y += ts) {
+        for (let x = 0; x < size; x += ts * 2) {
+          cx.strokeRect(x, y, ts * 2, ts);
+        }
+      }
+    }
+    
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(0.005, 0.005); // Scale for wall dimensions
+    return tex;
+  }
+
+  function buildStairs(floor: Floor) {
+    if (!floor.stairs) return;
+    for (const stair of floor.stairs) {
+      const treadDepth = stair.depth / stair.riserCount;
+      const riserHeight = 260 / stair.riserCount; // Assume standard 260cm floor height
+      const mat = new THREE.MeshStandardMaterial({ color: 0xd4a574, roughness: 0.7 });
+      const sideMat = new THREE.MeshStandardMaterial({ color: 0xb8956a, roughness: 0.8 });
+      
+      const stairGroup = new THREE.Group();
+      
+      for (let i = 0; i < stair.riserCount; i++) {
+        // Tread
+        const treadGeo = new THREE.BoxGeometry(stair.width, 3, treadDepth);
+        const tread = new THREE.Mesh(treadGeo, mat);
+        tread.position.set(0, (i + 1) * riserHeight - 1.5, -stair.depth / 2 + i * treadDepth + treadDepth / 2);
+        tread.castShadow = true;
+        tread.receiveShadow = true;
+        stairGroup.add(tread);
+        
+        // Riser
+        const riserGeo = new THREE.BoxGeometry(stair.width, riserHeight, 2);
+        const riser = new THREE.Mesh(riserGeo, sideMat);
+        riser.position.set(0, i * riserHeight + riserHeight / 2, -stair.depth / 2 + i * treadDepth);
+        riser.castShadow = true;
+        stairGroup.add(riser);
+      }
+      
+      stairGroup.position.set(stair.position.x, 0, stair.position.y);
+      stairGroup.rotation.y = -(stair.rotation * Math.PI) / 180;
+      if (stair.direction === 'down') {
+        stairGroup.rotation.y += Math.PI;
+      }
+      wallGroup.add(stairGroup);
+    }
+  }
+
   function buildWalls(floor: Floor) {
     while (wallGroup.children.length) wallGroup.remove(wallGroup.children[0]);
 
@@ -186,12 +297,20 @@
       const wallColor = wall.color && wall.color !== '#cccccc' && wall.color !== '#888888'
         ? new THREE.Color(wall.color)
         : null;
-      const interiorMat = wallColor
-        ? new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.9 })
-        : defaultInteriorMat;
-      const exteriorMat = wallColor
-        ? new THREE.MeshStandardMaterial({ color: wallColor.clone().offsetHSL(0, -0.05, -0.1), roughness: 0.85 })
-        : defaultExteriorMat;
+      let interiorMat: THREE.MeshStandardMaterial;
+      let exteriorMat: THREE.MeshStandardMaterial;
+      if (wall.texture) {
+        const wallTex = generateWallTexture(wall.texture, wall.color || '#888888');
+        wallTex.repeat.set(0.003, 0.003);
+        interiorMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.85 });
+        exteriorMat = new THREE.MeshStandardMaterial({ map: wallTex.clone(), roughness: 0.85 });
+      } else if (wallColor) {
+        interiorMat = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.9 });
+        exteriorMat = new THREE.MeshStandardMaterial({ color: wallColor.clone().offsetHSL(0, -0.05, -0.1), roughness: 0.85 });
+      } else {
+        interiorMat = defaultInteriorMat;
+        exteriorMat = defaultExteriorMat;
+      }
       // Curved wall handling
       if (wall.curvePoint) {
         const h = wall.height;
@@ -582,6 +701,9 @@
       ceilMesh.receiveShadow = true;
       wallGroup.add(ceilMesh);
     }
+
+    // Stairs
+    buildStairs(floor);
 
     autoCenterCamera(floor);
   }

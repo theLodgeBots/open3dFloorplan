@@ -1,5 +1,5 @@
 import { writable, derived, get } from 'svelte/store';
-import type { Project, Floor, Wall, Door, Window as Win, FurnitureItem, Point } from '$lib/models/types';
+import type { Project, Floor, Wall, Door, Window as Win, FurnitureItem, Point, Stair, BackgroundImage } from '$lib/models/types';
 
 function uid(): string {
   return Math.random().toString(36).slice(2, 10);
@@ -7,7 +7,7 @@ function uid(): string {
 
 export function createDefaultFloor(level = 0): Floor {
   const id = uid();
-  return { id, name: level === 0 ? 'Ground Floor' : `Floor ${level}`, level, walls: [], rooms: [], doors: [], windows: [], furniture: [] };
+  return { id, name: level === 0 ? 'Ground Floor' : `Floor ${level}`, level, walls: [], rooms: [], doors: [], windows: [], furniture: [], stairs: [] };
 }
 
 export function createDefaultProject(name = 'Untitled Project'): Project {
@@ -179,12 +179,71 @@ export function removeFurniture(id: string) {
   });
 }
 
+// Stairs
+export function addStair(position: Point): string {
+  const id = uid();
+  mutate((f) => {
+    if (!f.stairs) f.stairs = [];
+    f.stairs.push({ id, position, rotation: 0, width: 100, depth: 300, riserCount: 14, direction: 'up' });
+  });
+  return id;
+}
+
+export function updateStair(id: string, updates: Partial<Stair>) {
+  mutate((f) => {
+    if (!f.stairs) return;
+    const s = f.stairs.find((s) => s.id === id);
+    if (s) Object.assign(s, updates);
+  });
+}
+
+export function removeStair(id: string) {
+  mutate((f) => {
+    if (!f.stairs) return;
+    f.stairs = f.stairs.filter((s) => s.id !== id);
+  });
+}
+
+export function moveStair(id: string, position: Point) {
+  const p = get(currentProject);
+  if (!p) return;
+  const floor = p.floors.find((f) => f.id === p.activeFloorId);
+  if (!floor || !floor.stairs) return;
+  const s = floor.stairs.find((s) => s.id === id);
+  if (s) {
+    s.position = position;
+    p.updatedAt = new Date();
+    currentProject.set({ ...p });
+  }
+}
+
+// Background Image
+export function setBackgroundImage(bg: BackgroundImage | undefined) {
+  mutate((f) => {
+    f.backgroundImage = bg;
+  });
+}
+
+export function updateBackgroundImage(updates: Partial<BackgroundImage>) {
+  mutate((f) => {
+    if (f.backgroundImage) Object.assign(f.backgroundImage, updates);
+  });
+}
+
+/** Tool for placing stairs */
+export const placingStair = writable<boolean>(false);
+
+/** Scale calibration mode */
+export const calibrationMode = writable<boolean>(false);
+export const calibrationPoints = writable<Point[]>([]);
+
 export function removeElement(id: string) {
   mutate((f) => {
     f.walls = f.walls.filter((w) => w.id !== id);
     f.doors = f.doors.filter((d) => d.id !== id);
     f.windows = f.windows.filter((w) => w.id !== id);
     f.furniture = f.furniture.filter((fi) => fi.id !== id);
+    if (f.stairs) f.stairs = f.stairs.filter((s) => s.id !== id);
   });
 }
 
@@ -242,7 +301,7 @@ export function addFloor(name?: string, copyCurrentLayout = false) {
   if (!p) return;
   snapshot();
   const level = p.floors.length;
-  const floor: Floor = { id: uid(), name: name ?? `Floor ${level}`, level, walls: [], rooms: [], doors: [], windows: [], furniture: [] };
+  const floor: Floor = { id: uid(), name: name ?? `Floor ${level}`, level, walls: [], rooms: [], doors: [], windows: [], furniture: [], stairs: [] };
   if (copyCurrentLayout) {
     const cur = p.floors.find(f => f.id === p.activeFloorId);
     if (cur) {

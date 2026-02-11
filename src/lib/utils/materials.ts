@@ -10,6 +10,7 @@ export interface WallColor {
   id: string;
   name: string;
   color: string;
+  texture?: 'brick' | 'stone' | 'wood-panel' | 'concrete' | 'tile';
 }
 
 export const floorMaterials: FloorMaterial[] = [
@@ -45,6 +46,13 @@ export const wallColors: WallColor[] = [
   { id: 'lavender', name: 'Lavender', color: '#e6e6fa' },
   { id: 'butter-yellow', name: 'Butter Yellow', color: '#fff8dc' },
   { id: 'taupe', name: 'Taupe', color: '#b8a082' },
+  // Textured walls
+  { id: 'red-brick', name: 'Red Brick', color: '#8B4513', texture: 'brick' },
+  { id: 'exposed-brick', name: 'Exposed Brick', color: '#A0522D', texture: 'brick' },
+  { id: 'stone', name: 'Stone', color: '#808080', texture: 'stone' },
+  { id: 'wood-panel', name: 'Wood Panel', color: '#8B6914', texture: 'wood-panel' },
+  { id: 'concrete-block', name: 'Concrete Block', color: '#999999', texture: 'concrete' },
+  { id: 'subway-tile', name: 'Subway Tile', color: '#F0F0F0', texture: 'tile' },
 ];
 
 export function getMaterial(id: string): FloorMaterial {
