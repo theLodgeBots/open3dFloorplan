@@ -10,6 +10,12 @@ export interface Wall {
   /** Optional quadratic bezier control point for curved walls */
   curvePoint?: Point;
   texture?: string;
+  /** Interior-specific overrides (if different from exterior) */
+  interiorColor?: string;
+  interiorTexture?: string;
+  /** Exterior-specific overrides */
+  exteriorColor?: string;
+  exteriorTexture?: string;
 }
 
 export interface Room {

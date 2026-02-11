@@ -14,6 +14,7 @@
   selectedRoomId.subscribe((id) => { selRoomId = id; });
   detectedRoomsStore.subscribe((rooms) => { detectedRooms = rooms; });
 
+  let wallSideTab = $state<'interior' | 'exterior'>('interior');
   let selectedWall = $derived(floor?.walls.find(w => w.id === selId) ?? null);
   let selectedDoor = $derived(floor?.doors.find(d => d.id === selId) ?? null);
   let selectedWindow = $derived(floor?.windows.find(w => w.id === selId) ?? null);
@@ -260,51 +261,89 @@
           {selectedWall.curvePoint ? '◆ On' : '◇ Off'}
         </button>
       </div>
+      <!-- Wall Material Tabs: Interior / Exterior -->
       <div>
-        <div class="flex items-center gap-1 mb-2">
-          <span class="text-xs text-gray-500">Wall Color</span>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-gray-400">
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-            <circle cx="9" cy="9" r="2"/>
-            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
-          </svg>
-        </div>
-        <div class="grid grid-cols-6 gap-1.5">
-          {#each wallColors as wc}
-            <button
-              class="w-7 h-7 rounded-md border-2 hover:border-gray-300 transition-colors {selectedWall.color === wc.color ? 'border-blue-500 ring-1 ring-blue-200' : 'border-gray-200'}"
-              style="background-color: {wc.color}"
-              title={wc.name}
-              onclick={() => { if (selectedWall) updateWall(selectedWall.id, { color: wc.color }); }}
-            ></button>
-          {/each}
-        </div>
-        <div class="mt-2">
-          <label class="flex items-center gap-2">
-            <span class="text-xs text-gray-500">Custom:</span>
-            <input type="color" value={selectedWall.color} oninput={onWallColor} class="w-8 h-6 rounded border border-gray-200 cursor-pointer" />
-          </label>
-        </div>
-      </div>
-      <!-- Wall Textures -->
-      <div>
-        <div class="flex items-center gap-1 mb-2">
-          <span class="text-xs text-gray-500">Wall Texture</span>
-        </div>
-        <div class="grid grid-cols-3 gap-1.5">
+        <div class="flex border-b border-gray-200 mb-3">
           <button
-            class="p-1.5 rounded-md border-2 text-[10px] text-center h-14 {!selectedWall.texture ? 'border-blue-500 ring-1 ring-blue-200' : 'border-gray-200 hover:border-gray-300'}"
-            onclick={() => { if (selectedWall) updateWall(selectedWall.id, { texture: undefined }); }}
-          >None</button>
-          {#each wallColors.filter(wc => wc.texture) as wc}
-            {@const texPath = { 'red-brick': '/textures/brick.jpg', 'exposed-brick': '/textures/exposed-brick.jpg', 'stone': '/textures/stone.jpg', 'wood-panel': '/textures/wood-panel.jpg', 'concrete-block': '/textures/concrete.jpg', 'subway-tile': '/textures/subway-tile.jpg' }[wc.id] ?? ''}
-            <button
-              class="rounded-md border-2 text-[10px] text-center h-14 flex flex-col items-center justify-end overflow-hidden relative {selectedWall.texture === wc.id ? 'border-blue-500 ring-1 ring-blue-200' : 'border-gray-200 hover:border-gray-300'}"
-              style={texPath ? `background-image: url(${texPath}); background-size: cover; background-position: center;` : `background-color: ${wc.color}20`}
-              onclick={() => { if (selectedWall) updateWall(selectedWall.id, { texture: wc.id, color: wc.color }); }}
-            ><span class="bg-white/80 backdrop-blur-sm rounded px-1 py-0.5 mb-0.5 text-gray-700">{wc.name}</span></button>
-          {/each}
+            class="flex-1 py-1.5 text-xs font-medium border-b-2 transition-colors {wallSideTab === 'interior' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-400 hover:text-gray-600'}"
+            onclick={() => wallSideTab = 'interior'}
+          >Interior</button>
+          <button
+            class="flex-1 py-1.5 text-xs font-medium border-b-2 transition-colors {wallSideTab === 'exterior' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-400 hover:text-gray-600'}"
+            onclick={() => wallSideTab = 'exterior'}
+          >Exterior</button>
         </div>
+        {#if wallSideTab === 'interior'}
+          {@const sideColor = selectedWall.interiorColor || selectedWall.color}
+          {@const sideTex = selectedWall.interiorTexture || selectedWall.texture}
+          <div class="space-y-2">
+            <span class="text-xs text-gray-500">Color</span>
+            <div class="grid grid-cols-6 gap-1.5">
+              {#each wallColors as wc}
+                <button
+                  class="w-7 h-7 rounded-md border-2 hover:border-gray-300 transition-colors {sideColor === wc.color ? 'border-blue-500 ring-1 ring-blue-200' : 'border-gray-200'}"
+                  style="background-color: {wc.color}"
+                  title={wc.name}
+                  onclick={() => { if (selectedWall) updateWall(selectedWall.id, { interiorColor: wc.color }); }}
+                ></button>
+              {/each}
+            </div>
+            <label class="flex items-center gap-2">
+              <span class="text-xs text-gray-500">Custom:</span>
+              <input type="color" value={sideColor} oninput={(e) => { if (selectedWall) updateWall(selectedWall.id, { interiorColor: (e.target as HTMLInputElement).value }); }} class="w-8 h-6 rounded border border-gray-200 cursor-pointer" />
+            </label>
+            <span class="text-xs text-gray-500">Texture</span>
+            <div class="grid grid-cols-3 gap-1.5">
+              <button
+                class="p-1.5 rounded-md border-2 text-[10px] text-center h-14 {!sideTex ? 'border-blue-500 ring-1 ring-blue-200' : 'border-gray-200 hover:border-gray-300'}"
+                onclick={() => { if (selectedWall) updateWall(selectedWall.id, { interiorTexture: undefined }); }}
+              >None</button>
+              {#each wallColors.filter(wc => wc.texture) as wc}
+                {@const texPath = ({ 'red-brick': '/textures/brick.jpg', 'exposed-brick': '/textures/exposed-brick.jpg', 'stone': '/textures/stone.jpg', 'wood-panel': '/textures/wood-panel.jpg', 'concrete-block': '/textures/concrete.jpg', 'subway-tile': '/textures/subway-tile.jpg' })[wc.id] ?? ''}
+                <button
+                  class="rounded-md border-2 text-[10px] text-center h-14 flex flex-col items-center justify-end overflow-hidden relative {sideTex === wc.id ? 'border-blue-500 ring-1 ring-blue-200' : 'border-gray-200 hover:border-gray-300'}"
+                  style={texPath ? `background-image: url(${texPath}); background-size: cover; background-position: center;` : `background-color: ${wc.color}20`}
+                  onclick={() => { if (selectedWall) updateWall(selectedWall.id, { interiorTexture: wc.id, interiorColor: wc.color }); }}
+                ><span class="bg-white/80 backdrop-blur-sm rounded px-1 py-0.5 mb-0.5 text-gray-700">{wc.name}</span></button>
+              {/each}
+            </div>
+          </div>
+        {:else}
+          {@const sideColor = selectedWall.exteriorColor || selectedWall.color}
+          {@const sideTex = selectedWall.exteriorTexture || selectedWall.texture}
+          <div class="space-y-2">
+            <span class="text-xs text-gray-500">Color</span>
+            <div class="grid grid-cols-6 gap-1.5">
+              {#each wallColors as wc}
+                <button
+                  class="w-7 h-7 rounded-md border-2 hover:border-gray-300 transition-colors {sideColor === wc.color ? 'border-blue-500 ring-1 ring-blue-200' : 'border-gray-200'}"
+                  style="background-color: {wc.color}"
+                  title={wc.name}
+                  onclick={() => { if (selectedWall) updateWall(selectedWall.id, { exteriorColor: wc.color }); }}
+                ></button>
+              {/each}
+            </div>
+            <label class="flex items-center gap-2">
+              <span class="text-xs text-gray-500">Custom:</span>
+              <input type="color" value={sideColor} oninput={(e) => { if (selectedWall) updateWall(selectedWall.id, { exteriorColor: (e.target as HTMLInputElement).value }); }} class="w-8 h-6 rounded border border-gray-200 cursor-pointer" />
+            </label>
+            <span class="text-xs text-gray-500">Texture</span>
+            <div class="grid grid-cols-3 gap-1.5">
+              <button
+                class="p-1.5 rounded-md border-2 text-[10px] text-center h-14 {!sideTex ? 'border-blue-500 ring-1 ring-blue-200' : 'border-gray-200 hover:border-gray-300'}"
+                onclick={() => { if (selectedWall) updateWall(selectedWall.id, { exteriorTexture: undefined }); }}
+              >None</button>
+              {#each wallColors.filter(wc => wc.texture) as wc}
+                {@const texPath = ({ 'red-brick': '/textures/brick.jpg', 'exposed-brick': '/textures/exposed-brick.jpg', 'stone': '/textures/stone.jpg', 'wood-panel': '/textures/wood-panel.jpg', 'concrete-block': '/textures/concrete.jpg', 'subway-tile': '/textures/subway-tile.jpg' })[wc.id] ?? ''}
+                <button
+                  class="rounded-md border-2 text-[10px] text-center h-14 flex flex-col items-center justify-end overflow-hidden relative {sideTex === wc.id ? 'border-blue-500 ring-1 ring-blue-200' : 'border-gray-200 hover:border-gray-300'}"
+                  style={texPath ? `background-image: url(${texPath}); background-size: cover; background-position: center;` : `background-color: ${wc.color}20`}
+                  onclick={() => { if (selectedWall) updateWall(selectedWall.id, { exteriorTexture: wc.id, exteriorColor: wc.color }); }}
+                ><span class="bg-white/80 backdrop-blur-sm rounded px-1 py-0.5 mb-0.5 text-gray-700">{wc.name}</span></button>
+              {/each}
+            </div>
+          </div>
+        {/if}
       </div>
     </div>
 

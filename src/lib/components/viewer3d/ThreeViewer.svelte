@@ -242,25 +242,38 @@
     const baseboardMat = new THREE.MeshStandardMaterial({ color: 0xe8e0d4, roughness: 0.7 });
 
     for (const wall of floor.walls) {
-      // Use wall color if set (non-default), otherwise use defaults
-      // Default 2D wall colors should use 3D defaults (white interior, light exterior)
+      // Resolve per-side materials: interior and exterior can have independent color/texture
       const DEFAULT_2D_COLORS = ['#cccccc', '#888888', '#444444', '#404040'];
-      const wallColor = wall.color && !DEFAULT_2D_COLORS.includes(wall.color.toLowerCase())
-        ? new THREE.Color(wall.color)
-        : null;
-      let interiorMat: THREE.MeshStandardMaterial;
+      const wLen = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
+
+      function resolveWallMat(color: string | undefined, texture: string | undefined, fallback: THREE.MeshStandardMaterial): THREE.MeshStandardMaterial {
+        if (texture) {
+          const tex = generateWallTexture(texture, color || '#888888', wLen, wall.height);
+          return new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85 });
+        }
+        if (color && !DEFAULT_2D_COLORS.includes(color.toLowerCase())) {
+          return new THREE.MeshStandardMaterial({ color: new THREE.Color(color), roughness: 0.9 });
+        }
+        return fallback;
+      }
+
+      // Interior: use interiorColor/interiorTexture if set, else fall back to wall.color/wall.texture
+      let interiorMat = resolveWallMat(
+        wall.interiorColor || wall.color,
+        wall.interiorTexture || wall.texture,
+        defaultInteriorMat
+      );
+      // Exterior: use exteriorColor/exteriorTexture if set, else fall back to wall.color/wall.texture (auto-darkened)
       let exteriorMat: THREE.MeshStandardMaterial;
-      if (wall.texture) {
-        const wLen = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
-        const wallTex = generateWallTexture(wall.texture, wall.color || '#888888', wLen, wall.height);
-        interiorMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.85 });
+      if (wall.exteriorTexture || wall.exteriorColor) {
+        exteriorMat = resolveWallMat(wall.exteriorColor, wall.exteriorTexture, defaultExteriorMat);
+      } else if (wall.texture) {
         const extTex = generateWallTexture(wall.texture, wall.color || '#888888', wLen, wall.height);
         exteriorMat = new THREE.MeshStandardMaterial({ map: extTex, roughness: 0.85 });
-      } else if (wallColor) {
-        interiorMat = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.9 });
-        exteriorMat = new THREE.MeshStandardMaterial({ color: wallColor.clone().offsetHSL(0, -0.05, -0.1), roughness: 0.85 });
+      } else if (wall.color && !DEFAULT_2D_COLORS.includes(wall.color.toLowerCase())) {
+        const c = new THREE.Color(wall.color).offsetHSL(0, -0.05, -0.1);
+        exteriorMat = new THREE.MeshStandardMaterial({ color: c, roughness: 0.85 });
       } else {
-        interiorMat = defaultInteriorMat;
         exteriorMat = defaultExteriorMat;
       }
       // Curved wall handling
