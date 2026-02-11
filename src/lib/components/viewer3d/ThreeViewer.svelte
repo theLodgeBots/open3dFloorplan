@@ -37,8 +37,8 @@
   let canJump = false;
   let velocity = new THREE.Vector3();
   const direction = new THREE.Vector3();
-  let moveSpeed = $state(400); // cm/s
-  let sprintSpeed = $state(800); // cm/s
+  let moveSpeed = $state(800); // cm/s
+  let sprintSpeed = $state(1600); // cm/s
   let eyeHeight = $state(160); // cm
 
   const WALL_THICKNESS = 15;
