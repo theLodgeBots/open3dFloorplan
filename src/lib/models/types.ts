@@ -22,7 +22,7 @@ export interface Door {
   wallId: string;
   position: number; // 0-1 along wall
   width: number;
-  type: 'single' | 'double';
+  type: 'single' | 'double' | 'sliding' | 'french' | 'pocket' | 'bifold';
   swingDirection: 'left' | 'right';
 }
 
@@ -33,6 +33,7 @@ export interface Window {
   width: number;
   height: number;
   sillHeight: number;
+  type: 'standard' | 'fixed' | 'casement' | 'sliding' | 'bay';
 }
 
 export interface FurnitureItem {

@@ -88,18 +88,35 @@ export function removeWall(id: string) {
   });
 }
 
-export function addDoor(wallId: string, position: number): string {
+export function addDoor(wallId: string, position: number, doorType: Door['type'] = 'single'): string {
   const id = uid();
+  const defaults: Record<Door['type'], { width: number }> = {
+    single: { width: 90 },
+    double: { width: 150 },
+    sliding: { width: 180 },
+    french: { width: 150 },
+    pocket: { width: 90 },
+    bifold: { width: 180 },
+  };
+  const { width } = defaults[doorType];
   mutate((f) => {
-    f.doors.push({ id, wallId, position, width: 90, type: 'single', swingDirection: 'left' });
+    f.doors.push({ id, wallId, position, width, type: doorType, swingDirection: 'left' });
   });
   return id;
 }
 
-export function addWindow(wallId: string, position: number): string {
+export function addWindow(wallId: string, position: number, windowType: import('$lib/models/types').Window['type'] = 'standard'): string {
   const id = uid();
+  const defaults: Record<import('$lib/models/types').Window['type'], { width: number; height: number }> = {
+    standard: { width: 120, height: 120 },
+    fixed: { width: 100, height: 100 },
+    casement: { width: 80, height: 130 },
+    sliding: { width: 180, height: 120 },
+    bay: { width: 200, height: 150 },
+  };
+  const { width, height } = defaults[windowType];
   mutate((f) => {
-    f.windows.push({ id, wallId, position, width: 120, height: 120, sillHeight: 90 });
+    f.windows.push({ id, wallId, position, width, height, sillHeight: 90, type: windowType });
   });
   return id;
 }
@@ -272,3 +289,69 @@ export const detectedRoomsStore = writable<import('$lib/models/types').Room[]>([
 export const placingFurnitureId = writable<string | null>(null);
 /** Rotation angle for furniture being placed */
 export const placingRotation = writable<number>(0);
+/** Door subtype currently selected for placement */
+export const placingDoorType = writable<Door['type']>('single');
+/** Window subtype currently selected for placement */
+export const placingWindowType = writable<import('$lib/models/types').Window['type']>('standard');
+
+/** Duplicate a door onto the same wall */
+export function duplicateDoor(id: string): string | null {
+  const p = get(currentProject);
+  if (!p) return null;
+  const floor = p.floors.find(f => f.id === p.activeFloorId);
+  if (!floor) return null;
+  const d = floor.doors.find(d => d.id === id);
+  if (!d) return null;
+  const newPos = Math.min(1, d.position + 0.1);
+  const newId = uid();
+  mutate(f => {
+    f.doors.push({ ...d, id: newId, position: newPos });
+  });
+  return newId;
+}
+
+/** Duplicate a window onto the same wall */
+export function duplicateWindow(id: string): string | null {
+  const p = get(currentProject);
+  if (!p) return null;
+  const floor = p.floors.find(f => f.id === p.activeFloorId);
+  if (!floor) return null;
+  const w = floor.windows.find(w => w.id === id);
+  if (!w) return null;
+  const newPos = Math.min(1, w.position + 0.1);
+  const newId = uid();
+  mutate(f => {
+    f.windows.push({ ...w, id: newId, position: newPos });
+  });
+  return newId;
+}
+
+/** Duplicate furniture */
+export function duplicateFurniture(id: string): string | null {
+  const p = get(currentProject);
+  if (!p) return null;
+  const floor = p.floors.find(f => f.id === p.activeFloorId);
+  if (!floor) return null;
+  const fi = floor.furniture.find(fi => fi.id === id);
+  if (!fi) return null;
+  const newId = uid();
+  mutate(f => {
+    f.furniture.push({ ...fi, id: newId, position: { x: fi.position.x + 30, y: fi.position.y + 30 } });
+  });
+  return newId;
+}
+
+/** Duplicate a wall */
+export function duplicateWall(id: string): string | null {
+  const p = get(currentProject);
+  if (!p) return null;
+  const floor = p.floors.find(f => f.id === p.activeFloorId);
+  if (!floor) return null;
+  const w = floor.walls.find(w => w.id === id);
+  if (!w) return null;
+  const newId = uid();
+  mutate(f => {
+    f.walls.push({ ...w, id: newId, start: { x: w.start.x + 30, y: w.start.y + 30 }, end: { x: w.end.x + 30, y: w.end.y + 30 } });
+  });
+  return newId;
+}

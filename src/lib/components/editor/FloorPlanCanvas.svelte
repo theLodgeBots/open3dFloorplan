@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { activeFloor, selectedTool, selectedElementId, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, detectedRoomsStore } from '$lib/stores/project';
+  import { activeFloor, selectedTool, selectedElementId, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall } from '$lib/stores/project';
   import type { Point, Wall, Door, Window as Win, FurnitureItem } from '$lib/models/types';
   import type { Floor, Room } from '$lib/models/types';
   import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
@@ -60,6 +60,8 @@
   let currentPlacingId: string | null = $state(null);
   let currentPlacingRotation: number = $state(0);
   let currentTool: string = $state('select');
+  let currentDoorType: Door['type'] = $state('single');
+  let currentWindowType: Win['type'] = $state('standard');
 
   // Wall endpoint drag state
   let draggingWallEndpoint: { wallId: string; endpoint: 'start' | 'end' } | null = $state(null);
@@ -360,6 +362,8 @@
 
     const halfDoor = (door.width / 2) * zoom;
     const thickness = wallThicknessScreen(wall);
+    const wallAngle = Math.atan2(dy, dx);
+    const swingDir = door.swingDirection === 'left' ? 1 : -1;
 
     // Clear wall area for door gap (background color)
     ctx.fillStyle = '#fafafa';
@@ -375,32 +379,7 @@
     ctx.closePath();
     ctx.fill();
 
-    // Door arc (quarter circle) — radius = door panel length (= opening width)
-    const r = door.width * zoom;
-    const wallAngle = Math.atan2(dy, dx);
-    const swingDir = door.swingDirection === 'left' ? 1 : -1;
-    // Hinge at one side of the gap, arc swings from wall direction to perpendicular
-    const hingeX = s.x - ux * halfDoor;
-    const hingeY = s.y - uy * halfDoor;
-    const startAngle = wallAngle;
-    const endAngle = wallAngle + swingDir * (Math.PI / 2);
-
-    // Swing arc — solid thin line (architectural standard)
-    ctx.strokeStyle = '#666';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.arc(hingeX, hingeY, r, Math.min(startAngle, endAngle), Math.max(startAngle, endAngle));
-    ctx.stroke();
-
-    // Door panel line (from hinge to end of arc) — thicker to show the door leaf
-    ctx.lineWidth = 2.5;
-    ctx.strokeStyle = '#444';
-    ctx.beginPath();
-    ctx.moveTo(hingeX, hingeY);
-    ctx.lineTo(hingeX + r * Math.cos(endAngle), hingeY + r * Math.sin(endAngle));
-    ctx.stroke();
-
-    // Door jamb ticks (small perpendicular lines at gap edges)
+    // Door jamb ticks (for all types)
     const jamb = thickness / 2 + 2;
     ctx.strokeStyle = '#444';
     ctx.lineWidth = 1.5;
@@ -413,11 +392,147 @@
       ctx.stroke();
     }
 
-    // Hinge dot
-    ctx.fillStyle = '#444';
-    ctx.beginPath();
-    ctx.arc(hingeX, hingeY, 2.5, 0, Math.PI * 2);
-    ctx.fill();
+    const doorType = door.type || 'single';
+
+    if (doorType === 'single' || doorType === 'pocket') {
+      // Single swing door / pocket door
+      const r = door.width * zoom;
+      const hingeX = s.x - ux * halfDoor;
+      const hingeY = s.y - uy * halfDoor;
+      const startAngle = wallAngle;
+      const endAngle = wallAngle + swingDir * (Math.PI / 2);
+
+      if (doorType === 'pocket') {
+        // Pocket: dashed line showing door recessed into wall
+        ctx.setLineDash([4, 3]);
+        ctx.strokeStyle = '#999';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(s.x - ux * halfDoor, s.y - uy * halfDoor);
+        ctx.lineTo(s.x - ux * halfDoor * 3, s.y - uy * halfDoor * 3);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      } else {
+        // Swing arc
+        ctx.strokeStyle = '#666';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(hingeX, hingeY, r, Math.min(startAngle, endAngle), Math.max(startAngle, endAngle));
+        ctx.stroke();
+      }
+
+      // Door panel line
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#444';
+      ctx.beginPath();
+      ctx.moveTo(hingeX, hingeY);
+      const panelAngle = doorType === 'pocket' ? wallAngle : endAngle;
+      ctx.lineTo(hingeX + r * Math.cos(panelAngle), hingeY + r * Math.sin(panelAngle));
+      ctx.stroke();
+
+      // Hinge dot
+      ctx.fillStyle = '#444';
+      ctx.beginPath();
+      ctx.arc(hingeX, hingeY, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+
+    } else if (doorType === 'double' || doorType === 'french') {
+      // Double/French: two swing arcs from each side
+      const r = halfDoor;
+      for (const side of [-1, 1] as const) {
+        const hx = s.x + ux * halfDoor * side;
+        const hy = s.y + uy * halfDoor * side;
+        const arcSwing = side === -1 ? swingDir : -swingDir;
+        const sa = wallAngle + Math.PI * (side === 1 ? 1 : 0);
+        const ea = sa + arcSwing * (Math.PI / 2);
+
+        ctx.strokeStyle = '#666';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(hx, hy, r, Math.min(sa, ea), Math.max(sa, ea));
+        ctx.stroke();
+
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = '#444';
+        ctx.beginPath();
+        ctx.moveTo(hx, hy);
+        ctx.lineTo(hx + r * Math.cos(ea), hy + r * Math.sin(ea));
+        ctx.stroke();
+
+        // Hinge dot
+        ctx.fillStyle = '#444';
+        ctx.beginPath();
+        ctx.arc(hx, hy, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (doorType === 'french') {
+        // Glass panes: small X marks on each panel
+        ctx.strokeStyle = '#aaa';
+        ctx.lineWidth = 0.5;
+      }
+
+    } else if (doorType === 'sliding') {
+      // Sliding: two overlapping panels with arrow
+      const panelW = halfDoor * 0.9;
+      const offset = thickness * 0.15;
+      // Panel 1 (fixed)
+      ctx.strokeStyle = '#444';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(s.x - ux * halfDoor, s.y - uy * halfDoor);
+      ctx.lineTo(s.x + ux * panelW * 0.1, s.y + uy * panelW * 0.1);
+      ctx.stroke();
+      // Panel 2 (sliding) slightly offset perpendicular
+      ctx.beginPath();
+      ctx.moveTo(s.x - ux * panelW * 0.1 + nx * offset, s.y - uy * panelW * 0.1 + ny * offset);
+      ctx.lineTo(s.x + ux * halfDoor + nx * offset, s.y + uy * halfDoor + ny * offset);
+      ctx.stroke();
+      // Arrow showing slide direction
+      ctx.strokeStyle = '#999';
+      ctx.lineWidth = 1;
+      const arrowY = ny * (thickness * 0.4);
+      const arrowX = nx * (thickness * 0.4);
+      const ax = s.x - arrowX;
+      const ay = s.y - arrowY;
+      ctx.beginPath();
+      ctx.moveTo(ax - ux * halfDoor * 0.5, ay - uy * halfDoor * 0.5);
+      ctx.lineTo(ax + ux * halfDoor * 0.5, ay + uy * halfDoor * 0.5);
+      ctx.stroke();
+      // Arrow head
+      const ahx = ax + ux * halfDoor * 0.5;
+      const ahy = ay + uy * halfDoor * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(ahx - ux * 6 + nx * 4, ahy - uy * 6 + ny * 4);
+      ctx.lineTo(ahx, ahy);
+      ctx.lineTo(ahx - ux * 6 - nx * 4, ahy - uy * 6 - ny * 4);
+      ctx.stroke();
+
+    } else if (doorType === 'bifold') {
+      // Bifold: zigzag folding panels
+      const panelCount = 4;
+      const panelW = (door.width / panelCount) * zoom;
+      const foldAngle = Math.PI / 6; // 30° fold
+      ctx.strokeStyle = '#444';
+      ctx.lineWidth = 2;
+      let px = s.x - ux * halfDoor;
+      let py = s.y - uy * halfDoor;
+      for (let i = 0; i < panelCount; i++) {
+        const angle = wallAngle + (i % 2 === 0 ? foldAngle * swingDir : -foldAngle * swingDir * 0.3);
+        const ex = px + panelW * Math.cos(angle);
+        const ey = py + panelW * Math.sin(angle);
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+        // Fold joint dot
+        ctx.fillStyle = '#666';
+        ctx.beginPath();
+        ctx.arc(px, py, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+        px = ex;
+        py = ey;
+      }
+    }
   }
 
   function drawWindowOnWall(wall: Wall, win: Win) {
@@ -928,8 +1043,10 @@
     const unsub5 = placingRotation.subscribe((r) => { currentPlacingRotation = r; });
     const unsub6 = selectedTool.subscribe((t) => { currentTool = t; });
     const unsub7 = detectedRoomsStore.subscribe((rooms) => { if (rooms.length > 0) detectedRooms = rooms; });
+    const unsub8 = placingDoorType.subscribe((t) => { currentDoorType = t; });
+    const unsub9 = placingWindowType.subscribe((t) => { currentWindowType = t; });
 
-    return () => { resizeObs.disconnect(); unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); };
+    return () => { resizeObs.disconnect(); unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); unsub8(); unsub9(); };
   });
 
   function zoomToFit() {
@@ -1192,13 +1309,13 @@
     } else if (tool === 'door') {
       const wall = findWallAt(wp);
       if (wall) {
-        addDoor(wall.id, positionOnWall(wp, wall));
+        addDoor(wall.id, positionOnWall(wp, wall), currentDoorType);
         selectedTool.set('select');
       }
     } else if (tool === 'window') {
       const wall = findWallAt(wp);
       if (wall) {
-        addWindow(wall.id, positionOnWall(wp, wall));
+        addWindow(wall.id, positionOnWall(wp, wall), currentWindowType);
         selectedTool.set('select');
       }
     }
@@ -1438,6 +1555,78 @@
       {showGrid ? '▦' : '▢'} Grid
     </button>
   </div>
+  <!-- Contextual Toolbar -->
+  {#if currentSelectedId && currentFloor && currentTool === 'select'}
+    {@const el = (() => {
+      const f = currentFloor;
+      const wall = f.walls.find(w => w.id === currentSelectedId);
+      if (wall) {
+        const s = worldToScreen((wall.start.x + wall.end.x) / 2, (wall.start.y + wall.end.y) / 2);
+        return { type: 'wall', pos: s };
+      }
+      const door = f.doors.find(d => d.id === currentSelectedId);
+      if (door) {
+        const w = f.walls.find(w => w.id === door.wallId);
+        if (w) {
+          const s = worldToScreen(w.start.x + (w.end.x - w.start.x) * door.position, w.start.y + (w.end.y - w.start.y) * door.position);
+          return { type: 'door', pos: s, door };
+        }
+      }
+      const win = f.windows.find(w => w.id === currentSelectedId);
+      if (win) {
+        const w = f.walls.find(w => w.id === win.wallId);
+        if (w) {
+          const s = worldToScreen(w.start.x + (w.end.x - w.start.x) * win.position, w.start.y + (w.end.y - w.start.y) * win.position);
+          return { type: 'window', pos: s };
+        }
+      }
+      const furn = f.furniture.find(fi => fi.id === currentSelectedId);
+      if (furn) {
+        const s = worldToScreen(furn.position.x, furn.position.y);
+        return { type: 'furniture', pos: s };
+      }
+      return null;
+    })()}
+    {#if el}
+      <div
+        class="absolute z-40 flex items-center gap-0.5 bg-white rounded-lg shadow-lg border border-gray-200 px-1 py-0.5"
+        style="left: {el.pos.x}px; top: {el.pos.y - 44}px; transform: translateX(-50%);"
+      >
+        <button
+          class="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700"
+          title="Duplicate"
+          onclick={() => {
+            if (!currentSelectedId || !currentFloor) return;
+            let newId: string | null = null;
+            if (el.type === 'door') newId = duplicateDoor(currentSelectedId);
+            else if (el.type === 'window') newId = duplicateWindow(currentSelectedId);
+            else if (el.type === 'furniture') newId = duplicateFurniture(currentSelectedId);
+            else if (el.type === 'wall') newId = duplicateWall(currentSelectedId);
+            if (newId) selectedElementId.set(newId);
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+        </button>
+        {#if el.type === 'door' && el.door}
+          <button
+            class="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700"
+            title="Flip swing"
+            onclick={() => { if (el.door) updateDoor(el.door.id, { swingDirection: el.door.swingDirection === 'left' ? 'right' : 'left' }); }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>
+          </button>
+        {/if}
+        <div class="w-px h-5 bg-gray-200 mx-0.5"></div>
+        <button
+          class="w-7 h-7 flex items-center justify-center rounded hover:bg-red-50 text-gray-400 hover:text-red-600"
+          title="Delete"
+          onclick={() => { if (currentSelectedId) { removeElement(currentSelectedId); selectedElementId.set(null); } }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/></svg>
+        </button>
+      </div>
+    {/if}
+  {/if}
   {#if currentTool === 'wall' && wallStart}
     <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-3 py-1 rounded-full text-xs shadow">
       Click to add wall segment · Double-click to finish · C to close loop · Esc to cancel

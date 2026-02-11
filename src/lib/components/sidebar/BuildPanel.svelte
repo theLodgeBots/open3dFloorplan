@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { selectedTool, placingFurnitureId } from '$lib/stores/project';
+  import { selectedTool, placingFurnitureId, placingDoorType, placingWindowType } from '$lib/stores/project';
   import type { Tool } from '$lib/stores/project';
+  import type { Door, Window as Win } from '$lib/models/types';
   import { roomPresets, placePreset } from '$lib/utils/roomPresets';
   import { furnitureCatalog, furnitureCategories } from '$lib/utils/furnitureCatalog';
   import type { FurnitureDef } from '$lib/utils/furnitureCatalog';
@@ -41,6 +42,38 @@
       return matchSearch && matchCat;
     })
   );
+
+  const doorCatalog: { type: Door['type']; name: string; desc: string; icon: string }[] = [
+    { type: 'single', name: 'Single', desc: '90cm swing', icon: 'M6 3h12v18H6z' },
+    { type: 'double', name: 'Double', desc: '150cm swing', icon: 'M3 3h8v18H3zM13 3h8v18h-8z' },
+    { type: 'sliding', name: 'Sliding', desc: '180cm slide', icon: 'M3 6h18v12H3z' },
+    { type: 'french', name: 'French', desc: '150cm glass', icon: 'M3 3h8v18H3zM13 3h8v18h-8z' },
+    { type: 'pocket', name: 'Pocket', desc: '90cm recess', icon: 'M6 3h12v18H6z' },
+    { type: 'bifold', name: 'Bifold', desc: '180cm fold', icon: 'M3 3h5v18H3zM9 3h6v18H9zM16 3h5v18h-5z' },
+  ];
+
+  const windowCatalog: { type: Win['type']; name: string; desc: string }[] = [
+    { type: 'standard', name: 'Standard', desc: '120×120cm' },
+    { type: 'fixed', name: 'Fixed', desc: '100×100cm' },
+    { type: 'casement', name: 'Casement', desc: '80×130cm' },
+    { type: 'sliding', name: 'Sliding', desc: '180×120cm' },
+    { type: 'bay', name: 'Bay', desc: '200×150cm' },
+  ];
+
+  let selectedDoorType = $state<Door['type']>('single');
+  let selectedWindowType = $state<Win['type']>('standard');
+
+  function setDoorType(type: Door['type']) {
+    selectedDoorType = type;
+    placingDoorType.set(type);
+    setTool('door');
+  }
+
+  function setWindowType(type: Win['type']) {
+    selectedWindowType = type;
+    placingWindowType.set(type);
+    setTool('window');
+  }
 
   const categoryColors: Record<string, string> = {
     'Living Room': '#a78bfa',
@@ -102,30 +135,40 @@
           class="w-full flex items-center justify-between px-1 py-2 mt-3"
           onclick={() => constructionOpen = !constructionOpen}
         >
-          <h3 class="text-xs font-semibold text-gray-400 uppercase">Construction</h3>
+          <h3 class="text-xs font-semibold text-gray-400 uppercase">Doors</h3>
           <span class="text-gray-400 text-xs">{constructionOpen ? '▼' : '▶'}</span>
         </button>
 
         {#if constructionOpen}
+          <div class="grid grid-cols-2 gap-2 mb-3">
+            {#each doorCatalog as dc}
+              <button
+                class="flex flex-col items-center gap-1 p-2.5 rounded-lg border-2 transition-colors {currentTool === 'door' && selectedDoorType === dc.type ? 'border-blue-400 bg-blue-50' : 'border-gray-100 hover:border-gray-200'}"
+                onclick={() => setDoorType(dc.type)}
+              >
+                <div class="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#92400e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="{dc.icon}"/></svg>
+                </div>
+                <span class="text-xs font-medium text-gray-600">{dc.name}</span>
+                <span class="text-[10px] text-gray-400">{dc.desc}</span>
+              </button>
+            {/each}
+          </div>
+
+          <h3 class="text-xs font-semibold text-gray-400 uppercase mb-2">Windows</h3>
           <div class="grid grid-cols-2 gap-2">
-            <button
-              class="flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-colors {currentTool === 'door' ? 'border-blue-400 bg-blue-50' : 'border-gray-100 hover:border-gray-200'}"
-              onclick={() => setTool('door')}
-            >
-              <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#92400e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="1"/><circle cx="15" cy="12" r="1" fill="#92400e"/><path d="M6 21H4V3h2"/></svg>
-              </div>
-              <span class="text-xs font-medium text-gray-600">Door <span class="text-gray-400">D</span></span>
-            </button>
-            <button
-              class="flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-colors {currentTool === 'window' ? 'border-blue-400 bg-blue-50' : 'border-gray-100 hover:border-gray-200'}"
-              onclick={() => setTool('window')}
-            >
-              <div class="w-10 h-10 rounded-lg bg-cyan-50 flex items-center justify-center">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0e7490" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="1"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
-              </div>
-              <span class="text-xs font-medium text-gray-600">Window</span>
-            </button>
+            {#each windowCatalog as wc}
+              <button
+                class="flex flex-col items-center gap-1 p-2.5 rounded-lg border-2 transition-colors {currentTool === 'window' && selectedWindowType === wc.type ? 'border-blue-400 bg-blue-50' : 'border-gray-100 hover:border-gray-200'}"
+                onclick={() => setWindowType(wc.type)}
+              >
+                <div class="w-9 h-9 rounded-lg bg-cyan-50 flex items-center justify-center">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0e7490" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="1"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
+                </div>
+                <span class="text-xs font-medium text-gray-600">{wc.name}</span>
+                <span class="text-[10px] text-gray-400">{wc.desc}</span>
+              </button>
+            {/each}
           </div>
         {/if}
       </div>

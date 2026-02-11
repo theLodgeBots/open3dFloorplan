@@ -38,11 +38,15 @@
   }
   function onDoorType(e: Event) {
     if (!selectedDoor) return;
-    updateDoor(selectedDoor.id, { type: (e.target as HTMLSelectElement).value as 'single' | 'double' });
+    updateDoor(selectedDoor.id, { type: (e.target as HTMLSelectElement).value as Door['type'] });
   }
   function onDoorSwing(e: Event) {
     if (!selectedDoor) return;
     updateDoor(selectedDoor.id, { swingDirection: (e.target as HTMLSelectElement).value as 'left' | 'right' });
+  }
+  function onWindowType(e: Event) {
+    if (!selectedWindow) return;
+    updateWindow(selectedWindow.id, { type: (e.target as HTMLSelectElement).value as Win['type'] });
   }
   function onWindowWidth(e: Event) {
     if (!selectedWindow) return;
@@ -159,6 +163,10 @@
         <select value={selectedDoor.type} onchange={onDoorType} class="w-full px-2 py-1 border border-gray-200 rounded text-sm">
           <option value="single">Single</option>
           <option value="double">Double</option>
+          <option value="sliding">Sliding</option>
+          <option value="french">French</option>
+          <option value="pocket">Pocket</option>
+          <option value="bifold">Bifold</option>
         </select>
       </label>
       <label class="block">
@@ -176,6 +184,16 @@
       Window Properties
     </h3>
     <div class="space-y-3">
+      <label class="block">
+        <span class="text-xs text-gray-500">Type</span>
+        <select value={selectedWindow.type ?? 'standard'} onchange={onWindowType} class="w-full px-2 py-1 border border-gray-200 rounded text-sm">
+          <option value="standard">Standard</option>
+          <option value="fixed">Fixed</option>
+          <option value="casement">Casement</option>
+          <option value="sliding">Sliding</option>
+          <option value="bay">Bay</option>
+        </select>
+      </label>
       <label class="block">
         <span class="text-xs text-gray-500">Width (cm)</span>
         <input type="number" value={selectedWindow.width} oninput={onWindowWidth} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
