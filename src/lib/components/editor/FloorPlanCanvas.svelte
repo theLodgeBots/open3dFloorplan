@@ -144,8 +144,16 @@
     const nx = (-dy / len) * thickness / 2;
     const ny = (dx / len) * thickness / 2;
 
-    ctx.fillStyle = selected ? '#93c5fd' : '#6b7280';
-    ctx.strokeStyle = selected ? '#3b82f6' : '#374151';
+    // Drop shadow for depth
+    if (!selected) {
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.15)';
+      ctx.shadowBlur = 4 * zoom;
+      ctx.shadowOffsetX = 1;
+      ctx.shadowOffsetY = 1;
+    }
+    ctx.fillStyle = selected ? '#93c5fd' : '#4b5563';
+    ctx.strokeStyle = selected ? '#3b82f6' : '#1f2937';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(s.x + nx, s.y + ny);
@@ -155,6 +163,7 @@
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
+    if (!selected) ctx.restore();
 
     // Endpoint circles
     ctx.fillStyle = selected ? '#3b82f6' : '#9ca3af';
