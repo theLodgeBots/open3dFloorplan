@@ -864,6 +864,14 @@
       measuring = !measuring;
       if (!measuring) { measureStart = null; measureEnd = null; }
     }
+    // 'C' to close wall loop back to first point
+    if ((e.key === 'c' || e.key === 'C') && wallStart && wallSequenceFirst) {
+      if (Math.hypot(wallStart.x - wallSequenceFirst.x, wallStart.y - wallSequenceFirst.y) > 5) {
+        addWall(wallStart, wallSequenceFirst);
+        wallStart = null;
+        wallSequenceFirst = null;
+      }
+    }
     if (e.code === 'Escape') {
       wallStart = null; wallSequenceFirst = null;
       placingFurnitureId.set(null);
@@ -931,7 +939,7 @@
   </div>
   {#if currentTool === 'wall' && wallStart}
     <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-3 py-1 rounded-full text-xs shadow">
-      Click to add wall segment · Double-click to finish · Esc to cancel
+      Click to add wall segment · Double-click to finish · C to close loop · Esc to cancel
     </div>
   {/if}
   {#if currentPlacingId && currentTool === 'furniture'}

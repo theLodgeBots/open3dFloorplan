@@ -94,7 +94,7 @@
 
           <div class="font-semibold text-gray-400 col-span-2 mt-3 mb-1 uppercase text-xs">Walls</div>
           <div class="text-gray-600">Finish wall chain</div><div class="font-mono text-slate-800">Double-click</div>
-          <div class="text-gray-600">Close wall loop</div><div class="font-mono text-slate-800">Click start point</div>
+          <div class="text-gray-600">Close wall loop</div><div class="font-mono text-slate-800">C / Click start point</div>
         </div>
         <p class="text-xs text-gray-400 mt-4 text-center">Press <span class="font-mono">?</span> or <span class="font-mono">Esc</span> to close</p>
       </div>
