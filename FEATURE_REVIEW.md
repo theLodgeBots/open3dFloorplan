@@ -123,7 +123,7 @@ Systematic comparison. Each feature gets: ✅ done, 🔧 needs work, ❌ missing
 16. ✅ Improved lighting — 3-point setup: warm key sun, cool fill light, rim backlight; hemisphere boost
 
 ### Phase 5: Advanced
-17. Door/window catalog (types)
-18. Contextual toolbar
+17. ✅ Door/window catalog — 6 door types (single, double, sliding, french, pocket, bifold) + 5 window types (standard, fixed, casement, sliding, bay) with catalog grid in BuildPanel, unique 2D renderings per type, type selector in PropertiesPanel
+18. ✅ Contextual toolbar — floating toolbar appears above selected elements with duplicate, delete, and flip-swing (doors) buttons
 19. Rulers on canvas edges
 20. Curved walls
