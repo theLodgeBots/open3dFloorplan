@@ -10,6 +10,7 @@
   import { createFurnitureModel } from '$lib/utils/furnitureModels3d';
   import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
   import { getMaterial } from '$lib/utils/materials';
+  import { getWallTextureCanvas } from '$lib/utils/textureGenerator';
 
   let container: HTMLDivElement;
   let renderer: THREE.WebGLRenderer;
@@ -176,76 +177,21 @@
   }
 
   function generateWallTexture(textureId: string, color: string): THREE.CanvasTexture {
-    const size = 512;
-    const c = document.createElement('canvas');
-    c.width = size; c.height = size;
-    const cx = c.getContext('2d')!;
-    cx.fillStyle = color;
-    cx.fillRect(0, 0, size, size);
-    
-    const wc = wallColors.find(w => w.id === textureId);
-    const texType = wc?.texture;
-    
-    if (texType === 'brick') {
-      const bh = 30, bw = 70;
-      cx.strokeStyle = '#00000040';
-      cx.lineWidth = 2;
-      for (let row = 0; row < size; row += bh) {
-        const offset = (Math.floor(row / bh) % 2) * bw / 2;
-        for (let col = -bw; col < size + bw; col += bw) {
-          cx.fillStyle = `hsl(${10 + Math.random() * 10}, ${40 + Math.random() * 20}%, ${35 + Math.random() * 15}%)`;
-          cx.fillRect(col + offset + 1, row + 1, bw - 2, bh - 2);
-          cx.strokeRect(col + offset, row, bw, bh);
-        }
-      }
-    } else if (texType === 'stone') {
-      for (let i = 0; i < 30; i++) {
-        const x = Math.random() * size, y = Math.random() * size;
-        const sw = 40 + Math.random() * 60, sh = 30 + Math.random() * 50;
-        cx.fillStyle = `hsl(0, 0%, ${50 + Math.random() * 30}%)`;
-        cx.beginPath();
-        cx.ellipse(x, y, sw / 2, sh / 2, Math.random() * Math.PI, 0, Math.PI * 2);
-        cx.fill();
-        cx.strokeStyle = '#00000030';
-        cx.lineWidth = 1;
-        cx.stroke();
-      }
-    } else if (texType === 'wood-panel') {
-      for (let x = 0; x < size; x += 60) {
-        cx.fillStyle = `hsl(30, ${30 + Math.random() * 20}%, ${40 + Math.random() * 15}%)`;
-        cx.fillRect(x, 0, 58, size);
-        cx.strokeStyle = '#00000030';
-        cx.lineWidth = 1;
-        cx.strokeRect(x, 0, 58, size);
-        // Wood grain
-        cx.strokeStyle = '#00000015';
-        for (let g = 0; g < 8; g++) {
-          const gy = Math.random() * size;
-          cx.beginPath();
-          cx.moveTo(x + 2, gy);
-          cx.lineTo(x + 56, gy + (Math.random() - 0.5) * 20);
-          cx.stroke();
-        }
-      }
-    } else if (texType === 'concrete') {
-      for (let i = 0; i < 500; i++) {
-        cx.fillStyle = `rgba(0,0,0,${Math.random() * 0.1})`;
-        cx.fillRect(Math.random() * size, Math.random() * size, 2 + Math.random() * 4, 2 + Math.random() * 4);
-      }
-    } else if (texType === 'tile') {
-      const ts = 80;
-      cx.strokeStyle = '#ffffff60';
-      cx.lineWidth = 2;
-      for (let y = 0; y < size; y += ts) {
-        for (let x = 0; x < size; x += ts * 2) {
-          cx.strokeRect(x, y, ts * 2, ts);
-        }
-      }
+    const canvas = getWallTextureCanvas(textureId, color);
+    if (!canvas) {
+      // Fallback: solid color
+      const c = document.createElement('canvas');
+      c.width = 64; c.height = 64;
+      const cx = c.getContext('2d')!;
+      cx.fillStyle = color;
+      cx.fillRect(0, 0, 64, 64);
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      return tex;
     }
-    
-    const tex = new THREE.CanvasTexture(c);
+    const tex = new THREE.CanvasTexture(canvas);
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(0.005, 0.005); // Scale for wall dimensions
+    tex.repeat.set(0.004, 0.004); // Scale for wall dimensions in cm
     return tex;
   }
 

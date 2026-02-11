@@ -8,6 +8,7 @@
   import { getCatalogItem } from '$lib/utils/furnitureCatalog';
   import { drawFurnitureIcon } from '$lib/utils/furnitureIcons';
   import { handleGlobalShortcut } from '$lib/utils/shortcuts';
+  import { getWallTextureCanvas } from '$lib/utils/textureGenerator';
 
   let canvas: HTMLCanvasElement;
   let ctx: CanvasRenderingContext2D;
@@ -616,63 +617,22 @@
       ctx.lineTo(s.x - nx, s.y - ny);
       ctx.closePath();
       ctx.clip();
-      ctx.globalAlpha = 0.3;
-      const angle = Math.atan2(dy, dx);
-      const cx = (s.x + e.x) / 2;
-      const cy = (s.y + e.y) / 2;
-      ctx.translate(cx, cy);
-      ctx.rotate(angle);
-      const halfLen = len / 2;
-      const halfThick = thickness / 2;
-      if (w.texture === 'brick' || w.texture === 'exposed-brick') {
-        ctx.strokeStyle = '#00000060';
-        ctx.lineWidth = 0.5;
-        const bh = Math.max(4, 6 * zoom), bw = Math.max(8, 14 * zoom);
-        for (let row = -halfThick; row < halfThick; row += bh) {
-          const offset = (Math.floor(row / bh) % 2) * bw / 2;
-          for (let col = -halfLen + offset; col < halfLen; col += bw) {
-            ctx.strokeRect(col, row, bw - 1, bh - 1);
-          }
-        }
-      } else if (w.texture === 'stone') {
-        ctx.strokeStyle = '#00000050';
-        ctx.lineWidth = 0.5;
-        const ss = Math.max(6, 10 * zoom);
-        for (let row = -halfThick; row < halfThick; row += ss) {
-          for (let col = -halfLen; col < halfLen; col += ss * 1.3) {
-            const ox = (Math.random() - 0.5) * 2;
-            const oy = (Math.random() - 0.5) * 2;
-            ctx.beginPath();
-            ctx.ellipse(col + ss * 0.65 + ox, row + ss * 0.5 + oy, ss * 0.5, ss * 0.35, ox * 0.3, 0, Math.PI * 2);
-            ctx.stroke();
-          }
-        }
-      } else if (w.texture === 'wood-panel') {
-        ctx.strokeStyle = '#00000040';
-        ctx.lineWidth = 0.5;
-        const pw = Math.max(8, 12 * zoom);
-        for (let col = -halfLen; col < halfLen; col += pw) {
-          ctx.beginPath();
-          ctx.moveTo(col, -halfThick);
-          ctx.lineTo(col, halfThick);
-          ctx.stroke();
-        }
-      } else if (w.texture === 'concrete') {
-        ctx.fillStyle = '#00000015';
-        const gs = Math.max(3, 5 * zoom);
-        for (let row = -halfThick; row < halfThick; row += gs) {
-          for (let col = -halfLen; col < halfLen; col += gs) {
-            if (Math.random() > 0.7) ctx.fillRect(col, row, gs * 0.8, gs * 0.8);
-          }
-        }
-      } else if (w.texture === 'tile') {
-        ctx.strokeStyle = '#00000040';
-        ctx.lineWidth = 0.5;
-        const ts = Math.max(6, 10 * zoom);
-        for (let row = -halfThick; row < halfThick; row += ts) {
-          for (let col = -halfLen; col < halfLen; col += ts * 2) {
-            ctx.strokeRect(col, row, ts * 2 - 1, ts - 1);
-          }
+
+      const texCanvas = getWallTextureCanvas(w.texture, w.color);
+      if (texCanvas) {
+        // Use the high-res texture as a pattern
+        const scale = zoom * 0.25; // scale texture to match zoom
+        ctx.globalAlpha = 0.6;
+        const angle = Math.atan2(dy, dx);
+        const cxp = (s.x + e.x) / 2;
+        const cyp = (s.y + e.y) / 2;
+        ctx.translate(cxp, cyp);
+        ctx.rotate(angle);
+        ctx.scale(scale, scale);
+        const pat = ctx.createPattern(texCanvas, 'repeat');
+        if (pat) {
+          ctx.fillStyle = pat;
+          ctx.fillRect(-len / 2 / scale, -thickness / 2 / scale, len / scale, thickness / scale);
         }
       }
       ctx.restore();
