@@ -26,7 +26,12 @@
   let moveBackward = false;
   let moveLeft = false;
   let moveRight = false;
+  let lookLeft = false;
+  let lookRight = false;
+  let lookUp = false;
+  let lookDown = false;
   let isShiftHeld = false;
+  const LOOK_SPEED = 2.0; // radians/s
   let canJump = false;
   let velocity = new THREE.Vector3();
   const direction = new THREE.Vector3();
@@ -635,29 +640,19 @@
     if (!walkthroughMode) return;
     
     switch (event.code) {
-      case 'ArrowUp':
-      case 'KeyW':
-        moveForward = true;
-        break;
-      case 'ArrowLeft':
-      case 'KeyA':
-        moveLeft = true;
-        break;
-      case 'ArrowDown':
-      case 'KeyS':
-        moveBackward = true;
-        break;
-      case 'ArrowRight':
-      case 'KeyD':
-        moveRight = true;
-        break;
+      // Arrows = move
+      case 'ArrowUp': moveForward = true; break;
+      case 'ArrowDown': moveBackward = true; break;
+      case 'ArrowLeft': moveLeft = true; break;
+      case 'ArrowRight': moveRight = true; break;
+      // WASD = look
+      case 'KeyW': lookUp = true; break;
+      case 'KeyS': lookDown = true; break;
+      case 'KeyA': lookLeft = true; break;
+      case 'KeyD': lookRight = true; break;
       case 'ShiftLeft':
-      case 'ShiftRight':
-        isShiftHeld = true;
-        break;
-      case 'Escape':
-        exitWalkthroughMode();
-        break;
+      case 'ShiftRight': isShiftHeld = true; break;
+      case 'Escape': exitWalkthroughMode(); break;
     }
   }
 
@@ -665,26 +660,16 @@
     if (!walkthroughMode) return;
     
     switch (event.code) {
+      case 'ArrowUp': moveForward = false; break;
+      case 'ArrowDown': moveBackward = false; break;
+      case 'ArrowLeft': moveLeft = false; break;
+      case 'ArrowRight': moveRight = false; break;
+      case 'KeyW': lookUp = false; break;
+      case 'KeyS': lookDown = false; break;
+      case 'KeyA': lookLeft = false; break;
+      case 'KeyD': lookRight = false; break;
       case 'ShiftLeft':
-      case 'ShiftRight':
-        isShiftHeld = false;
-        break;
-      case 'ArrowUp':
-      case 'KeyW':
-        moveForward = false;
-        break;
-      case 'ArrowLeft':
-      case 'KeyA':
-        moveLeft = false;
-        break;
-      case 'ArrowDown':
-      case 'KeyS':
-        moveBackward = false;
-        break;
-      case 'ArrowRight':
-      case 'KeyD':
-        moveRight = false;
-        break;
+      case 'ShiftRight': isShiftHeld = false; break;
     }
   }
   
@@ -746,6 +731,7 @@
     controls.enabled = true;
     velocity.set(0, 0, 0);
     moveForward = moveBackward = moveLeft = moveRight = false;
+    lookLeft = lookRight = lookUp = lookDown = false;
     
     if (document.pointerLockElement) {
       document.exitPointerLock();
@@ -772,6 +758,16 @@
       pointerControls.moveRight(-velocity.x * delta);
       pointerControls.moveForward(-velocity.z * delta);
       camera.position.y = eyeHeight; // Keep at eye height
+
+      // WASD look rotation
+      if (lookLeft || lookRight) {
+        const yaw = ((lookLeft ? 1 : 0) - (lookRight ? 1 : 0)) * LOOK_SPEED * delta;
+        camera.rotation.y += yaw;
+      }
+      if (lookUp || lookDown) {
+        const pitch = ((lookUp ? 1 : 0) - (lookDown ? 1 : 0)) * LOOK_SPEED * delta;
+        camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x + pitch));
+      }
     } else {
       controls.update();
     }
@@ -878,7 +874,7 @@
     <!-- Help Text -->
     <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
       <div class="bg-black/70 text-white text-sm px-4 py-2 rounded-lg backdrop-blur-sm">
-        WASD/Arrows to move • Mouse to look • Shift to sprint • ESC to exit
+        WASD to look • Arrows to move • Mouse to look • Shift to sprint • ESC to exit
       </div>
     </div>
   {/if}
