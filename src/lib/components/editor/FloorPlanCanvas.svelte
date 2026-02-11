@@ -164,7 +164,7 @@
     const wlen = wallLength(w);
     const mx = (s.x + e.x) / 2;
     const my = (s.y + e.y) / 2;
-    const offsetDist = thickness / 2 + 14;
+    const offsetDist = thickness / 2 + 18;
     const nnx = (-dy / len);
     const nny = (dx / len);
     const dimX = mx + nnx * offsetDist;
@@ -174,7 +174,7 @@
     ctx.font = `${Math.max(10, 11 * zoom)}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const dimLabel = `${Math.round(wlen)} cm`;
+    const dimLabel = `${(wlen / 100).toFixed(2)} m`;
     const dimMetrics = ctx.measureText(dimLabel);
     const halfW = dimMetrics.width / 2;
     let finalDimX = dimX;
@@ -225,9 +225,9 @@
     const startAngle = wallAngle;
     const endAngle = wallAngle + swingDir * (Math.PI / 2);
 
-    ctx.strokeStyle = '#f59e0b';
+    ctx.strokeStyle = '#555';
     ctx.lineWidth = 1.5;
-    ctx.setLineDash([3, 3]);
+    ctx.setLineDash([4, 3]);
     ctx.beginPath();
     ctx.arc(hingeX, hingeY, r, Math.min(startAngle, endAngle), Math.max(startAngle, endAngle));
     ctx.stroke();
@@ -235,16 +235,16 @@
 
     // Door panel line (from hinge to end of arc)
     ctx.lineWidth = 2;
-    ctx.strokeStyle = '#f59e0b';
+    ctx.strokeStyle = '#555';
     ctx.beginPath();
     ctx.moveTo(hingeX, hingeY);
     ctx.lineTo(hingeX + r * Math.cos(endAngle), hingeY + r * Math.sin(endAngle));
     ctx.stroke();
 
     // Hinge dot
-    ctx.fillStyle = '#f59e0b';
+    ctx.fillStyle = '#555';
     ctx.beginPath();
-    ctx.arc(hingeX, hingeY, 3, 0, Math.PI * 2);
+    ctx.arc(hingeX, hingeY, 2.5, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -277,17 +277,25 @@
     ctx.closePath();
     ctx.fill();
 
-    // Two parallel lines (glass panes) across the gap
-    const gap = Math.max(2, thickness * 0.2);
-    ctx.strokeStyle = '#06b6d4';
-    ctx.lineWidth = 2;
+    // Three parallel lines (outer two = wall edges, middle = glass pane)
+    const gap = Math.max(2, thickness * 0.25);
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 1.5;
+    // Outer line 1
     ctx.beginPath();
     ctx.moveTo(s.x - ux * hw + nx * gap, s.y - uy * hw + ny * gap);
     ctx.lineTo(s.x + ux * hw + nx * gap, s.y + uy * hw + ny * gap);
     ctx.stroke();
+    // Outer line 2
     ctx.beginPath();
     ctx.moveTo(s.x - ux * hw - nx * gap, s.y - uy * hw - ny * gap);
     ctx.lineTo(s.x + ux * hw - nx * gap, s.y + uy * hw - ny * gap);
+    ctx.stroke();
+    // Middle glass line
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(s.x - ux * hw, s.y - uy * hw);
+    ctx.lineTo(s.x + ux * hw, s.y + uy * hw);
     ctx.stroke();
     // Connecting end caps
     ctx.lineWidth = 1;
@@ -468,26 +476,26 @@
   }
 
   const ROOM_FILLS_BY_TYPE: Record<string, string> = {
-    'Living Room': 'rgba(96, 165, 250, 0.20)',   // blue
-    'Bedroom':     'rgba(167, 139, 250, 0.20)',   // violet
-    'Kitchen':     'rgba(251, 191, 36, 0.20)',    // amber
-    'Bathroom':    'rgba(45, 212, 191, 0.20)',    // teal
-    'Dining Room': 'rgba(251, 146, 60, 0.20)',    // orange
-    'Office':      'rgba(52, 211, 153, 0.20)',    // green
-    'Hallway':     'rgba(156, 163, 175, 0.15)',   // gray
-    'Closet':      'rgba(244, 114, 182, 0.15)',   // pink
-    'Laundry':     'rgba(129, 140, 248, 0.18)',   // indigo
-    'Garage':      'rgba(163, 163, 163, 0.18)',   // neutral
+    'Living Room': 'rgba(96, 165, 250, 0.08)',   // blue
+    'Bedroom':     'rgba(167, 139, 250, 0.08)',   // violet
+    'Kitchen':     'rgba(251, 191, 36, 0.08)',    // amber
+    'Bathroom':    'rgba(45, 212, 191, 0.08)',    // teal
+    'Dining Room': 'rgba(251, 146, 60, 0.08)',    // orange
+    'Office':      'rgba(52, 211, 153, 0.08)',    // green
+    'Hallway':     'rgba(156, 163, 175, 0.06)',   // gray
+    'Closet':      'rgba(244, 114, 182, 0.06)',   // pink
+    'Laundry':     'rgba(129, 140, 248, 0.08)',   // indigo
+    'Garage':      'rgba(163, 163, 163, 0.08)',   // neutral
   };
   const ROOM_FILLS_DEFAULT = [
-    'rgba(167, 139, 250, 0.18)',
-    'rgba(96, 165, 250, 0.18)',
-    'rgba(52, 211, 153, 0.18)',
-    'rgba(251, 191, 36, 0.18)',
-    'rgba(248, 113, 113, 0.18)',
-    'rgba(244, 114, 182, 0.18)',
-    'rgba(45, 212, 191, 0.18)',
-    'rgba(251, 146, 60, 0.18)',
+    'rgba(167, 139, 250, 0.07)',
+    'rgba(96, 165, 250, 0.07)',
+    'rgba(52, 211, 153, 0.07)',
+    'rgba(251, 191, 36, 0.07)',
+    'rgba(248, 113, 113, 0.07)',
+    'rgba(244, 114, 182, 0.07)',
+    'rgba(45, 212, 191, 0.07)',
+    'rgba(251, 146, 60, 0.07)',
   ];
 
   function getRoomFill(room: Room, index: number): string {
@@ -519,14 +527,11 @@
 
       const centroid = roomCentroid(poly);
       const sc = worldToScreen(centroid.x, centroid.y);
-      ctx.fillStyle = '#374151';
-      ctx.font = `bold ${Math.max(11, 13 * zoom)}px sans-serif`;
+      ctx.fillStyle = '#9ca3af';
+      ctx.font = `${Math.max(11, 13 * zoom)}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(room.name, sc.x, sc.y - 8 * zoom);
-      ctx.font = `${Math.max(9, 11 * zoom)}px sans-serif`;
-      ctx.fillStyle = '#6b7280';
-      ctx.fillText(`${room.area} m²`, sc.x, sc.y + 10 * zoom);
+      ctx.fillText(`${room.name} (${room.area} m²)`, sc.x, sc.y);
     }
   }
 
