@@ -114,7 +114,7 @@ Systematic comparison. Each feature gets: ✅ done, 🔧 needs work, ❌ missing
 9. ✅ Drag doors/windows along walls — click to select, drag to slide along wall
 10. ✅ Furniture snap-to-wall — auto-snaps edge flush to wall + aligns rotation, green highlight indicator
 11. ✅ Selection handles — resize handles at 4 corners (drag to scale), rotation handle above (drag to rotate with 15° snap), dashed selection border
-12. Wall endpoint drag-to-resize
+12. ✅ Wall endpoint drag-to-resize — grab selected wall endpoints to move them, with magnetic snap + angle snapping
 
 ### Phase 4: 3D Enhancements
 13. Better door/window openings in 3D
