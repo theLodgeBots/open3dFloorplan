@@ -42,7 +42,7 @@
 <svelte:window on:keydown={(e) => { if (e.key === '?' && !e.ctrlKey && !e.metaKey) { showHelp = !showHelp; e.preventDefault(); } if (e.key === 'Escape' && showHelp) { showHelp = false; } }} />
 
 {#if ready}
-  <div class="h-screen flex flex-col">
+  <div class="h-screen flex flex-col overflow-hidden">
     <TopBar />
     <div class="flex flex-1 overflow-hidden">
       <BuildPanel />
