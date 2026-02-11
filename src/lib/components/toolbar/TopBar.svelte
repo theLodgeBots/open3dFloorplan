@@ -190,6 +190,7 @@
     {/if}
   </div>
 
+  <span class="text-[10px] text-white/40">auto-saved</span>
   <button onclick={save} class="px-3 py-1.5 text-sm bg-white text-slate-800 font-semibold rounded-lg hover:bg-blue-50 transition-colors shadow-sm">
     Save
   </button>
