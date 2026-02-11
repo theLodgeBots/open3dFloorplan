@@ -1,20 +1,22 @@
 <script lang="ts">
-  import { activeFloor, selectedElementId, selectedRoomId, updateWall, updateDoor, updateWindow, updateRoom } from '$lib/stores/project';
+  import { activeFloor, selectedElementId, selectedRoomId, updateWall, updateDoor, updateWindow, updateRoom, detectedRoomsStore } from '$lib/stores/project';
   import { floorMaterials, wallColors } from '$lib/utils/materials';
   import type { Floor, Wall, Door, Window as Win, Room } from '$lib/models/types';
 
   let floor: Floor | null = $state(null);
   let selId: string | null = $state(null);
   let selRoomId: string | null = $state(null);
+  let detectedRooms: Room[] = $state([]);
 
   activeFloor.subscribe((f) => { floor = f; });
   selectedElementId.subscribe((id) => { selId = id; });
   selectedRoomId.subscribe((id) => { selRoomId = id; });
+  detectedRoomsStore.subscribe((rooms) => { detectedRooms = rooms; });
 
   let selectedWall = $derived(floor?.walls.find(w => w.id === selId) ?? null);
   let selectedDoor = $derived(floor?.doors.find(d => d.id === selId) ?? null);
   let selectedWindow = $derived(floor?.windows.find(w => w.id === selId) ?? null);
-  let selectedRoom = $derived(floor?.rooms.find(r => r.id === selRoomId) ?? null);
+  let selectedRoom = $derived(floor?.rooms.find(r => r.id === selRoomId) ?? detectedRooms.find(r => r.id === selRoomId) ?? null);
 
   let wallLength = $derived(selectedWall ? Math.round(Math.hypot(selectedWall.end.x - selectedWall.start.x, selectedWall.end.y - selectedWall.start.y)) : 0);
 
@@ -54,13 +56,20 @@
     if (!selectedWindow) return;
     updateWindow(selectedWindow.id, { sillHeight: Number((e.target as HTMLInputElement).value) });
   }
+  function updateDetectedRoom(id: string, updates: Partial<{ name: string; floorTexture: string }>) {
+    detectedRoomsStore.update(rooms => rooms.map(r => r.id === id ? { ...r, ...updates } : r));
+  }
+
   function onRoomName(e: Event) {
     if (!selectedRoom) return;
-    updateRoom(selectedRoom.id, { name: (e.target as HTMLInputElement).value });
+    const name = (e.target as HTMLInputElement).value;
+    updateRoom(selectedRoom.id, { name });
+    updateDetectedRoom(selectedRoom.id, { name });
   }
   function onRoomFloor(texture: string) {
     if (!selectedRoom) return;
     updateRoom(selectedRoom.id, { floorTexture: texture });
+    updateDetectedRoom(selectedRoom.id, { floorTexture: texture });
   }
 
   const roomTypes = [
@@ -83,6 +92,7 @@
     const rt = roomTypes.find(t => t.id === typeId);
     if (rt && rt.id !== 'custom') {
       updateRoom(selectedRoom.id, { name: rt.label });
+      updateDetectedRoom(selectedRoom.id, { name: rt.label });
     }
   }
 

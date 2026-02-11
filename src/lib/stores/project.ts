@@ -223,6 +223,8 @@ export function loadProject(project: Project) {
 }
 
 export const selectedRoomId = writable<string | null>(null);
+/** Detected rooms (synced from canvas room detection) */
+export const detectedRoomsStore = writable<import('$lib/models/types').Room[]>([]);
 /** catalogId currently being placed (null = not placing) */
 export const placingFurnitureId = writable<string | null>(null);
 /** Rotation angle for furniture being placed */
