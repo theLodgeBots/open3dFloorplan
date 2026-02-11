@@ -443,14 +443,25 @@
     }
   }
 
+  const ROOM_FILLS = [
+    'rgba(167, 139, 250, 0.18)', // violet
+    'rgba(96, 165, 250, 0.18)',  // blue
+    'rgba(52, 211, 153, 0.18)',  // green
+    'rgba(251, 191, 36, 0.18)',  // amber
+    'rgba(248, 113, 113, 0.18)', // red
+    'rgba(244, 114, 182, 0.18)', // pink
+    'rgba(45, 212, 191, 0.18)',  // teal
+    'rgba(251, 146, 60, 0.18)',  // orange
+  ];
+
   function drawRooms() {
     if (!currentFloor) return;
-    for (const room of detectedRooms) {
+    for (let ri = 0; ri < detectedRooms.length; ri++) {
+      const room = detectedRooms[ri];
       const poly = getRoomPolygon(room, currentFloor.walls);
       if (poly.length < 3) continue;
       const screenPoly = poly.map(p => worldToScreen(p.x, p.y));
-      const mat = getMaterial(room.floorTexture);
-      ctx.fillStyle = mat.color + '40';
+      ctx.fillStyle = ROOM_FILLS[ri % ROOM_FILLS.length];
       ctx.beginPath();
       ctx.moveTo(screenPoly[0].x, screenPoly[0].y);
       for (let i = 1; i < screenPoly.length; i++) ctx.lineTo(screenPoly[i].x, screenPoly[i].y);
@@ -873,6 +884,15 @@
     oncontextmenu={onContextMenu}
   ></canvas>
   <div class="absolute bottom-2 right-2 bg-white/80 rounded px-2 py-1 text-xs text-gray-500 flex gap-3">
+    {#if detectedRooms.length > 0}
+      <span>{detectedRooms.length} room{detectedRooms.length !== 1 ? 's' : ''}</span>
+      <span>{detectedRooms.reduce((s, r) => s + r.area, 0).toFixed(1)} m²</span>
+      <span class="text-gray-300">|</span>
+    {/if}
+    {#if currentFloor}
+      <span>{currentFloor.walls.length} wall{currentFloor.walls.length !== 1 ? 's' : ''}</span>
+      <span class="text-gray-300">|</span>
+    {/if}
     <span>Zoom: {Math.round(zoom * 100)}%</span>
     <button class="hover:text-gray-700" onclick={() => showGrid = !showGrid} title="Toggle Grid (G)">
       {showGrid ? '▦' : '▢'} Grid
