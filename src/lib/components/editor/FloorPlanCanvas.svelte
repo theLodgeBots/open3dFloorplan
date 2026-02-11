@@ -205,9 +205,19 @@
 
     ctx.fillStyle = '#374151';
     ctx.font = `${Math.max(10, 11 * zoom)}px sans-serif`;
+    const dimLabel = `${Math.round(wlen)} cm`;
+    const dimMetrics = ctx.measureText(dimLabel);
+    const halfW = dimMetrics.width / 2;
+    // If label would be clipped, flip it to the other side of the wall
+    let finalDimX = dimX;
+    let finalDimY = dimY;
+    if (dimX - halfW < 2 || dimX + halfW > width - 2 || dimY < 8 || dimY > height - 8) {
+      finalDimX = mx - nnx * offsetDist;
+      finalDimY = my - nny * offsetDist;
+    }
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`${Math.round(wlen)} cm`, dimX, dimY);
+    ctx.fillText(dimLabel, finalDimX, finalDimY);
   }
 
   function drawDoorOnWall(wall: Wall, door: Door) {
