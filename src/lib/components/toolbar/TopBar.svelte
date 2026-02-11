@@ -1,14 +1,16 @@
 <script lang="ts">
-  import { currentProject, viewMode, undo, redo, addFloor, setActiveFloor, updateProjectName } from '$lib/stores/project';
+  import { currentProject, viewMode, undo, redo, addFloor, removeFloor, setActiveFloor, updateProjectName } from '$lib/stores/project';
   import { localStore } from '$lib/services/datastore';
   import { get } from 'svelte/store';
   import type { Floor } from '$lib/models/types';
+  import { exportAsPNG, exportAsJSON } from '$lib/utils/export';
 
   let projectName = $state('');
   let mode = $state<'2d' | '3d'>('2d');
   let floors: Floor[] = $state([]);
   let activeFloorId = $state('');
   let editingName = $state(false);
+  let exportOpen = $state(false);
 
   currentProject.subscribe((p) => {
     if (p) {
@@ -29,17 +31,16 @@
   }
 
   function onNameKeydown(e: KeyboardEvent) {
-    if (e.key === 'Enter') {
-      (e.target as HTMLInputElement).blur();
-    }
+    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
   }
 
   function onAddFloor() {
-    addFloor(`Floor ${floors.length + 1}`);
+    addFloor(`Floor ${floors.length}`);
   }
 
-  function onFloorChange(e: Event) {
-    setActiveFloor((e.target as HTMLSelectElement).value);
+  function onRemoveFloor(id: string) {
+    if (floors.length <= 1) return;
+    removeFloor(id);
   }
 
   async function save() {
@@ -49,10 +50,42 @@
       alert('Project saved!');
     }
   }
+
+  function onExport2DPNG() {
+    const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+    if (canvas) exportAsPNG(canvas);
+    exportOpen = false;
+  }
+
+  function onExport3DPNG() {
+    // Switch to 3D, wait a tick, then screenshot
+    const oldMode = mode;
+    viewMode.set('3d');
+    setTimeout(() => {
+      const c = document.querySelector('.w-full.h-full canvas, div canvas') as HTMLCanvasElement;
+      if (c) {
+        c.toBlob((blob) => {
+          if (blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'floorplan-3d.png'; a.click();
+            URL.revokeObjectURL(url);
+          }
+        });
+      }
+      if (oldMode === '2d') viewMode.set('2d');
+    }, 500);
+    exportOpen = false;
+  }
+
+  function onExportJSON() {
+    const p = get(currentProject);
+    if (p) exportAsJSON(p);
+    exportOpen = false;
+  }
 </script>
 
 <div class="h-12 bg-gradient-to-r from-green-600 to-green-700 flex items-center px-4 gap-3 shrink-0 shadow-sm">
-  <!-- Project name -->
   {#if editingName}
     <input
       type="text"
@@ -72,26 +105,28 @@
 
   <div class="h-5 w-px bg-white/20"></div>
 
-  <!-- Floor selector -->
-  <select
-    value={activeFloorId}
-    onchange={onFloorChange}
-    class="bg-white/15 text-white text-sm rounded px-2 py-1 border border-white/20 outline-none cursor-pointer"
-  >
+  <!-- Floor selector as buttons -->
+  <div class="flex items-center gap-1">
     {#each floors as fl}
-      <option value={fl.id} class="text-gray-800">{fl.name}</option>
+      <button
+        class="px-2 py-0.5 text-xs rounded transition-colors {fl.id === activeFloorId ? 'bg-white text-green-700 font-semibold' : 'text-white/80 hover:bg-white/10'}"
+        onclick={() => setActiveFloor(fl.id)}
+        ondblclick={() => onRemoveFloor(fl.id)}
+        title={fl.id === activeFloorId ? 'Active floor (dbl-click to remove)' : 'Click to switch, dbl-click to remove'}
+      >{fl.name}</button>
     {/each}
-  </select>
-  <button
-    onclick={onAddFloor}
-    class="text-white/80 hover:text-white text-sm hover:bg-white/10 px-2 py-1 rounded transition-colors"
-    title="Add Floor"
-  >+ Floor</button>
+    <button
+      onclick={onAddFloor}
+      class="text-white/80 hover:text-white text-xs hover:bg-white/10 px-1.5 py-0.5 rounded transition-colors"
+      title="Add Floor"
+    >+</button>
+    <span class="text-white/40 text-[10px] ml-1">{floors.length}F</span>
+  </div>
 
   <div class="flex-1"></div>
 
-  <button onclick={undo} class="px-2 py-1 text-sm text-white/80 hover:text-white hover:bg-white/10 rounded transition-colors" title="Undo">↶</button>
-  <button onclick={redo} class="px-2 py-1 text-sm text-white/80 hover:text-white hover:bg-white/10 rounded transition-colors" title="Redo">↷</button>
+  <button onclick={undo} class="px-2 py-1 text-sm text-white/80 hover:text-white hover:bg-white/10 rounded transition-colors" title="Undo (Ctrl+Z)">↶</button>
+  <button onclick={redo} class="px-2 py-1 text-sm text-white/80 hover:text-white hover:bg-white/10 rounded transition-colors" title="Redo (Ctrl+Y)">↷</button>
 
   <div class="h-5 w-px bg-white/20"></div>
 
@@ -105,6 +140,23 @@
       onclick={() => setMode('3d')}
       class="px-3 py-1 text-xs font-semibold rounded-full transition-colors {mode === '3d' ? 'bg-white text-green-700' : 'text-white/80 hover:text-white'}"
     >3D</button>
+  </div>
+
+  <div class="h-5 w-px bg-white/20"></div>
+
+  <!-- Export dropdown -->
+  <div class="relative">
+    <button
+      onclick={() => exportOpen = !exportOpen}
+      class="px-3 py-1.5 text-sm text-white/90 hover:text-white hover:bg-white/10 rounded transition-colors"
+    >Export ▾</button>
+    {#if exportOpen}
+      <div class="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 w-48 z-50">
+        <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left" onclick={onExport2DPNG}>📷 Export 2D as PNG</button>
+        <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left" onclick={onExport3DPNG}>🏠 Export 3D as PNG</button>
+        <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left" onclick={onExportJSON}>📄 Download Project JSON</button>
+      </div>
+    {/if}
   </div>
 
   <button onclick={save} class="px-3 py-1.5 text-sm bg-white text-green-700 font-semibold rounded-lg hover:bg-green-50 transition-colors shadow-sm">

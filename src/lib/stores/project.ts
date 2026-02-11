@@ -5,9 +5,9 @@ function uid(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
-export function createDefaultFloor(): Floor {
+export function createDefaultFloor(level = 0): Floor {
   const id = uid();
-  return { id, name: 'Ground Floor', walls: [], rooms: [], doors: [], windows: [], furniture: [] };
+  return { id, name: level === 0 ? 'Ground Floor' : `Floor ${level}`, level, walls: [], rooms: [], doors: [], windows: [], furniture: [] };
 }
 
 export function createDefaultProject(name = 'Untitled Project'): Project {
@@ -112,6 +112,26 @@ export function addFurniture(catalogId: string, position: Point): string {
   return id;
 }
 
+export function moveFurniture(id: string, position: Point) {
+  mutate((f) => {
+    const item = f.furniture.find((fi) => fi.id === id);
+    if (item) item.position = position;
+  });
+}
+
+export function rotateFurniture(id: string, angle: number) {
+  mutate((f) => {
+    const item = f.furniture.find((fi) => fi.id === id);
+    if (item) item.rotation = (item.rotation + angle) % 360;
+  });
+}
+
+export function removeFurniture(id: string) {
+  mutate((f) => {
+    f.furniture = f.furniture.filter((fi) => fi.id !== id);
+  });
+}
+
 export function removeElement(id: string) {
   mutate((f) => {
     f.walls = f.walls.filter((w) => w.id !== id);
@@ -149,13 +169,32 @@ export function updateRoom(id: string, updates: Partial<{ name: string; floorTex
   });
 }
 
-export function addFloor(name: string) {
+export function addFloor(name?: string, copyCurrentLayout = false) {
   const p = get(currentProject);
   if (!p) return;
   snapshot();
-  const floor: Floor = { id: uid(), name, walls: [], rooms: [], doors: [], windows: [], furniture: [] };
+  const level = p.floors.length;
+  const floor: Floor = { id: uid(), name: name ?? `Floor ${level}`, level, walls: [], rooms: [], doors: [], windows: [], furniture: [] };
+  if (copyCurrentLayout) {
+    const cur = p.floors.find(f => f.id === p.activeFloorId);
+    if (cur) {
+      floor.walls = cur.walls.map(w => ({ ...w, id: uid() }));
+    }
+  }
   p.floors.push(floor);
   p.activeFloorId = floor.id;
+  p.updatedAt = new Date();
+  currentProject.set({ ...p });
+}
+
+export function removeFloor(id: string) {
+  const p = get(currentProject);
+  if (!p || p.floors.length <= 1) return;
+  snapshot();
+  p.floors = p.floors.filter(f => f.id !== id);
+  if (p.activeFloorId === id) {
+    p.activeFloorId = p.floors[0].id;
+  }
   p.updatedAt = new Date();
   currentProject.set({ ...p });
 }
@@ -178,3 +217,7 @@ export function updateProjectName(name: string) {
 }
 
 export const selectedRoomId = writable<string | null>(null);
+/** catalogId currently being placed (null = not placing) */
+export const placingFurnitureId = writable<string | null>(null);
+/** Rotation angle for furniture being placed */
+export const placingRotation = writable<number>(0);

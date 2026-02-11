@@ -46,6 +46,7 @@ export interface FurnitureItem {
 export interface Floor {
   id: string;
   name: string;
+  level: number;
   walls: Wall[];
   rooms: Room[];
   doors: Door[];

@@ -1,17 +1,24 @@
 <script lang="ts">
-  import { selectedTool } from '$lib/stores/project';
+  import { selectedTool, placingFurnitureId } from '$lib/stores/project';
   import type { Tool } from '$lib/stores/project';
   import { roomPresets, placePreset } from '$lib/utils/roomPresets';
+  import { furnitureCatalog, furnitureCategories } from '$lib/utils/furnitureCatalog';
+  import type { FurnitureDef } from '$lib/utils/furnitureCatalog';
 
   let activeTab = $state<'draw' | 'rooms' | 'objects'>('draw');
   let constructionOpen = $state(true);
+  let selectedCategory = $state<string>('All');
 
   function setTool(tool: Tool) {
     selectedTool.set(tool);
+    placingFurnitureId.set(null);
   }
 
   let currentTool = $state<Tool>('select');
   selectedTool.subscribe((t) => { currentTool = t; });
+
+  let currentPlacing = $state<string | null>(null);
+  placingFurnitureId.subscribe((id) => { currentPlacing = id; });
 
   function onPresetClick(presetId: string) {
     const preset = roomPresets.find(p => p.id === presetId);
@@ -20,22 +27,29 @@
     }
   }
 
-  const furnitureItems = [
-    { id: 'sofa', name: 'Sofa', category: 'Living Room', icon: '🛋️', color: '#a78bfa' },
-    { id: 'table', name: 'Dining Table', category: 'Dining', icon: '🪑', color: '#f59e0b' },
-    { id: 'bed', name: 'Bed', category: 'Bedroom', icon: '🛏️', color: '#60a5fa' },
-    { id: 'desk', name: 'Desk', category: 'Office', icon: '🖥️', color: '#34d399' },
-    { id: 'toilet', name: 'Toilet', category: 'Bathroom', icon: '🚽', color: '#e5e7eb' },
-    { id: 'bathtub', name: 'Bathtub', category: 'Bathroom', icon: '🛁', color: '#93c5fd' },
-    { id: 'stove', name: 'Stove', category: 'Kitchen', icon: '🍳', color: '#f87171' },
-    { id: 'fridge', name: 'Fridge', category: 'Kitchen', icon: '🧊', color: '#d1d5db' },
-  ];
+  function onFurnitureClick(item: FurnitureDef) {
+    selectedTool.set('furniture');
+    placingFurnitureId.set(item.id);
+  }
 
   let search = $state('');
 
   let filtered = $derived(
-    furnitureItems.filter((f) => f.name.toLowerCase().includes(search.toLowerCase()))
+    furnitureCatalog.filter((f) => {
+      const matchSearch = f.name.toLowerCase().includes(search.toLowerCase());
+      const matchCat = selectedCategory === 'All' || f.category === selectedCategory;
+      return matchSearch && matchCat;
+    })
   );
+
+  const categoryColors: Record<string, string> = {
+    'Living Room': '#a78bfa',
+    'Bedroom': '#60a5fa',
+    'Kitchen': '#f87171',
+    'Bathroom': '#93c5fd',
+    'Office': '#34d399',
+    'Dining': '#f59e0b',
+  };
 </script>
 
 <div class="w-64 bg-white border-r border-gray-200 flex flex-col h-full overflow-hidden">
@@ -59,14 +73,13 @@
     {#if activeTab === 'draw'}
       <div class="space-y-1">
         <h3 class="text-xs font-semibold text-gray-400 uppercase mb-2">Tools</h3>
-        <!-- Tool cards -->
         <button
           class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors {currentTool === 'select' ? 'bg-green-50 text-green-700 ring-1 ring-green-200' : 'hover:bg-gray-50 text-gray-700'}"
           onclick={() => setTool('select')}
         >
           <div class="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center text-lg {currentTool === 'select' ? 'bg-green-100' : ''}">↖</div>
           <div class="text-left">
-            <div class="font-medium">Select</div>
+            <div class="font-medium">Select <span class="text-gray-400 text-xs ml-1">V</span></div>
             <div class="text-xs text-gray-400">Click to select elements</div>
           </div>
         </button>
@@ -76,12 +89,11 @@
         >
           <div class="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center text-lg {currentTool === 'wall' ? 'bg-green-100' : ''}">▭</div>
           <div class="text-left">
-            <div class="font-medium">Draw Wall</div>
+            <div class="font-medium">Draw Wall <span class="text-gray-400 text-xs ml-1">W</span></div>
             <div class="text-xs text-gray-400">Click to draw, dbl-click to finish</div>
           </div>
         </button>
 
-        <!-- Collapsible Construction -->
         <button
           class="w-full flex items-center justify-between px-1 py-2 mt-3"
           onclick={() => constructionOpen = !constructionOpen}
@@ -97,7 +109,7 @@
               onclick={() => setTool('door')}
             >
               <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-xl">🚪</div>
-              <span class="text-xs font-medium text-gray-600">Door</span>
+              <span class="text-xs font-medium text-gray-600">Door <span class="text-gray-400">D</span></span>
             </button>
             <button
               class="flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-colors {currentTool === 'window' ? 'border-green-400 bg-green-50' : 'border-gray-100 hover:border-gray-200'}"
@@ -135,15 +147,29 @@
           class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-200 focus:border-green-400 outline-none"
           bind:value={search}
         />
+        <!-- Category filter -->
+        <div class="flex flex-wrap gap-1">
+          <button
+            class="px-2 py-0.5 rounded-full text-[10px] font-medium {selectedCategory === 'All' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}"
+            onclick={() => selectedCategory = 'All'}
+          >All</button>
+          {#each furnitureCategories as cat}
+            <button
+              class="px-2 py-0.5 rounded-full text-[10px] font-medium {selectedCategory === cat ? 'text-white' : 'text-gray-600 hover:bg-gray-200'}"
+              style={selectedCategory === cat ? `background-color: ${categoryColors[cat] ?? '#6b7280'}` : 'background-color: #f3f4f6'}
+              onclick={() => selectedCategory = cat}
+            >{cat}</button>
+          {/each}
+        </div>
         <div class="grid grid-cols-2 gap-2 mt-2">
           {#each filtered as item}
             <button
-              class="flex flex-col items-center gap-1 p-3 rounded-lg border-2 border-gray-100 hover:border-green-300 hover:bg-green-50 transition-colors"
-              onclick={() => { /* TODO: furniture placement */ }}
+              class="flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-colors {currentPlacing === item.id ? 'border-green-400 bg-green-50 ring-1 ring-green-300' : 'border-gray-100 hover:border-green-300 hover:bg-green-50'}"
+              onclick={() => onFurnitureClick(item)}
             >
               <div class="w-10 h-10 rounded-lg flex items-center justify-center text-xl" style="background-color: {item.color}20">{item.icon}</div>
               <span class="text-xs font-medium text-gray-600">{item.name}</span>
-              <span class="text-[10px] text-gray-400">{item.category}</span>
+              <span class="text-[10px] text-gray-400">{item.width}×{item.depth}cm</span>
             </button>
           {/each}
         </div>

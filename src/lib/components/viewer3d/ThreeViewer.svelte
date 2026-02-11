@@ -4,6 +4,7 @@
   import type { Floor, Wall, Door, Window as Win } from '$lib/models/types';
   import * as THREE from 'three';
   import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+  import { getCatalogItem } from '$lib/utils/furnitureCatalog';
 
   let container: HTMLDivElement;
   let renderer: THREE.WebGLRenderer;
@@ -235,6 +236,28 @@
       sillMesh.position.set(px, win.sillHeight - 2, py);
       sillMesh.rotation.y = -angle;
       wallGroup.add(sillMesh);
+    }
+
+    // Furniture
+    for (const fi of floor.furniture) {
+      const cat = getCatalogItem(fi.catalogId);
+      if (!cat) continue;
+      const mat = new THREE.MeshStandardMaterial({ color: cat.color, roughness: 0.7 });
+      const geo = new THREE.BoxGeometry(cat.width, cat.height, cat.depth);
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(fi.position.x, cat.height / 2, fi.position.y);
+      mesh.rotation.y = -(fi.rotation * Math.PI) / 180;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      wallGroup.add(mesh);
+
+      // Edge outline
+      const edges = new THREE.EdgesGeometry(geo);
+      const lineMat = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2 });
+      const line = new THREE.LineSegments(edges, lineMat);
+      line.position.copy(mesh.position);
+      line.rotation.copy(mesh.rotation);
+      wallGroup.add(line);
     }
 
     autoCenterCamera(floor);
