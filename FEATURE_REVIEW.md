@@ -31,7 +31,7 @@ Systematic comparison. Each feature gets: ✅ done, 🔧 needs work, ❌ missing
 - ✅ **Furniture icons** — canvas-drawn architectural top-down views per item type
 - ✅ **Snap to walls** — furniture snaps edge-flush to nearby walls with auto-rotation alignment
 - ✅ **Selection handles** — resize handles at 4 corners, rotation handle above, dashed selection border
-- ❌ **3D furniture models** — planner5d shows real 3D models; we show colored boxes
+- 🔧 **3D furniture models** — detailed procedural models (43 types) but not imported glTF; planner5d uses real 3D model assets
 - ✅ **Furniture properties** — color picker (preset + custom), dimensions (W/D/H), material selector, rotation, reset to defaults
 
 ## 4. Room Detection & Display
@@ -60,10 +60,10 @@ Systematic comparison. Each feature gets: ✅ done, 🔧 needs work, ❌ missing
 - ✅ Room floor fills with labels
 - ✅ **Door/window openings** — proper 3D frames, hinged doors, mullion windows, baseboard gaps
 - ✅ **Lighting quality** — 3-point setup: warm key sun, cool fill light, rim backlight; hemisphere boost
-- ❌ **3D furniture** — only colored boxes, not models
+- 🔧 **3D furniture** — procedural models (sofas, beds, tables, etc.) not imported glTF assets
 - ✅ **Material/texture on walls** — wall color property reflected in 3D (interior + exterior)
 - ❌ **Ceiling** — planner5d shows ceiling in 3D
-- ❌ **First-person walkthrough** — planner5d has a walk mode
+- ✅ **First-person walkthrough** — PointerLock walkthrough with WASD look, arrow move, sprint, adjustable eye height/speed
 
 ## 7. UI / Layout
 - ✅ Top toolbar with project name, undo/redo, 2D/3D toggle
