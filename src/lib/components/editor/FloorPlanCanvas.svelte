@@ -44,6 +44,10 @@
   // Grid toggle
   let showGrid = $state(true);
 
+  // Ruler toggle
+  let showRulers = $state(true);
+  const RULER_SIZE = 24;
+
   // Detected rooms
   let detectedRooms: Room[] = $state([]);
   let lastWallHash = '';
@@ -909,6 +913,136 @@
     detectedRoomsStore.set(newRooms);
   }
 
+  function drawRulers() {
+    if (!ctx || !showRulers) return;
+    const R = RULER_SIZE;
+    const fontSize = 9;
+    ctx.save();
+
+    // Determine tick spacing based on zoom
+    // We want ticks ~50-150px apart in screen space
+    const rawStep = 50 / zoom; // world units per ~50px
+    // Round to a nice number: 10, 20, 50, 100, 200, 500, 1000...
+    const niceSteps = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000];
+    let tickStep = niceSteps[niceSteps.length - 1];
+    for (const s of niceSteps) {
+      if (s * zoom >= 40) { tickStep = s; break; }
+    }
+    const minorDiv = tickStep >= 100 ? 5 : tickStep >= 10 ? 5 : 2;
+    const minorStep = tickStep / minorDiv;
+
+    // --- Horizontal ruler (top) ---
+    ctx.fillStyle = '#f1f3f5';
+    ctx.fillRect(R, 0, width - R, R);
+    ctx.strokeStyle = '#d1d5db';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(R, R); ctx.lineTo(width, R); ctx.stroke();
+
+    // Ticks
+    const worldLeft = screenToWorld(R, 0).x;
+    const worldRight = screenToWorld(width, 0).x;
+    const startTick = Math.floor(worldLeft / minorStep) * minorStep;
+
+    ctx.fillStyle = '#6b7280';
+    ctx.font = `${fontSize}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+
+    for (let wx = startTick; wx <= worldRight; wx += minorStep) {
+      const sx = worldToScreen(wx, 0).x;
+      if (sx < R) continue;
+      const isMajor = Math.abs(wx % tickStep) < 0.01;
+      const isMid = !isMajor && Math.abs(wx % (tickStep / 2)) < 0.01 && minorDiv >= 4;
+      const tickH = isMajor ? R * 0.7 : isMid ? R * 0.45 : R * 0.25;
+
+      ctx.strokeStyle = isMajor ? '#9ca3af' : '#d1d5db';
+      ctx.lineWidth = isMajor ? 1 : 0.5;
+      ctx.beginPath();
+      ctx.moveTo(sx, R);
+      ctx.lineTo(sx, R - tickH);
+      ctx.stroke();
+
+      if (isMajor) {
+        const label = tickStep >= 100 ? `${(wx / 100).toFixed(wx % 100 === 0 ? 0 : 1)}m` : `${Math.round(wx)}`;
+        ctx.fillText(label, sx, 2);
+      }
+    }
+
+    // --- Vertical ruler (left) ---
+    ctx.fillStyle = '#f1f3f5';
+    ctx.fillRect(0, R, R, height - R);
+    ctx.strokeStyle = '#d1d5db';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(R, R); ctx.lineTo(R, height); ctx.stroke();
+
+    const worldTop = screenToWorld(0, R).y;
+    const worldBottom = screenToWorld(0, height).y;
+    const startTickY = Math.floor(worldTop / minorStep) * minorStep;
+
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+
+    for (let wy = startTickY; wy <= worldBottom; wy += minorStep) {
+      const sy = worldToScreen(0, wy).y;
+      if (sy < R) continue;
+      const isMajor = Math.abs(wy % tickStep) < 0.01;
+      const isMid = !isMajor && Math.abs(wy % (tickStep / 2)) < 0.01 && minorDiv >= 4;
+      const tickH = isMajor ? R * 0.7 : isMid ? R * 0.45 : R * 0.25;
+
+      ctx.strokeStyle = isMajor ? '#9ca3af' : '#d1d5db';
+      ctx.lineWidth = isMajor ? 1 : 0.5;
+      ctx.beginPath();
+      ctx.moveTo(R, sy);
+      ctx.lineTo(R - tickH, sy);
+      ctx.stroke();
+
+      if (isMajor) {
+        const label = tickStep >= 100 ? `${(wy / 100).toFixed(wy % 100 === 0 ? 0 : 1)}m` : `${Math.round(wy)}`;
+        ctx.save();
+        ctx.translate(R - 3, sy);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillStyle = '#6b7280';
+        ctx.font = `${fontSize}px sans-serif`;
+        ctx.fillText(label, 0, 0);
+        ctx.restore();
+      }
+    }
+
+    // Corner square
+    ctx.fillStyle = '#e5e7eb';
+    ctx.fillRect(0, 0, R, R);
+    ctx.strokeStyle = '#d1d5db';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0, 0, R, R);
+
+    // Mouse position indicators on rulers
+    const mScreen = worldToScreen(mousePos.x, mousePos.y);
+    // Horizontal indicator
+    if (mScreen.x > R) {
+      ctx.fillStyle = '#3b82f6';
+      ctx.beginPath();
+      ctx.moveTo(mScreen.x, R);
+      ctx.lineTo(mScreen.x - 3, R - 6);
+      ctx.lineTo(mScreen.x + 3, R - 6);
+      ctx.closePath();
+      ctx.fill();
+    }
+    // Vertical indicator
+    if (mScreen.y > R) {
+      ctx.fillStyle = '#3b82f6';
+      ctx.beginPath();
+      ctx.moveTo(R, mScreen.y);
+      ctx.lineTo(R - 6, mScreen.y - 3);
+      ctx.lineTo(R - 6, mScreen.y + 3);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
   function draw() {
     if (!ctx) return;
     ctx.clearRect(0, 0, width, height);
@@ -1025,6 +1159,9 @@
 
     // Measurement
     if (measureStart && measuring) drawMeasurement();
+
+    // Rulers (drawn last, on top of everything)
+    drawRulers();
 
     requestAnimationFrame(draw);
   }
@@ -1553,6 +1690,9 @@
     <button class="hover:text-gray-700" onclick={() => zoomToFit()} title="Zoom to Fit (F)">⊞ Fit</button>
     <button class="hover:text-gray-700" onclick={() => showGrid = !showGrid} title="Toggle Grid (G)">
       {showGrid ? '▦' : '▢'} Grid
+    </button>
+    <button class="hover:text-gray-700" onclick={() => showRulers = !showRulers} title="Toggle Rulers">
+      {showRulers ? '📏' : '📐'} Rulers
     </button>
   </div>
   <!-- Contextual Toolbar -->
