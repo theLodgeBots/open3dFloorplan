@@ -508,21 +508,38 @@
         ctx.fill();
         ctx.stroke();
       }
-      // Midpoint curve handle (diamond — drag to make wall curved)
+      // Midpoint handle — square for parallel drag (Alt+drag to curve)
       const midX = (s.x + e.x) / 2;
       const midY = (s.y + e.y) / 2;
       const sz = 5;
-      ctx.fillStyle = '#fbbf2480';
-      ctx.strokeStyle = '#d97706';
+      ctx.fillStyle = '#3b82f6';
+      ctx.strokeStyle = '#1d4ed8';
+      ctx.lineWidth = 1.5;
+      ctx.fillRect(midX - sz, midY - sz, sz * 2, sz * 2);
+      ctx.strokeRect(midX - sz, midY - sz, sz * 2, sz * 2);
+      // Draw perpendicular arrows to indicate parallel drag direction
+      const perpX = -(dy / len) * 12;
+      const perpY = (dx / len) * 12;
+      ctx.strokeStyle = '#3b82f680';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(midX, midY - sz);
-      ctx.lineTo(midX + sz, midY);
-      ctx.lineTo(midX, midY + sz);
-      ctx.lineTo(midX - sz, midY);
-      ctx.closePath();
-      ctx.fill();
+      ctx.moveTo(midX - perpX, midY - perpY);
+      ctx.lineTo(midX + perpX, midY + perpY);
       ctx.stroke();
+      // Small arrowheads
+      const arrowSz = 3;
+      for (const sign of [1, -1]) {
+        const ax = midX + perpX * sign;
+        const ay = midY + perpY * sign;
+        const adx = perpX / 12 * arrowSz * sign;
+        const ady = perpY / 12 * arrowSz * sign;
+        ctx.beginPath();
+        ctx.moveTo(ax, ay);
+        ctx.lineTo(ax - adx + ady * 0.5, ay - ady - adx * 0.5);
+        ctx.moveTo(ax, ay);
+        ctx.lineTo(ax - adx - ady * 0.5, ay - ady + adx * 0.5);
+        ctx.stroke();
+      }
     }
   }
 
@@ -1035,11 +1052,31 @@
 
       const centroid = roomCentroid(poly);
       const sc = worldToScreen(centroid.x, centroid.y);
+      const fontSize = Math.max(11, 13 * zoom);
       ctx.fillStyle = '#9ca3af';
-      ctx.font = `${Math.max(11, 13 * zoom)}px sans-serif`;
+      ctx.font = `${fontSize}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(`${room.name} (${room.area} m²)`, sc.x, sc.y);
+
+      // Room dimensions (width × depth from oriented bounding box)
+      if (poly.length >= 3) {
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        for (const pt of poly) {
+          if (pt.x < minX) minX = pt.x;
+          if (pt.x > maxX) maxX = pt.x;
+          if (pt.y < minY) minY = pt.y;
+          if (pt.y > maxY) maxY = pt.y;
+        }
+        const roomW = (maxX - minX) / 100;
+        const roomD = (maxY - minY) / 100;
+        if (roomW > 0.1 && roomD > 0.1) {
+          const dimFontSize = Math.max(9, 10 * zoom);
+          ctx.fillStyle = '#b0b8c4';
+          ctx.font = `${dimFontSize}px sans-serif`;
+          ctx.fillText(`${roomW.toFixed(2)} × ${roomD.toFixed(2)} m`, sc.x, sc.y + fontSize + 2);
+        }
+      }
     }
   }
 
@@ -1667,6 +1704,22 @@
   }
 
   function onDblClick(e: MouseEvent) {
+    // Double-click on a wall in select mode to split it
+    if (currentTool === 'select') {
+      const rect = canvas.getBoundingClientRect();
+      const wp = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+      const wall = findWallAt(wp);
+      if (wall && !wall.curvePoint) {
+        const t = positionOnWall(wp, wall);
+        if (t > 0.05 && t < 0.95) {
+          const newId = splitWall(wall.id, t);
+          if (newId) {
+            selectedElementId.set(null);
+            return;
+          }
+        }
+      }
+    }
     if (currentTool === 'wall' && wallStart && wallSequenceFirst) {
       // Auto-close the wall loop back to the first point if we have at least 2 walls
       if (Math.hypot(wallStart.x - wallSequenceFirst.x, wallStart.y - wallSequenceFirst.y) > 5) {
@@ -1700,6 +1753,37 @@
       // Move all connected endpoints together
       for (const conn of draggingConnectedEndpoints) {
         moveWallEndpoint(conn.wallId, conn.endpoint, pt);
+      }
+    }
+    if (draggingWallParallel && currentFloor) {
+      const wall = currentFloor.walls.find(w => w.id === draggingWallParallel.wallId);
+      if (wall) {
+        // Constrain movement to perpendicular direction only
+        const wdx = draggingWallParallel.origEnd.x - draggingWallParallel.origStart.x;
+        const wdy = draggingWallParallel.origEnd.y - draggingWallParallel.origStart.y;
+        const wLen = Math.hypot(wdx, wdy);
+        if (wLen > 0) {
+          // Normal (perpendicular) direction
+          const nx = -wdy / wLen;
+          const ny = wdx / wLen;
+          // Project mouse delta onto normal
+          const mdx = mousePos.x - draggingWallParallel.startMousePos.x;
+          const mdy = mousePos.y - draggingWallParallel.startMousePos.y;
+          let proj = mdx * nx + mdy * ny;
+          // Snap to grid
+          proj = Math.round(proj / SNAP) * SNAP;
+          const dx = proj * nx;
+          const dy = proj * ny;
+          // Set wall positions from original + offset
+          moveWallEndpoint(draggingWallParallel.wallId, 'start', {
+            x: draggingWallParallel.origStart.x + dx,
+            y: draggingWallParallel.origStart.y + dy,
+          });
+          moveWallEndpoint(draggingWallParallel.wallId, 'end', {
+            x: draggingWallParallel.origEnd.x + dx,
+            y: draggingWallParallel.origEnd.y + dy,
+          });
+        }
       }
     }
     if (draggingCurveHandle && currentFloor) {
@@ -1793,7 +1877,9 @@
     if (draggingFurnitureId) commitFurnitureMove();
     if (draggingHandle) commitFurnitureMove();
     if (draggingWallEndpoint) commitFurnitureMove();
+    if (draggingWallParallel) commitFurnitureMove();
     if (draggingCurveHandle) commitFurnitureMove();
+    draggingWallParallel = null;
     draggingCurveHandle = null;
     draggingFurnitureId = null;
     draggingDoorId = null;
@@ -1883,6 +1969,7 @@
 
   let cursorStyle = $derived(
     spaceDown || isPanning ? 'grab' :
+    draggingWallParallel ? 'move' :
     draggingCurveHandle ? 'crosshair' :
     draggingWallEndpoint ? 'crosshair' :
     draggingHandle === 'rotate' ? 'grabbing' :
@@ -1985,6 +2072,20 @@
             onclick={() => { if (el.door) updateDoor(el.door.id, { swingDirection: el.door.swingDirection === 'left' ? 'right' : 'left' }); }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>
+          </button>
+        {/if}
+        {#if el.type === 'wall'}
+          <button
+            class="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700"
+            title="Split wall at midpoint"
+            onclick={() => {
+              if (currentSelectedId) {
+                const newId = splitWall(currentSelectedId, 0.5);
+                if (newId) selectedElementId.set(null);
+              }
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M4 12h4M16 12h4"/></svg>
           </button>
         {/if}
         <div class="w-px h-5 bg-gray-200 mx-0.5"></div>
