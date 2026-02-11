@@ -135,15 +135,15 @@ function createSofa(group: THREE.Group, w: number, d: number, h: number, color: 
   // Main seat base
   const seatGeo = new THREE.BoxGeometry(w * 0.9, h * 0.5, d * 0.7);
   const seatMesh = new THREE.Mesh(seatGeo, baseColor);
-  seatMesh.position.set(0, h * 0.25, -d * 0.05);
+  seatMesh.position.set(0, h * 0.25, d * 0.05);
   group.add(seatMesh);
 
-  // Back cushions (3 bumps)
+  // Back cushions (3 bumps) — at negative Z (back/top in 2D)
   const cushionWidth = w * 0.25;
   for (let i = 0; i < 3; i++) {
     const cushionGeo = new THREE.BoxGeometry(cushionWidth, h * 0.6, d * 0.25);
     const cushionMesh = new THREE.Mesh(cushionGeo, baseColor);
-    cushionMesh.position.set(-w * 0.3 + i * cushionWidth, h * 0.55, d * 0.3);
+    cushionMesh.position.set(-w * 0.3 + i * cushionWidth, h * 0.55, -d * 0.3);
     group.add(cushionMesh);
   }
 
@@ -167,15 +167,15 @@ function createLoveseat(group: THREE.Group, w: number, d: number, h: number, col
   // Main seat base
   const seatGeo = new THREE.BoxGeometry(w * 0.9, h * 0.5, d * 0.7);
   const seatMesh = new THREE.Mesh(seatGeo, baseColor);
-  seatMesh.position.set(0, h * 0.25, -d * 0.05);
+  seatMesh.position.set(0, h * 0.25, d * 0.05);
   group.add(seatMesh);
 
-  // Back cushions (2 bumps for loveseat)
+  // Back cushions (2 bumps for loveseat) — at negative Z (back/top in 2D)
   const cushionWidth = w * 0.35;
   for (let i = 0; i < 2; i++) {
     const cushionGeo = new THREE.BoxGeometry(cushionWidth, h * 0.6, d * 0.25);
     const cushionMesh = new THREE.Mesh(cushionGeo, baseColor);
-    cushionMesh.position.set(-w * 0.175 + i * cushionWidth, h * 0.55, d * 0.3);
+    cushionMesh.position.set(-w * 0.175 + i * cushionWidth, h * 0.55, -d * 0.3);
     group.add(cushionMesh);
   }
 
@@ -198,13 +198,13 @@ function createArmchair(group: THREE.Group, w: number, d: number, h: number, col
   // Seat
   const seatGeo = new THREE.BoxGeometry(w * 0.7, h * 0.4, d * 0.7);
   const seatMesh = new THREE.Mesh(seatGeo, baseColor);
-  seatMesh.position.set(0, h * 0.2, -d * 0.05);
+  seatMesh.position.set(0, h * 0.2, d * 0.05);
   group.add(seatMesh);
 
-  // Back
+  // Back — at negative Z (back/top in 2D)
   const backGeo = new THREE.BoxGeometry(w * 0.7, h * 0.6, d * 0.15);
   const backMesh = new THREE.Mesh(backGeo, baseColor);
-  backMesh.position.set(0, h * 0.5, d * 0.35);
+  backMesh.position.set(0, h * 0.5, -d * 0.35);
   group.add(backMesh);
 
   // Armrests
@@ -314,20 +314,20 @@ function createBed(group: THREE.Group, w: number, d: number, h: number, color: s
   mattressMesh.position.set(0, h / 2, 0);
   group.add(mattressMesh);
 
-  // Headboard
+  // Headboard — at negative Z (top/back in 2D)
   const headboardGeo = new THREE.BoxGeometry(w, h * 1.8, d * 0.1);
   const headboardMesh = new THREE.Mesh(headboardGeo, headboardColor);
-  headboardMesh.position.set(0, h * 0.9, d * 0.45);
+  headboardMesh.position.set(0, h * 0.9, -d * 0.45);
   group.add(headboardMesh);
 
-  // Pillows
+  // Pillows — near headboard (negative Z)
   const pillowCount = type === 'queen' ? 2 : 1;
   const pillowWidth = w / (pillowCount + 1);
   for (let i = 0; i < pillowCount; i++) {
     const pillowGeo = new THREE.BoxGeometry(pillowWidth * 0.8, h * 0.4, d * 0.3);
     const pillowMesh = new THREE.Mesh(pillowGeo, pillowColor);
     const xOffset = pillowCount === 1 ? 0 : (i - 0.5) * pillowWidth;
-    pillowMesh.position.set(xOffset, h * 0.7, d * 0.25);
+    pillowMesh.position.set(xOffset, h * 0.7, -d * 0.25);
     group.add(pillowMesh);
   }
 }
@@ -529,10 +529,10 @@ function createToilet(group: THREE.Group, w: number, d: number, h: number, color
   bowlMesh.position.set(0, h / 2, 0);
   group.add(bowlMesh);
 
-  // Tank behind
+  // Tank behind — at negative Z (back in 2D)
   const tankGeo = new THREE.BoxGeometry(w * 0.7, h * 1.8, d * 0.25);
   const tankMesh = new THREE.Mesh(tankGeo, toiletColor);
-  tankMesh.position.set(0, h * 0.9, d * 0.35);
+  tankMesh.position.set(0, h * 0.9, -d * 0.35);
   group.add(tankMesh);
 
   // Seat rim
@@ -639,10 +639,10 @@ function createOfficeChair(group: THREE.Group, w: number, d: number, h: number, 
   seatMesh.position.set(0, h * 0.5, 0);
   group.add(seatMesh);
 
-  // Backrest
+  // Backrest — at negative Z (back in 2D)
   const backGeo = new THREE.BoxGeometry(w * 0.7, h * 0.4, d * 0.1);
   const backMesh = new THREE.Mesh(backGeo, seatColor);
-  backMesh.position.set(0, h * 0.7, d * 0.35);
+  backMesh.position.set(0, h * 0.7, -d * 0.35);
   group.add(backMesh);
 
   // Central pedestal
@@ -697,10 +697,10 @@ function createDiningChair(group: THREE.Group, w: number, d: number, h: number, 
   seatMesh.position.set(0, h * 0.5, 0);
   group.add(seatMesh);
 
-  // Back
+  // Back — at negative Z (back in 2D)
   const backGeo = new THREE.BoxGeometry(w * 0.9, h * 0.4, d * 0.1);
   const backMesh = new THREE.Mesh(backGeo, seatColor);
-  backMesh.position.set(0, h * 0.7, d * 0.4);
+  backMesh.position.set(0, h * 0.7, -d * 0.4);
   group.add(backMesh);
 
   // 4 legs
