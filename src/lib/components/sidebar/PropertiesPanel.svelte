@@ -18,17 +18,35 @@
   let selectedWindow = $derived(floor?.windows.find(w => w.id === selId) ?? null);
   let selectedRoom = $derived(floor?.rooms.find(r => r.id === selRoomId) ?? detectedRooms.find(r => r.id === selRoomId) ?? null);
 
-  let wallLength = $derived(selectedWall ? Math.round(selectedWall.curvePoint ? (() => {
-    let len = 0; const N = 20;
-    let px = selectedWall.start.x, py = selectedWall.start.y;
-    for (let i = 1; i <= N; i++) {
-      const t = i / N, mt = 1 - t;
-      const nx = mt*mt*selectedWall.start.x + 2*mt*t*selectedWall.curvePoint!.x + t*t*selectedWall.end.x;
-      const ny = mt*mt*selectedWall.start.y + 2*mt*t*selectedWall.curvePoint!.y + t*t*selectedWall.end.y;
-      len += Math.hypot(nx - px, ny - py); px = nx; py = ny;
+  // Helper to get the parent wall for selected door/window
+  let selectedDoorWall = $derived((selectedDoor && floor?.walls.find(w => w.id === selectedDoor.wallId)) ?? null);
+  let selectedWindowWall = $derived((selectedWindow && floor?.walls.find(w => w.id === selectedWindow.wallId)) ?? null);
+
+  // Helper function to calculate wall length
+  function calcWallLength(wall: Wall): number {
+    if (wall.curvePoint) {
+      let len = 0; const N = 20;
+      let px = wall.start.x, py = wall.start.y;
+      for (let i = 1; i <= N; i++) {
+        const t = i / N, mt = 1 - t;
+        const nx = mt*mt*wall.start.x + 2*mt*t*wall.curvePoint.x + t*t*wall.end.x;
+        const ny = mt*mt*wall.start.y + 2*mt*t*wall.curvePoint.y + t*t*wall.end.y;
+        len += Math.hypot(nx - px, ny - py); px = nx; py = ny;
+      }
+      return len;
     }
-    return len;
-  })() : Math.hypot(selectedWall.end.x - selectedWall.start.x, selectedWall.end.y - selectedWall.start.y)) : 0);
+    return Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
+  }
+
+  let wallLength = $derived(selectedWall ? Math.round(calcWallLength(selectedWall)) : 0);
+
+  // Calculate door distances
+  let doorDistFromA = $derived(selectedDoor && selectedDoorWall ? Math.round(calcWallLength(selectedDoorWall) * selectedDoor.position) : 0);
+  let doorDistFromB = $derived(selectedDoor && selectedDoorWall ? Math.round(calcWallLength(selectedDoorWall) * (1 - selectedDoor.position)) : 0);
+
+  // Calculate window distances  
+  let windowDistFromA = $derived(selectedWindow && selectedWindowWall ? Math.round(calcWallLength(selectedWindowWall) * selectedWindow.position) : 0);
+  let windowDistFromB = $derived(selectedWindow && selectedWindowWall ? Math.round(calcWallLength(selectedWindowWall) * (1 - selectedWindow.position)) : 0);
 
   function onWallThickness(e: Event) {
     if (!selectedWall) return;

@@ -316,6 +316,168 @@
     return Math.max(w.thickness * zoom, 4);
   }
 
+  /** Draw distance dimensions from door center to wall endpoints when door is selected */
+  function drawDoorDistanceDimensions(wall: Wall, door: Door) {
+    const wLength = wallLength(wall);
+    if (wLength < 10) return; // skip tiny walls
+    
+    // Calculate distances from door center to wall endpoints (in cm)
+    const distFromA = wLength * door.position;
+    const distFromB = wLength * (1 - door.position);
+    
+    // Get door center position
+    const doorCenter = wallPointAt(wall, door.position);
+    const dcScreen = worldToScreen(doorCenter.x, doorCenter.y);
+    
+    // Get wall endpoints
+    const wallStartScreen = worldToScreen(wall.start.x, wall.start.y);
+    const wallEndScreen = worldToScreen(wall.end.x, wall.end.y);
+    
+    // Draw thin lines from door center to each endpoint
+    ctx.strokeStyle = '#10b981';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    
+    ctx.beginPath();
+    ctx.moveTo(dcScreen.x, dcScreen.y);
+    ctx.lineTo(wallStartScreen.x, wallStartScreen.y);
+    ctx.stroke();
+    
+    ctx.beginPath();
+    ctx.moveTo(dcScreen.x, dcScreen.y);
+    ctx.lineTo(wallEndScreen.x, wallEndScreen.y);
+    ctx.stroke();
+    
+    ctx.setLineDash([]);
+    
+    // Draw green pill dimension labels
+    const fontSize = Math.max(10, 11 * zoom);
+    ctx.font = `${fontSize}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Distance to start point (A)
+    const midPointA = {
+      x: (dcScreen.x + wallStartScreen.x) / 2,
+      y: (dcScreen.y + wallStartScreen.y) / 2
+    };
+    const labelTextA = `${(distFromA / 100).toFixed(2)} m`;
+    const textWidthA = ctx.measureText(labelTextA).width;
+    const pillWidthA = textWidthA + 12;
+    const pillHeightA = fontSize + 6;
+    
+    // Green pill background
+    ctx.fillStyle = '#10b981';
+    ctx.beginPath();
+    ctx.roundRect(midPointA.x - pillWidthA / 2, midPointA.y - pillHeightA / 2, pillWidthA, pillHeightA, pillHeightA / 2);
+    ctx.fill();
+    
+    // White text
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(labelTextA, midPointA.x, midPointA.y);
+    
+    // Distance to end point (B)
+    const midPointB = {
+      x: (dcScreen.x + wallEndScreen.x) / 2,
+      y: (dcScreen.y + wallEndScreen.y) / 2
+    };
+    const labelTextB = `${(distFromB / 100).toFixed(2)} m`;
+    const textWidthB = ctx.measureText(labelTextB).width;
+    const pillWidthB = textWidthB + 12;
+    const pillHeightB = fontSize + 6;
+    
+    // Green pill background
+    ctx.fillStyle = '#10b981';
+    ctx.beginPath();
+    ctx.roundRect(midPointB.x - pillWidthB / 2, midPointB.y - pillHeightB / 2, pillWidthB, pillHeightB, pillHeightB / 2);
+    ctx.fill();
+    
+    // White text
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(labelTextB, midPointB.x, midPointB.y);
+  }
+
+  /** Draw distance dimensions from window center to wall endpoints when window is selected */
+  function drawWindowDistanceDimensions(wall: Wall, window: Win) {
+    const wLength = wallLength(wall);
+    if (wLength < 10) return; // skip tiny walls
+    
+    // Calculate distances from window center to wall endpoints (in cm)
+    const distFromA = wLength * window.position;
+    const distFromB = wLength * (1 - window.position);
+    
+    // Get window center position
+    const windowCenter = wallPointAt(wall, window.position);
+    const wcScreen = worldToScreen(windowCenter.x, windowCenter.y);
+    
+    // Get wall endpoints
+    const wallStartScreen = worldToScreen(wall.start.x, wall.start.y);
+    const wallEndScreen = worldToScreen(wall.end.x, wall.end.y);
+    
+    // Draw thin lines from window center to each endpoint
+    ctx.strokeStyle = '#10b981';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    
+    ctx.beginPath();
+    ctx.moveTo(wcScreen.x, wcScreen.y);
+    ctx.lineTo(wallStartScreen.x, wallStartScreen.y);
+    ctx.stroke();
+    
+    ctx.beginPath();
+    ctx.moveTo(wcScreen.x, wcScreen.y);
+    ctx.lineTo(wallEndScreen.x, wallEndScreen.y);
+    ctx.stroke();
+    
+    ctx.setLineDash([]);
+    
+    // Draw green pill dimension labels
+    const fontSize = Math.max(10, 11 * zoom);
+    ctx.font = `${fontSize}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Distance to start point (A)
+    const midPointA = {
+      x: (wcScreen.x + wallStartScreen.x) / 2,
+      y: (wcScreen.y + wallStartScreen.y) / 2
+    };
+    const labelTextA = `${(distFromA / 100).toFixed(2)} m`;
+    const textWidthA = ctx.measureText(labelTextA).width;
+    const pillWidthA = textWidthA + 12;
+    const pillHeightA = fontSize + 6;
+    
+    // Green pill background
+    ctx.fillStyle = '#10b981';
+    ctx.beginPath();
+    ctx.roundRect(midPointA.x - pillWidthA / 2, midPointA.y - pillHeightA / 2, pillWidthA, pillHeightA, pillHeightA / 2);
+    ctx.fill();
+    
+    // White text
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(labelTextA, midPointA.x, midPointA.y);
+    
+    // Distance to end point (B)
+    const midPointB = {
+      x: (wcScreen.x + wallEndScreen.x) / 2,
+      y: (wcScreen.y + wallEndScreen.y) / 2
+    };
+    const labelTextB = `${(distFromB / 100).toFixed(2)} m`;
+    const textWidthB = ctx.measureText(labelTextB).width;
+    const pillWidthB = textWidthB + 12;
+    const pillHeightB = fontSize + 6;
+    
+    // Green pill background
+    ctx.fillStyle = '#10b981';
+    ctx.beginPath();
+    ctx.roundRect(midPointB.x - pillWidthB / 2, midPointB.y - pillHeightB / 2, pillWidthB, pillHeightB, pillHeightB / 2);
+    ctx.fill();
+    
+    // White text
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(labelTextB, midPointB.x, midPointB.y);
+  }
+
   function drawWall(w: Wall, selected: boolean) {
     const s = worldToScreen(w.start.x, w.start.y);
     const e = worldToScreen(w.end.x, w.end.y);
@@ -1489,11 +1651,19 @@
 
     for (const d of floor.doors) {
       const wall = floor.walls.find((w) => w.id === d.wallId);
-      if (wall) drawDoorOnWall(wall, d);
+      if (wall) {
+        drawDoorOnWall(wall, d);
+        // Draw distance dimensions when selected
+        if (d.id === selId) drawDoorDistanceDimensions(wall, d);
+      }
     }
     for (const win of floor.windows) {
       const wall = floor.walls.find((w) => w.id === win.wallId);
-      if (wall) drawWindowOnWall(wall, win);
+      if (wall) {
+        drawWindowOnWall(wall, win);
+        // Draw distance dimensions when selected
+        if (win.id === selId) drawWindowDistanceDimensions(wall, win);
+      }
     }
 
     // Furniture
