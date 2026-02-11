@@ -8,7 +8,7 @@
   import { getCatalogItem } from '$lib/utils/furnitureCatalog';
   import { drawFurnitureIcon } from '$lib/utils/furnitureIcons';
   import { handleGlobalShortcut } from '$lib/utils/shortcuts';
-  import { getWallTextureCanvas, setTextureLoadCallback } from '$lib/utils/textureGenerator';
+  import { getWallTextureCanvas, getFloorTextureCanvas, setTextureLoadCallback } from '$lib/utils/textureGenerator';
 
   let canvas: HTMLCanvasElement;
   let ctx: CanvasRenderingContext2D;
@@ -1368,24 +1368,49 @@
   };
 
   function drawRoomFloorPattern(room: Room, screenPoly: {x:number,y:number}[]) {
+    // Try photo texture first
+    if (room.floorTexture) {
+      const texCanvas = getFloorTextureCanvas(room.floorTexture);
+      if (texCanvas) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(screenPoly[0].x, screenPoly[0].y);
+        for (let i = 1; i < screenPoly.length; i++) ctx.lineTo(screenPoly[i].x, screenPoly[i].y);
+        ctx.closePath();
+        ctx.clip();
+        ctx.globalAlpha = 0.5;
+        const scale = zoom * 0.15; // each texture tile ≈ 150cm
+        ctx.scale(scale, scale);
+        const pat = ctx.createPattern(texCanvas, 'repeat');
+        if (pat) {
+          ctx.fillStyle = pat;
+          let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+          for (const p of screenPoly) {
+            if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+            if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+          }
+          ctx.fillRect(minX / scale - 10, minY / scale - 10, (maxX - minX) / scale + 20, (maxY - minY) / scale + 20);
+        }
+        ctx.restore();
+        return;
+      }
+    }
+
+    // Fallback: old procedural patterns
     const pattern = ROOM_FLOOR_PATTERN[room.name] ?? 'wood';
-    if (pattern === 'none' || zoom < 0.3) return; // skip at very low zoom
+    if (pattern === 'none' || zoom < 0.3) return;
 
     ctx.save();
-    // Clip to room polygon
     ctx.beginPath();
     ctx.moveTo(screenPoly[0].x, screenPoly[0].y);
     for (let i = 1; i < screenPoly.length; i++) ctx.lineTo(screenPoly[i].x, screenPoly[i].y);
     ctx.closePath();
     ctx.clip();
 
-    // Bounding box of screen polygon
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     for (const p of screenPoly) {
-      if (p.x < minX) minX = p.x;
-      if (p.x > maxX) maxX = p.x;
-      if (p.y < minY) minY = p.y;
-      if (p.y > maxY) maxY = p.y;
+      if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
     }
 
     const alpha = Math.min(0.12, 0.04 + zoom * 0.02);
@@ -1393,59 +1418,34 @@
     ctx.lineWidth = 0.5;
 
     if (pattern === 'wood') {
-      // Horizontal plank lines
-      const spacing = 15 * zoom; // ~15cm planks
+      const spacing = 15 * zoom;
       if (spacing > 3) {
         for (let y = minY; y <= maxY; y += spacing) {
-          ctx.beginPath();
-          ctx.moveTo(minX, y);
-          ctx.lineTo(maxX, y);
-          ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(minX, y); ctx.lineTo(maxX, y); ctx.stroke();
         }
-        // Staggered vertical joints every ~60cm
         const jointSpacing = 60 * zoom;
         if (jointSpacing > 8) {
           let row = 0;
           for (let y = minY; y <= maxY; y += spacing) {
             const offset = (row % 2) * jointSpacing * 0.5;
             for (let x = minX + offset; x <= maxX; x += jointSpacing) {
-              ctx.beginPath();
-              ctx.moveTo(x, y);
-              ctx.lineTo(x, y + spacing);
-              ctx.stroke();
+              ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + spacing); ctx.stroke();
             }
             row++;
           }
         }
       }
     } else if (pattern === 'tile') {
-      // Grid tile pattern
-      const tileSize = 30 * zoom; // ~30cm tiles
+      const tileSize = 30 * zoom;
       if (tileSize > 5) {
-        for (let x = minX; x <= maxX; x += tileSize) {
-          ctx.beginPath();
-          ctx.moveTo(x, minY);
-          ctx.lineTo(x, maxY);
-          ctx.stroke();
-        }
-        for (let y = minY; y <= maxY; y += tileSize) {
-          ctx.beginPath();
-          ctx.moveTo(minX, y);
-          ctx.lineTo(maxX, y);
-          ctx.stroke();
-        }
+        for (let x = minX; x <= maxX; x += tileSize) { ctx.beginPath(); ctx.moveTo(x, minY); ctx.lineTo(x, maxY); ctx.stroke(); }
+        for (let y = minY; y <= maxY; y += tileSize) { ctx.beginPath(); ctx.moveTo(minX, y); ctx.lineTo(maxX, y); ctx.stroke(); }
       }
     } else if (pattern === 'stone') {
-      // Diagonal crosshatch
       const spacing = 25 * zoom;
       if (spacing > 5) {
         const w = maxX - minX, h = maxY - minY;
-        for (let d = -h; d <= w; d += spacing) {
-          ctx.beginPath();
-          ctx.moveTo(minX + d, minY);
-          ctx.lineTo(minX + d + h, maxY);
-          ctx.stroke();
-        }
+        for (let d = -h; d <= w; d += spacing) { ctx.beginPath(); ctx.moveTo(minX + d, minY); ctx.lineTo(minX + d + h, maxY); ctx.stroke(); }
       }
     }
 
