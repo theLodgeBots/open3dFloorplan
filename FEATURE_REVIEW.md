@@ -108,7 +108,7 @@ Systematic comparison. Each feature gets: ✅ done, 🔧 needs work, ❌ missing
 5. ✅ Top-down furniture architectural icons (sofa, bed, toilet, etc. — canvas-drawn top-down views)
 6. ✅ Clean dimension lines with proper arrowheads — extension lines, gapped dimension line, 45° tick marks
 7. ✅ Canvas background & grid refinement (major/minor grid, subtle background)
-8. Toolbar/sidebar styling to match planner5d aesthetic
+8. ✅ Toolbar/sidebar styling — SVG icons for tools, undo/redo, export menu; clean minimal aesthetic
 
 ### Phase 3: Interaction Improvements  
 9. Drag doors/windows along walls

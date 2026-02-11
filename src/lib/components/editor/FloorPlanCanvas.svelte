@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { activeFloor, selectedTool, selectedElementId, selectedRoomId, addWall, addDoor, addWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, removeElement, placingFurnitureId, placingRotation, detectedRoomsStore } from '$lib/stores/project';
+  import { activeFloor, selectedTool, selectedElementId, selectedRoomId, addWall, addDoor, addWindow, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, removeElement, placingFurnitureId, placingRotation, detectedRoomsStore } from '$lib/stores/project';
   import type { Point, Wall, Door, Window as Win, FurnitureItem } from '$lib/models/types';
   import type { Floor, Room } from '$lib/models/types';
   import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
@@ -33,6 +33,8 @@
   // Furniture drag state
   let draggingFurnitureId: string | null = $state(null);
   let dragOffset: Point = { x: 0, y: 0 };
+  let draggingDoorId: string | null = $state(null);
+  let draggingWindowId: string | null = $state(null);
 
   // Measurement tool
   let measureStart: Point | null = $state(null);
@@ -808,6 +810,32 @@
     return null;
   }
 
+  function findDoorAt(p: Point): Door | null {
+    if (!currentFloor) return null;
+    for (const d of currentFloor.doors) {
+      const wall = currentFloor.walls.find(w => w.id === d.wallId);
+      if (!wall) continue;
+      const t = d.position;
+      const cx = wall.start.x + (wall.end.x - wall.start.x) * t;
+      const cy = wall.start.y + (wall.end.y - wall.start.y) * t;
+      if (Math.hypot(p.x - cx, p.y - cy) < (d.width / 2 + 5) / zoom) return d;
+    }
+    return null;
+  }
+
+  function findWindowAt(p: Point): Win | null {
+    if (!currentFloor) return null;
+    for (const w of currentFloor.windows) {
+      const wall = currentFloor.walls.find(wl => wl.id === w.wallId);
+      if (!wall) continue;
+      const t = w.position;
+      const cx = wall.start.x + (wall.end.x - wall.start.x) * t;
+      const cy = wall.start.y + (wall.end.y - wall.start.y) * t;
+      if (Math.hypot(p.x - cx, p.y - cy) < (w.width / 2 + 5) / zoom) return w;
+    }
+    return null;
+  }
+
   function findRoomAt(p: Point): Room | null {
     if (!currentFloor) return null;
     for (const room of detectedRooms) {
@@ -886,7 +914,22 @@
         }
       }
     } else if (tool === 'select') {
-      // Check furniture first
+      // Check doors/windows first (they sit on walls, so check before walls)
+      const door = findDoorAt(wp);
+      if (door) {
+        selectedElementId.set(door.id);
+        selectedRoomId.set(null);
+        draggingDoorId = door.id;
+        return;
+      }
+      const win = findWindowAt(wp);
+      if (win) {
+        selectedElementId.set(win.id);
+        selectedRoomId.set(null);
+        draggingWindowId = win.id;
+        return;
+      }
+      // Check furniture
       const fi = findFurnitureAt(wp);
       if (fi) {
         selectedElementId.set(fi.id);
@@ -949,6 +992,26 @@
       const snapped = { x: snap(mousePos.x - dragOffset.x), y: snap(mousePos.y - dragOffset.y) };
       moveFurniture(draggingFurnitureId, snapped);
     }
+    if (draggingDoorId && currentFloor) {
+      const door = currentFloor.doors.find(d => d.id === draggingDoorId);
+      if (door) {
+        const wall = currentFloor.walls.find(w => w.id === door.wallId);
+        if (wall) {
+          const newPos = positionOnWall(mousePos, wall);
+          updateDoor(door.id, { position: newPos });
+        }
+      }
+    }
+    if (draggingWindowId && currentFloor) {
+      const win = currentFloor.windows.find(w => w.id === draggingWindowId);
+      if (win) {
+        const wall = currentFloor.walls.find(w => w.id === win.wallId);
+        if (wall) {
+          const newPos = positionOnWall(mousePos, wall);
+          updateWindow(win.id, { position: newPos });
+        }
+      }
+    }
     if (measuring && measureStart) {
       measureEnd = { ...mousePos };
     }
@@ -957,6 +1020,8 @@
   function onMouseUp() {
     isPanning = false;
     draggingFurnitureId = null;
+    draggingDoorId = null;
+    draggingWindowId = null;
     if (measuring && measureStart && measureEnd) {
       // Keep measurement visible until next click
     }
