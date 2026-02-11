@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { activeFloor, selectedTool, selectedElementId, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall, moveWallParallel, splitWall, snapEnabled, placingStair, addStair, moveStair, updateStair, calibrationMode, calibrationPoints, updateBackgroundImage } from '$lib/stores/project';
+  import { activeFloor, selectedTool, selectedElementId, selectedElementIds, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall, moveWallParallel, splitWall, snapEnabled, placingStair, addStair, moveStair, updateStair, calibrationMode, calibrationPoints, updateBackgroundImage } from '$lib/stores/project';
   import type { Point, Wall, Door, Window as Win, FurnitureItem, Stair } from '$lib/models/types';
   import type { Floor, Room } from '$lib/models/types';
   import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
@@ -96,6 +96,11 @@
 
   // Door/window placement preview state
   let placementPreview: { wallId: string; position: number; type: 'door' | 'window' } | null = $state(null);
+
+  // Marquee (drag-to-select) state
+  let marqueeStart: Point | null = $state(null);
+  let marqueeEnd: Point | null = $state(null);
+  let currentSelectedIds: Set<string> = $state(new Set());
 
   /**
    * Snap furniture position so its edge is flush against the nearest wall.
@@ -1803,11 +1808,13 @@
 
     updateDetectedRooms();
     const selId = currentSelectedId;
+    const multiIds = currentSelectedIds;
+    function isSelected(id: string) { return id === selId || multiIds.has(id); }
 
     drawRooms();
     drawSnapPoints();
 
-    for (const w of floor.walls) drawWall(w, w.id === selId);
+    for (const w of floor.walls) drawWall(w, isSelected(w.id));
 
     // Draw filled joints where walls share endpoints (covers corner gaps)
     drawWallJoints(floor, selId);
@@ -1817,7 +1824,7 @@
       if (wall) {
         drawDoorOnWall(wall, d);
         // Draw distance dimensions when selected
-        if (d.id === selId) drawDoorDistanceDimensions(wall, d);
+        if (isSelected(d.id)) drawDoorDistanceDimensions(wall, d);
       }
     }
     for (const win of floor.windows) {
@@ -1825,13 +1832,13 @@
       if (wall) {
         drawWindowOnWall(wall, win);
         // Draw distance dimensions when selected
-        if (win.id === selId) drawWindowDistanceDimensions(wall, win);
+        if (isSelected(win.id)) drawWindowDistanceDimensions(wall, win);
       }
     }
 
     // Furniture
     for (const fi of floor.furniture) {
-      const selected = fi.id === selId;
+      const selected = isSelected(fi.id);
       if (selected && draggingFurnitureId === fi.id) drawAlignmentGuides(fi);
       drawFurniture(fi, selected);
     }
@@ -1856,7 +1863,7 @@
     // Stairs
     if (floor.stairs) {
       for (const stair of floor.stairs) {
-        drawStair(stair, stair.id === selId);
+        drawStair(stair, isSelected(stair.id));
       }
     }
 
@@ -1955,6 +1962,23 @@
       }
     }
 
+    // Marquee selection rectangle
+    if (marqueeStart && marqueeEnd) {
+      const s = worldToScreen(marqueeStart.x, marqueeStart.y);
+      const e = worldToScreen(marqueeEnd.x, marqueeEnd.y);
+      const rx = Math.min(s.x, e.x), ry = Math.min(s.y, e.y);
+      const rw = Math.abs(e.x - s.x), rh = Math.abs(e.y - s.y);
+      if (rw > 2 || rh > 2) {
+        ctx.fillStyle = 'rgba(59, 130, 246, 0.08)';
+        ctx.fillRect(rx, ry, rw, rh);
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 3]);
+        ctx.strokeRect(rx, ry, rw, rh);
+        ctx.setLineDash([]);
+      }
+    }
+
     // Measurement
     if (measureStart && measuring) drawMeasurement();
 
@@ -1984,6 +2008,7 @@
     const unsub11 = placingStair.subscribe((v) => { isPlacingStair = v; });
     const unsub12 = calibrationMode.subscribe((v) => { isCalibrating = v; });
     const unsub13 = calibrationPoints.subscribe((pts) => { calPoints = pts; });
+    const unsub_multi = selectedElementIds.subscribe((ids) => { currentSelectedIds = ids; });
     const unsub14 = activeFloor.subscribe((f) => {
       if (f?.backgroundImage?.dataUrl && (!bgImage || bgImage.src !== f.backgroundImage.dataUrl)) {
         const img = new Image();
@@ -1994,7 +2019,7 @@
       }
     });
 
-    return () => { resizeObs.disconnect(); unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); unsub8(); unsub9(); unsub10(); unsub11(); unsub12(); unsub13(); unsub14(); };
+    return () => { resizeObs.disconnect(); unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); unsub8(); unsub9(); unsub10(); unsub11(); unsub12(); unsub13(); unsub_multi(); unsub14(); };
   });
 
   function zoomToFit() {
@@ -2300,51 +2325,75 @@
           return;
         }
       }
+      // Helper: select an element (shift = add to multi-select)
+      function selectElement(id: string, isShift: boolean) {
+        if (isShift) {
+          selectedElementIds.update(ids => {
+            const next = new Set(ids);
+            // Also include the current single selection if any
+            if (currentSelectedId && currentSelectedId !== id) next.add(currentSelectedId);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+          });
+          selectedElementId.set(id);
+        } else {
+          selectedElementId.set(id);
+          selectedElementIds.set(new Set());
+        }
+        selectedRoomId.set(null);
+      }
+
       // Check doors/windows first (they sit on walls, so check before walls)
       const door = findDoorAt(wp);
       if (door) {
-        selectedElementId.set(door.id);
-        selectedRoomId.set(null);
-        draggingDoorId = door.id;
+        selectElement(door.id, e.shiftKey);
+        if (!e.shiftKey) draggingDoorId = door.id;
         return;
       }
       const win = findWindowAt(wp);
       if (win) {
-        selectedElementId.set(win.id);
-        selectedRoomId.set(null);
-        draggingWindowId = win.id;
+        selectElement(win.id, e.shiftKey);
+        if (!e.shiftKey) draggingWindowId = win.id;
         return;
       }
       // Check stairs
       const stair = findStairAt(wp);
       if (stair) {
-        selectedElementId.set(stair.id);
-        selectedRoomId.set(null);
-        draggingStairId = stair.id;
-        stairDragOffset = { x: wp.x - stair.position.x, y: wp.y - stair.position.y };
+        selectElement(stair.id, e.shiftKey);
+        if (!e.shiftKey) {
+          draggingStairId = stair.id;
+          stairDragOffset = { x: wp.x - stair.position.x, y: wp.y - stair.position.y };
+        }
         return;
       }
       // Check furniture
       const fi = findFurnitureAt(wp);
       if (fi) {
-        selectedElementId.set(fi.id);
-        selectedRoomId.set(null);
-        draggingFurnitureId = fi.id;
-        commitFurnitureMove(); // snapshot before drag for undo
-        dragOffset = { x: wp.x - fi.position.x, y: wp.y - fi.position.y };
+        selectElement(fi.id, e.shiftKey);
+        if (!e.shiftKey) {
+          draggingFurnitureId = fi.id;
+          commitFurnitureMove(); // snapshot before drag for undo
+          dragOffset = { x: wp.x - fi.position.x, y: wp.y - fi.position.y };
+        }
         return;
       }
       const wall = findWallAt(wp);
       if (wall) {
-        selectedElementId.set(wall.id);
-        selectedRoomId.set(null);
+        selectElement(wall.id, e.shiftKey);
       } else {
         const room = findRoomAt(wp);
         if (room) {
           selectedRoomId.set(room.id);
           selectedElementId.set(null);
+          selectedElementIds.set(new Set());
         } else {
-          selectedElementId.set(null);
+          // Empty space — start marquee selection
+          marqueeStart = { ...wp };
+          marqueeEnd = { ...wp };
+          if (!e.shiftKey) {
+            selectedElementId.set(null);
+            selectedElementIds.set(new Set());
+          }
           selectedRoomId.set(null);
         }
       }
@@ -2554,13 +2603,79 @@
       placementPreview = null;
     }
 
+    // Marquee drag update
+    if (marqueeStart) {
+      marqueeEnd = { ...mousePos };
+    }
+
     if (measuring && measureStart) {
       measureEnd = { ...mousePos };
     }
   }
 
-  function onMouseUp() {
+  function onMouseUp(e: MouseEvent) {
     isPanning = false;
+
+    // Finalize marquee selection
+    if (marqueeStart && marqueeEnd && currentFloor) {
+      const minX = Math.min(marqueeStart.x, marqueeEnd.x);
+      const maxX = Math.max(marqueeStart.x, marqueeEnd.x);
+      const minY = Math.min(marqueeStart.y, marqueeEnd.y);
+      const maxY = Math.max(marqueeStart.y, marqueeEnd.y);
+      const marqueeW = maxX - minX;
+      const marqueeH = maxY - minY;
+
+      // Only treat as marquee if dragged at least a small distance
+      if (marqueeW > 5 || marqueeH > 5) {
+        const ids = new Set<string>(e.shiftKey ? currentSelectedIds : []);
+
+        function ptInRect(p: Point) {
+          return p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY;
+        }
+
+        // Walls: both endpoints inside
+        for (const w of currentFloor.walls) {
+          if (ptInRect(w.start) && ptInRect(w.end)) ids.add(w.id);
+        }
+        // Doors/windows: center point inside
+        for (const d of currentFloor.doors) {
+          const w = currentFloor.walls.find(w => w.id === d.wallId);
+          if (w) {
+            const cx = w.start.x + (w.end.x - w.start.x) * d.position;
+            const cy = w.start.y + (w.end.y - w.start.y) * d.position;
+            if (ptInRect({ x: cx, y: cy })) ids.add(d.id);
+          }
+        }
+        for (const win of currentFloor.windows) {
+          const w = currentFloor.walls.find(w => w.id === win.wallId);
+          if (w) {
+            const cx = w.start.x + (w.end.x - w.start.x) * win.position;
+            const cy = w.start.y + (w.end.y - w.start.y) * win.position;
+            if (ptInRect({ x: cx, y: cy })) ids.add(win.id);
+          }
+        }
+        // Furniture: center inside
+        for (const fi of currentFloor.furniture) {
+          if (ptInRect(fi.position)) ids.add(fi.id);
+        }
+        // Stairs: center inside
+        if (currentFloor.stairs) {
+          for (const st of currentFloor.stairs) {
+            if (ptInRect(st.position)) ids.add(st.id);
+          }
+        }
+
+        if (ids.size > 0) {
+          selectedElementIds.set(ids);
+          // Set primary selection to first element
+          const first = ids.values().next().value;
+          if (first) selectedElementId.set(first);
+        }
+      }
+      marqueeStart = null;
+      marqueeEnd = null;
+    }
+
     if (draggingFurnitureId) commitFurnitureMove();
     if (draggingHandle) commitFurnitureMove();
     if (draggingWallEndpoint) commitFurnitureMove();
@@ -2693,6 +2808,10 @@
       <span>{currentFloor.walls.length} wall{currentFloor.walls.length !== 1 ? 's' : ''}</span>
       <span class="text-gray-300">|</span>
     {/if}
+    {#if currentSelectedIds.size > 1}
+      <span class="text-blue-600 font-medium">{currentSelectedIds.size} selected</span>
+      <span class="text-gray-300">|</span>
+    {/if}
     <span>Zoom: {Math.round(zoom * 100)}%</span>
     <button class="hover:text-gray-700" onclick={() => zoomToFit()} title="Zoom to Fit (F)">⊞ Fit</button>
     <button class="hover:text-gray-700" onclick={() => showGrid = !showGrid} title="Toggle Grid (G)">
@@ -2703,7 +2822,7 @@
     </button>
   </div>
   <!-- Contextual Toolbar -->
-  {#if currentSelectedId && currentFloor && currentTool === 'select'}
+  {#if (currentSelectedId || currentSelectedIds.size > 0) && currentFloor && currentTool === 'select'}
     {@const el = (() => {
       const f = currentFloor;
       const wall = f.walls.find(w => w.id === currentSelectedId);
@@ -2781,7 +2900,16 @@
         <button
           class="w-7 h-7 flex items-center justify-center rounded hover:bg-red-50 text-gray-400 hover:text-red-600"
           title="Delete"
-          onclick={() => { if (currentSelectedId) { removeElement(currentSelectedId); selectedElementId.set(null); } }}
+          onclick={() => {
+            if (currentSelectedIds.size > 0) {
+              for (const id of currentSelectedIds) removeElement(id);
+              selectedElementIds.set(new Set());
+              selectedElementId.set(null);
+            } else if (currentSelectedId) {
+              removeElement(currentSelectedId);
+              selectedElementId.set(null);
+            }
+          }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/></svg>
         </button>

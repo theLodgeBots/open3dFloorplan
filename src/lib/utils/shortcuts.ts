@@ -1,4 +1,4 @@
-import { selectedTool, undo, redo, viewMode, selectedElementId, removeElement } from '$lib/stores/project';
+import { selectedTool, undo, redo, viewMode, selectedElementId, selectedElementIds, removeElement } from '$lib/stores/project';
 import { get } from 'svelte/store';
 import { localStore } from '$lib/services/datastore';
 import { currentProject } from '$lib/stores/project';
@@ -41,11 +41,19 @@ export function handleGlobalShortcut(e: KeyboardEvent, ctx: ShortcutContext = {}
   if (e.key === 'Escape') {
     selectedTool.set('select');
     selectedElementId.set(null);
+    selectedElementIds.set(new Set());
     return true;
   }
   if (e.key === 'Delete' || e.key === 'Backspace') {
-    const id = get(selectedElementId);
-    if (id) { removeElement(id); selectedElementId.set(null); }
+    const multiIds = get(selectedElementIds);
+    if (multiIds.size > 0) {
+      for (const id of multiIds) removeElement(id);
+      selectedElementIds.set(new Set());
+      selectedElementId.set(null);
+    } else {
+      const id = get(selectedElementId);
+      if (id) { removeElement(id); selectedElementId.set(null); }
+    }
     return true;
   }
   if (e.key === 'w' || e.key === 'W') { selectedTool.set('wall'); return true; }
