@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { activeFloor, selectedTool, selectedElementId, selectedRoomId, addWall, addDoor, addWindow, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, removeElement, placingFurnitureId, placingRotation, detectedRoomsStore } from '$lib/stores/project';
+  import { activeFloor, selectedTool, selectedElementId, selectedRoomId, addWall, addDoor, addWindow, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, removeElement, placingFurnitureId, placingRotation, detectedRoomsStore } from '$lib/stores/project';
   import type { Point, Wall, Door, Window as Win, FurnitureItem } from '$lib/models/types';
   import type { Floor, Room } from '$lib/models/types';
   import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
@@ -51,6 +51,7 @@
   const GRID = 20;
   const SNAP = 10;
   const MAGNETIC_SNAP = 15;
+  const WALL_SNAP_DIST = 30; // cm — distance threshold to snap furniture to wall
 
   // Store subscriptions
   let currentFloor: Floor | null = $state(null);
@@ -59,6 +60,76 @@
   let currentPlacingId: string | null = $state(null);
   let currentPlacingRotation: number = $state(0);
   let currentTool: string = $state('select');
+
+  // Wall snap state for visual feedback
+  let wallSnapInfo: { wallId: string; side: 'normal' | 'anti'; wallAngle: number } | null = $state(null);
+
+  /**
+   * Snap furniture position so its edge is flush against the nearest wall.
+   * Returns adjusted position and rotation, or null if no wall is close enough.
+   */
+  function snapFurnitureToWall(pos: Point, catalogId: string, currentRotation: number): { position: Point; rotation: number; wallId: string; side: 'normal' | 'anti'; wallAngle: number } | null {
+    if (!currentFloor) return null;
+    const cat = getCatalogItem(catalogId);
+    if (!cat) return null;
+
+    // Furniture half-depth (the "back" dimension that goes against the wall)
+    const halfDepth = cat.depth / 2;
+
+    let bestDist = WALL_SNAP_DIST;
+    let bestResult: { position: Point; rotation: number; wallId: string; side: 'normal' | 'anti'; wallAngle: number } | null = null;
+
+    for (const wall of currentFloor.walls) {
+      const wx = wall.end.x - wall.start.x;
+      const wy = wall.end.y - wall.start.y;
+      const wLen = Math.hypot(wx, wy);
+      if (wLen < 1) continue;
+
+      // Unit vectors along wall and perpendicular (normal)
+      const ux = wx / wLen, uy = wy / wLen;
+      const nx = -uy, ny = ux; // normal pointing "left" of wall direction
+
+      // Project furniture center onto wall line
+      const dx = pos.x - wall.start.x;
+      const dy = pos.y - wall.start.y;
+      const along = dx * ux + dy * uy; // projection along wall
+      const perp = dx * nx + dy * ny;  // signed distance from wall center-line
+
+      // Check if projection falls within wall segment (with some margin)
+      if (along < -cat.width / 2 || along > wLen + cat.width / 2) continue;
+
+      const wallHalfThickness = wall.thickness / 2;
+      // Distance from furniture center to wall surface on the side the furniture is on
+      const absDist = Math.abs(perp) - wallHalfThickness;
+
+      // We want the furniture edge to touch the wall, so target distance = halfDepth
+      const snapDist = Math.abs(absDist - halfDepth);
+
+      if (snapDist < bestDist) {
+        bestDist = snapDist;
+        const side: 'normal' | 'anti' = perp >= 0 ? 'normal' : 'anti';
+        const sign = perp >= 0 ? 1 : -1;
+        // Position: push center so edge is flush with wall surface
+        const targetPerp = sign * (wallHalfThickness + halfDepth);
+        const clampedAlong = Math.max(cat.width / 2, Math.min(wLen - cat.width / 2, along));
+        const newX = wall.start.x + ux * clampedAlong + nx * targetPerp;
+        const newY = wall.start.y + uy * clampedAlong + ny * targetPerp;
+        // Align rotation: furniture "front" faces away from wall
+        const wallAngle = Math.atan2(wy, wx) * 180 / Math.PI;
+        // Furniture at 0° has depth along Y axis, so align perpendicular
+        const targetRotation = perp >= 0 ? wallAngle : wallAngle + 180;
+
+        bestResult = {
+          position: { x: snap(newX), y: snap(newY) },
+          rotation: ((targetRotation % 360) + 360) % 360,
+          wallId: wall.id,
+          side,
+          wallAngle: wallAngle
+        };
+      }
+    }
+    return bestResult;
+  }
 
   function snap(v: number): number {
     return Math.round(v / SNAP) * SNAP;
@@ -428,14 +499,42 @@
     ctx.restore();
   }
 
+  // Track wall snap during placement preview
+  let placementWallSnap: { position: Point; rotation: number; wallId: string } | null = $state(null);
+
   function drawFurniturePreview() {
     if (!currentPlacingId) return;
     const cat = getCatalogItem(currentPlacingId);
     if (!cat) return;
-    const s = worldToScreen(mousePos.x, mousePos.y);
+
+    // Check wall snap for preview
+    const wallSnap = snapFurnitureToWall(mousePos, currentPlacingId, currentPlacingRotation);
+    placementWallSnap = wallSnap;
+
+    const pos = wallSnap ? wallSnap.position : mousePos;
+    const rot = wallSnap ? wallSnap.rotation : currentPlacingRotation;
+
+    const s = worldToScreen(pos.x, pos.y);
     const w = cat.width * zoom;
     const d = cat.depth * zoom;
-    const angle = (currentPlacingRotation * Math.PI) / 180;
+    const angle = (rot * Math.PI) / 180;
+
+    // Highlight snap wall
+    if (wallSnap && currentFloor) {
+      const snapWall = currentFloor.walls.find(wl => wl.id === wallSnap.wallId);
+      if (snapWall) {
+        const ws = worldToScreen(snapWall.start.x, snapWall.start.y);
+        const we = worldToScreen(snapWall.end.x, snapWall.end.y);
+        ctx.strokeStyle = '#22c55e';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 3]);
+        ctx.beginPath();
+        ctx.moveTo(ws.x, ws.y);
+        ctx.lineTo(we.x, we.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
 
     ctx.save();
     ctx.translate(s.x, s.y);
@@ -674,6 +773,23 @@
       drawFurniture(fi, selected);
     }
 
+    // Wall snap indicator — highlight the target wall
+    if (wallSnapInfo && currentFloor) {
+      const snapWall = currentFloor.walls.find(w => w.id === wallSnapInfo!.wallId);
+      if (snapWall) {
+        const s = worldToScreen(snapWall.start.x, snapWall.start.y);
+        const e = worldToScreen(snapWall.end.x, snapWall.end.y);
+        ctx.strokeStyle = '#22c55e';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 3]);
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(e.x, e.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+
     // Furniture placement preview
     if (currentPlacingId && currentTool === 'furniture') drawFurniturePreview();
 
@@ -886,11 +1002,12 @@
     const tool = currentTool;
 
     if (tool === 'furniture' && currentPlacingId) {
-      const snapped = { x: snap(wp.x), y: snap(wp.y) };
-      const id = addFurniture(currentPlacingId, snapped);
-      // Apply rotation
-      if (currentPlacingRotation !== 0) {
-        rotateFurniture(id, currentPlacingRotation);
+      const wallSnap = snapFurnitureToWall(wp, currentPlacingId, currentPlacingRotation);
+      const pos = wallSnap ? wallSnap.position : { x: snap(wp.x), y: snap(wp.y) };
+      const rot = wallSnap ? wallSnap.rotation : currentPlacingRotation;
+      const id = addFurniture(currentPlacingId, pos);
+      if (rot !== 0) {
+        rotateFurniture(id, rot);
       }
       selectedElementId.set(id);
       return;
@@ -989,8 +1106,20 @@
       panStartY = e.clientY;
     }
     if (draggingFurnitureId) {
-      const snapped = { x: snap(mousePos.x - dragOffset.x), y: snap(mousePos.y - dragOffset.y) };
-      moveFurniture(draggingFurnitureId, snapped);
+      const basePos = { x: mousePos.x - dragOffset.x, y: mousePos.y - dragOffset.y };
+      const fi = currentFloor?.furniture.find(f => f.id === draggingFurnitureId);
+      if (fi) {
+        const wallSnap = snapFurnitureToWall(basePos, fi.catalogId, fi.rotation);
+        if (wallSnap) {
+          moveFurniture(draggingFurnitureId, wallSnap.position);
+          setFurnitureRotation(draggingFurnitureId, wallSnap.rotation);
+          wallSnapInfo = { wallId: wallSnap.wallId, side: wallSnap.side, wallAngle: wallSnap.wallAngle };
+        } else {
+          const snapped = { x: snap(basePos.x), y: snap(basePos.y) };
+          moveFurniture(draggingFurnitureId, snapped);
+          wallSnapInfo = null;
+        }
+      }
     }
     if (draggingDoorId && currentFloor) {
       const door = currentFloor.doors.find(d => d.id === draggingDoorId);
@@ -1019,9 +1148,11 @@
 
   function onMouseUp() {
     isPanning = false;
+    if (draggingFurnitureId) commitFurnitureMove();
     draggingFurnitureId = null;
     draggingDoorId = null;
     draggingWindowId = null;
+    wallSnapInfo = null;
     if (measuring && measureStart && measureEnd) {
       // Keep measurement visible until next click
     }

@@ -139,6 +139,13 @@ export function rotateFurniture(id: string, angle: number) {
   });
 }
 
+export function setFurnitureRotation(id: string, angle: number) {
+  mutate((f) => {
+    const item = f.furniture.find((fi) => fi.id === id);
+    if (item) item.rotation = ((angle % 360) + 360) % 360;
+  });
+}
+
 export function removeFurniture(id: string) {
   mutate((f) => {
     f.furniture = f.furniture.filter((fi) => fi.id !== id);
