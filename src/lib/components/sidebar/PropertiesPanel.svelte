@@ -46,6 +46,10 @@
     if (!selectedDoor) return;
     updateDoor(selectedDoor.id, { width: Number((e.target as HTMLInputElement).value) });
   }
+  function onDoorHeight(e: Event) {
+    if (!selectedDoor) return;
+    updateDoor(selectedDoor.id, { height: Number((e.target as HTMLInputElement).value) });
+  }
   function onDoorType(e: Event) {
     if (!selectedDoor) return;
     updateDoor(selectedDoor.id, { type: (e.target as HTMLSelectElement).value as Door['type'] });
@@ -190,6 +194,10 @@
       <label class="block">
         <span class="text-xs text-gray-500">Width (cm)</span>
         <input type="number" value={selectedDoor.width} oninput={onDoorWidth} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+      </label>
+      <label class="block">
+        <span class="text-xs text-gray-500">Height (cm)</span>
+        <input type="number" value={selectedDoor.height ?? 210} oninput={onDoorHeight} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
         <span class="text-xs text-gray-500">Type</span>

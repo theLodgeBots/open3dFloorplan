@@ -24,6 +24,7 @@ export interface Door {
   wallId: string;
   position: number; // 0-1 along wall
   width: number;
+  height: number;
   type: 'single' | 'double' | 'sliding' | 'french' | 'pocket' | 'bifold';
   swingDirection: 'left' | 'right';
 }

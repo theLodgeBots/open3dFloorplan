@@ -90,17 +90,17 @@ export function removeWall(id: string) {
 
 export function addDoor(wallId: string, position: number, doorType: Door['type'] = 'single'): string {
   const id = uid();
-  const defaults: Record<Door['type'], { width: number }> = {
-    single: { width: 90 },
-    double: { width: 150 },
-    sliding: { width: 180 },
-    french: { width: 150 },
-    pocket: { width: 90 },
-    bifold: { width: 180 },
+  const defaults: Record<Door['type'], { width: number; height: number }> = {
+    single: { width: 90, height: 210 },
+    double: { width: 150, height: 210 },
+    sliding: { width: 180, height: 210 },
+    french: { width: 150, height: 210 },
+    pocket: { width: 90, height: 210 },
+    bifold: { width: 180, height: 210 },
   };
-  const { width } = defaults[doorType];
+  const { width, height } = defaults[doorType];
   mutate((f) => {
-    f.doors.push({ id, wallId, position, width, type: doorType, swingDirection: 'left' });
+    f.doors.push({ id, wallId, position, width, height, type: doorType, swingDirection: 'left' });
   });
   return id;
 }
