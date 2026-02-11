@@ -50,6 +50,15 @@
 
   // Ruler toggle
   let showRulers = $state(true);
+
+  // Layer visibility toggles
+  let showFurniture = $state(true);
+  let showDoors = $state(true);
+  let showWindows = $state(true);
+  let showRoomLabels = $state(true);
+  let showDimensions = $state(true);
+  let showStairs = $state(true);
+  let showLayerPanel = $state(false);
   const RULER_SIZE = 24;
 
   // Detected rooms
@@ -642,6 +651,7 @@
     }
 
     // Dimension line with arrowheads (architectural style)
+    if (!showDimensions) return;
     const wlen = wallLength(w);
     if (wlen < 10) return; // skip tiny walls
     const mx = (s.x + e.x) / 2;
@@ -1484,14 +1494,16 @@
       const centroid = roomCentroid(poly);
       const sc = worldToScreen(centroid.x, centroid.y);
       const fontSize = Math.max(11, 13 * zoom);
-      ctx.fillStyle = '#9ca3af';
-      ctx.font = `${fontSize}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(`${room.name} (${room.area} m²)`, sc.x, sc.y);
+      if (showRoomLabels) {
+        ctx.fillStyle = '#9ca3af';
+        ctx.font = `${fontSize}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${room.name} (${room.area} m²)`, sc.x, sc.y);
+      }
 
       // Room dimensions (width × depth from oriented bounding box)
-      if (poly.length >= 3) {
+      if (showDimensions && poly.length >= 3) {
         let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
         for (const pt of poly) {
           if (pt.x < minX) minX = pt.x;
@@ -1795,28 +1807,32 @@
     // Draw filled joints where walls share endpoints (covers corner gaps)
     drawWallJoints(floor, selId);
 
-    for (const d of floor.doors) {
-      const wall = floor.walls.find((w) => w.id === d.wallId);
-      if (wall) {
-        drawDoorOnWall(wall, d);
-        // Draw distance dimensions when selected
-        if (isSelected(d.id)) drawDoorDistanceDimensions(wall, d);
+    if (showDoors) {
+      for (const d of floor.doors) {
+        const wall = floor.walls.find((w) => w.id === d.wallId);
+        if (wall) {
+          drawDoorOnWall(wall, d);
+          if (showDimensions && isSelected(d.id)) drawDoorDistanceDimensions(wall, d);
+        }
       }
     }
-    for (const win of floor.windows) {
-      const wall = floor.walls.find((w) => w.id === win.wallId);
-      if (wall) {
-        drawWindowOnWall(wall, win);
-        // Draw distance dimensions when selected
-        if (isSelected(win.id)) drawWindowDistanceDimensions(wall, win);
+    if (showWindows) {
+      for (const win of floor.windows) {
+        const wall = floor.walls.find((w) => w.id === win.wallId);
+        if (wall) {
+          drawWindowOnWall(wall, win);
+          if (showDimensions && isSelected(win.id)) drawWindowDistanceDimensions(wall, win);
+        }
       }
     }
 
     // Furniture
-    for (const fi of floor.furniture) {
-      const selected = isSelected(fi.id);
-      if (selected && draggingFurnitureId === fi.id) drawAlignmentGuides(fi);
-      drawFurniture(fi, selected);
+    if (showFurniture) {
+      for (const fi of floor.furniture) {
+        const selected = isSelected(fi.id);
+        if (selected && draggingFurnitureId === fi.id) drawAlignmentGuides(fi);
+        drawFurniture(fi, selected);
+      }
     }
 
     // Wall snap indicator — highlight the target wall
@@ -1837,7 +1853,7 @@
     }
 
     // Stairs
-    if (floor.stairs) {
+    if (showStairs && floor.stairs) {
       for (const stair of floor.stairs) {
         drawStair(stair, isSelected(stair.id));
       }
@@ -2799,10 +2815,44 @@
     <button class="hover:text-gray-700" onclick={() => showGrid = !showGrid} title="Toggle Grid (G)">
       {showGrid ? '▦' : '▢'} Grid
     </button>
+    <button class="hover:text-gray-700" onclick={() => showLayerPanel = !showLayerPanel} title="Layer Visibility">
+      🗂 Layers
+    </button>
     <button class="hover:text-gray-700" onclick={() => showRulers = !showRulers} title="Toggle Rulers">
       {showRulers ? '📏' : '📐'} Rulers
     </button>
   </div>
+  <!-- Layer Visibility Panel -->
+  {#if showLayerPanel}
+    <div class="absolute bottom-12 right-2 z-20 bg-white rounded-lg shadow-lg border border-gray-200 p-3 text-xs min-w-[160px]">
+      <div class="font-semibold text-gray-700 mb-2">Layers</div>
+      <label class="flex items-center gap-2 py-0.5 cursor-pointer hover:bg-gray-50 rounded px-1">
+        <input type="checkbox" bind:checked={showFurniture} class="accent-blue-500" />
+        <span>Furniture</span>
+      </label>
+      <label class="flex items-center gap-2 py-0.5 cursor-pointer hover:bg-gray-50 rounded px-1">
+        <input type="checkbox" bind:checked={showDoors} class="accent-blue-500" />
+        <span>Doors</span>
+      </label>
+      <label class="flex items-center gap-2 py-0.5 cursor-pointer hover:bg-gray-50 rounded px-1">
+        <input type="checkbox" bind:checked={showWindows} class="accent-blue-500" />
+        <span>Windows</span>
+      </label>
+      <label class="flex items-center gap-2 py-0.5 cursor-pointer hover:bg-gray-50 rounded px-1">
+        <input type="checkbox" bind:checked={showStairs} class="accent-blue-500" />
+        <span>Stairs</span>
+      </label>
+      <label class="flex items-center gap-2 py-0.5 cursor-pointer hover:bg-gray-50 rounded px-1">
+        <input type="checkbox" bind:checked={showRoomLabels} class="accent-blue-500" />
+        <span>Room Labels</span>
+      </label>
+      <label class="flex items-center gap-2 py-0.5 cursor-pointer hover:bg-gray-50 rounded px-1">
+        <input type="checkbox" bind:checked={showDimensions} class="accent-blue-500" />
+        <span>Dimensions</span>
+      </label>
+    </div>
+  {/if}
+
   <!-- Contextual Toolbar -->
   {#if (currentSelectedId || currentSelectedIds.size > 0) && currentFloor && currentTool === 'select'}
     {@const el = (() => {

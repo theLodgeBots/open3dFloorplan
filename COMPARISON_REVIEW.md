@@ -142,7 +142,7 @@
 | Photorealistic render (raytraced) | ✓ (premium) | ✗ | 🚫 |
 | Room labels in 3D | ✓ | ✓ | ✅ |
 | Ambient occlusion | ✓ | ✗ | ❌ |
-| Environment/skybox | ✓ | ✗ (gradient background) | ❌ |
+| Environment/skybox | ✓ | ✓ (sky gradient + ground plane) | ✅ |
 
 ## 9. MULTI-FLOOR
 
@@ -163,7 +163,7 @@
 | PDF export | ✓ | ✓ | ✅ |
 | DXF/DWG export | ✓ (premium) | ✓ | ✅ (we're ahead!) |
 | JSON project save/load | ✗ | ✓ | ✅ |
-| 3D screenshot | ✓ (camera icon) | ✗ | ❌ |
+| 3D screenshot | ✓ (camera icon) | ✓ | ✅ |
 | Share link | ✓ | ✗ | ❌ |
 | Embed code | ✓ | ✗ | ❌ |
 
