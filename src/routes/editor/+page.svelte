@@ -21,11 +21,20 @@
       const project = await localStore.load(id);
       if (project) {
         currentProject.set(project);
-        ready = true;
-        return;
+      } else {
+        // ID not found — create new and update URL
+        const p = createDefaultProject();
+        currentProject.set(p);
+        await localStore.save(p);
+        history.replaceState(null, '', `/editor?id=${p.id}`);
       }
+    } else {
+      // No ID param — create new and update URL
+      const p = createDefaultProject();
+      currentProject.set(p);
+      await localStore.save(p);
+      history.replaceState(null, '', `/editor?id=${p.id}`);
     }
-    currentProject.set(createDefaultProject());
     ready = true;
 
     // Auto-save on every project change (debounced)
