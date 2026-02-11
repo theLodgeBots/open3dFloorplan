@@ -16,23 +16,23 @@ Systematic comparison. Each feature gets: ✅ done, 🔧 needs work, ❌ missing
 
 ## 2. Doors & Windows
 - ✅ Can place doors and windows on walls
-- 🔧 **Door scale/appearance** — doors look wrong size compared to walls (Jason's feedback)
-- 🔧 **Door swing arc in 2D** — should show quarter-circle swing direction clearly
-- 🔧 **Window appearance** — should show parallel lines with glass indication
-- 🔧 **Drag along wall** — doors/windows should slide along the wall they're on
-- 🔧 **Size relative to wall** — door default width should be ~90cm, window ~120cm
-- ❌ **Door/window catalog** — planner5d has multiple door types (single, double, sliding, French, pocket)
+- ✅ **Door scale/appearance** — properly scaled 90cm default, correct proportions
+- ✅ **Door swing arc in 2D** — solid thin arc, thicker door leaf line, jamb ticks
+- ✅ **Window appearance** — 3 parallel lines (outer wall edges + middle glass pane) with end caps
+- ✅ **Drag along wall** — click to select, drag to slide along wall
+- ✅ **Size relative to wall** — door default 90cm, window 120cm
+- ✅ **Door/window catalog** — 6 door types + 5 window types with unique 2D renderings, catalog grid in BuildPanel
 - ✅ **Opening direction toggle** — flip swing (left/right) + flip side (inward/outward) via context toolbar
 
 ## 3. Furniture Placement
 - ✅ Catalog with categories
 - ✅ Click to place, drag to move, scroll/R to rotate
-- 🔧 **Scale in 2D** — furniture rectangles need to render at correct cm scale relative to walls
-- 🔧 **Furniture icons** — using emoji, should use SVG top-down views (sofa looks like a sofa from above)
+- ✅ **Scale in 2D** — furniture renders at correct cm dimensions relative to walls
+- ✅ **Furniture icons** — canvas-drawn architectural top-down views per item type
 - ✅ **Snap to walls** — furniture snaps edge-flush to nearby walls with auto-rotation alignment
-- 🔧 **Selection handles** — resize handles, rotation handle (circle at corner)
+- ✅ **Selection handles** — resize handles at 4 corners, rotation handle above, dashed selection border
 - ❌ **3D furniture models** — planner5d shows real 3D models; we show colored boxes
-- ❌ **Furniture properties** — color/material picker per item
+- ✅ **Furniture properties** — color picker (preset + custom), dimensions (W/D/H), material selector, rotation, reset to defaults
 
 ## 4. Room Detection & Display
 - ✅ Auto-detects enclosed rooms
@@ -47,8 +47,8 @@ Systematic comparison. Each feature gets: ✅ done, 🔧 needs work, ❌ missing
 - ✅ Zoom (scroll wheel)
 - ✅ Grid with snap
 - ✅ Zoom-to-fit (F key)
-- 🔧 **Canvas background** — planner5d uses very light gray with subtle grid; ours may be too dark/bright
-- 🔧 **Dimension arrows** — planner5d shows clean dimension lines with arrowheads outside the wall
+- ✅ **Canvas background** — light gray with major/minor grid, subtle and clean
+- ✅ **Dimension arrows** — extension lines, gapped dimension line, 45° tick marks
 - ✅ **Ruler along edges** — horizontal/vertical rulers with auto-scaling ticks, mouse position indicators
 - ✅ **Area dimensions** — shows room width × depth below name label in room center
 
@@ -59,7 +59,7 @@ Systematic comparison. Each feature gets: ✅ done, 🔧 needs work, ❌ missing
 - ✅ Orbit camera controls
 - ✅ Room floor fills with labels
 - ✅ **Door/window openings** — proper 3D frames, hinged doors, mullion windows, baseboard gaps
-- 🔧 **Lighting quality** — planner5d has nice ambient + directional; ours might need tuning
+- ✅ **Lighting quality** — 3-point setup: warm key sun, cool fill light, rim backlight; hemisphere boost
 - ❌ **3D furniture** — only colored boxes, not models
 - ✅ **Material/texture on walls** — wall color property reflected in 3D (interior + exterior)
 - ❌ **Ceiling** — planner5d shows ceiling in 3D
@@ -70,17 +70,17 @@ Systematic comparison. Each feature gets: ✅ done, 🔧 needs work, ❌ missing
 - ✅ Left sidebar with Build/Rooms/Objects tabs
 - ✅ Properties panel (right side or integrated)
 - ✅ Status bar
-- 🔧 **Toolbar style** — planner5d has very clean minimal icons; ours uses text buttons
-- 🔧 **Sidebar width/style** — planner5d sidebar is narrower with icon+text items
-- 🔧 **Tool icons** — planner5d uses clean SVG icons; we use emoji or text
-- ❌ **Contextual toolbar** — planner5d shows context tools when item selected (duplicate, delete, flip)
+- ✅ **Toolbar style** — SVG icons for tools, undo/redo, export menu; clean minimal aesthetic
+- ✅ **Sidebar width/style** — clean layout with icon+text items
+- ✅ **Tool icons** — SVG icons throughout
+- ✅ **Contextual toolbar** — floating toolbar above selected elements with duplicate, delete, flip-swing buttons
 
 ## 8. Export / Save
 - ✅ PNG export (2D and 3D)
 - ✅ SVG export
 - ✅ JSON download/import
 - ✅ Auto-save to localStorage
-- ❌ **PDF export**
+- ✅ **PDF export** — A4 landscape with title, centered floor plan image, scale indicator, date footer (jsPDF)
 - ❌ **Cloud save** (Firebase — planned for later)
 
 ## 9. Keyboard Shortcuts
