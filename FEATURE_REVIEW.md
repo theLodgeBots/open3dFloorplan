@@ -113,7 +113,7 @@ Systematic comparison. Each feature gets: ✅ done, 🔧 needs work, ❌ missing
 ### Phase 3: Interaction Improvements  
 9. ✅ Drag doors/windows along walls — click to select, drag to slide along wall
 10. ✅ Furniture snap-to-wall — auto-snaps edge flush to wall + aligns rotation, green highlight indicator
-11. Selection handles (resize, rotate)
+11. ✅ Selection handles — resize handles at 4 corners (drag to scale), rotation handle above (drag to rotate with 15° snap), dashed selection border
 12. Wall endpoint drag-to-resize
 
 ### Phase 4: 3D Enhancements

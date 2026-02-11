@@ -170,6 +170,20 @@ export function removeElement(id: string) {
   });
 }
 
+/** Move a wall endpoint without creating an undo snapshot (for dragging) */
+export function moveWallEndpoint(id: string, endpoint: 'start' | 'end', position: Point) {
+  const p = get(currentProject);
+  if (!p) return;
+  const floor = p.floors.find((f) => f.id === p.activeFloorId);
+  if (!floor) return;
+  const w = floor.walls.find((w) => w.id === id);
+  if (w) {
+    w[endpoint] = position;
+    p.updatedAt = new Date();
+    currentProject.set({ ...p });
+  }
+}
+
 export function updateWall(id: string, updates: Partial<Wall>) {
   mutate((f) => {
     const w = f.walls.find((w) => w.id === id);

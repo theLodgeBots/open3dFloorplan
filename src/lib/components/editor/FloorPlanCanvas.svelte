@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { activeFloor, selectedTool, selectedElementId, selectedRoomId, addWall, addDoor, addWindow, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, detectedRoomsStore } from '$lib/stores/project';
+  import { activeFloor, selectedTool, selectedElementId, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, detectedRoomsStore } from '$lib/stores/project';
   import type { Point, Wall, Door, Window as Win, FurnitureItem } from '$lib/models/types';
   import type { Floor, Room } from '$lib/models/types';
   import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
@@ -60,6 +60,9 @@
   let currentPlacingId: string | null = $state(null);
   let currentPlacingRotation: number = $state(0);
   let currentTool: string = $state('select');
+
+  // Wall endpoint drag state
+  let draggingWallEndpoint: { wallId: string; endpoint: 'start' | 'end' } | null = $state(null);
 
   // Resize/rotate handle drag state
   type HandleType = 'resize-tl' | 'resize-tr' | 'resize-bl' | 'resize-br' | 'rotate';
@@ -327,6 +330,20 @@
     // Dimension text
     ctx.fillStyle = '#374151';
     ctx.fillText(dimLabel, dimMx, dimMy);
+
+    // Endpoint handles when selected (for drag-to-resize)
+    if (selected) {
+      const handleSize = 5;
+      for (const pt of [s, e]) {
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, handleSize, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
   }
 
   function drawDoorOnWall(wall: Wall, door: Door) {
@@ -1102,6 +1119,24 @@
         }
       }
     } else if (tool === 'select') {
+      // Check wall endpoint handles first (drag-to-resize walls)
+      if (currentSelectedId && currentFloor) {
+        const selWall = currentFloor.walls.find(w => w.id === currentSelectedId);
+        if (selWall) {
+          const epThreshold = 15 / zoom;
+          if (Math.hypot(wp.x - selWall.start.x, wp.y - selWall.start.y) < epThreshold) {
+            draggingWallEndpoint = { wallId: selWall.id, endpoint: 'start' };
+            commitFurnitureMove(); // uses same undo snapshot mechanism
+            return;
+          }
+          if (Math.hypot(wp.x - selWall.end.x, wp.y - selWall.end.y) < epThreshold) {
+            draggingWallEndpoint = { wallId: selWall.id, endpoint: 'end' };
+            commitFurnitureMove();
+            return;
+          }
+        }
+      }
+
       // Check selection handles first (resize/rotate on selected furniture)
       const handle = findHandleAt(wp);
       if (handle && currentSelectedId && currentFloor) {
@@ -1189,6 +1224,18 @@
       panStartX = e.clientX;
       panStartY = e.clientY;
     }
+    if (draggingWallEndpoint) {
+      let pt = magneticSnap(mousePos);
+      // Angle snap to the opposite endpoint
+      if (currentFloor) {
+        const wall = currentFloor.walls.find(w => w.id === draggingWallEndpoint!.wallId);
+        if (wall) {
+          const other = draggingWallEndpoint.endpoint === 'start' ? wall.end : wall.start;
+          pt = angleSnap(other, pt);
+        }
+      }
+      moveWallEndpoint(draggingWallEndpoint.wallId, draggingWallEndpoint.endpoint, pt);
+    }
     if (draggingHandle && currentSelectedId && currentFloor) {
       const fi = currentFloor.furniture.find(f => f.id === currentSelectedId);
       if (fi) {
@@ -1264,10 +1311,12 @@
     isPanning = false;
     if (draggingFurnitureId) commitFurnitureMove();
     if (draggingHandle) commitFurnitureMove();
+    if (draggingWallEndpoint) commitFurnitureMove();
     draggingFurnitureId = null;
     draggingDoorId = null;
     draggingWindowId = null;
     draggingHandle = null;
+    draggingWallEndpoint = null;
     wallSnapInfo = null;
     if (measuring && measureStart && measureEnd) {
       // Keep measurement visible until next click
@@ -1350,6 +1399,7 @@
 
   let cursorStyle = $derived(
     spaceDown || isPanning ? 'grab' :
+    draggingWallEndpoint ? 'crosshair' :
     draggingHandle === 'rotate' ? 'grabbing' :
     draggingHandle?.startsWith('resize') ? 'nwse-resize' :
     currentTool === 'select' ? 'default' :
