@@ -77,7 +77,9 @@
           class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors {currentTool === 'select' ? 'bg-blue-50 text-slate-800 ring-1 ring-blue-200' : 'hover:bg-gray-50 text-gray-700'}"
           onclick={() => setTool('select')}
         >
-          <div class="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center text-lg {currentTool === 'select' ? 'bg-blue-100' : ''}">↖</div>
+          <div class="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center {currentTool === 'select' ? 'bg-blue-100' : ''}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/></svg>
+          </div>
           <div class="text-left">
             <div class="font-medium">Select <span class="text-gray-400 text-xs ml-1">V</span></div>
             <div class="text-xs text-gray-400">Click to select elements</div>
@@ -87,7 +89,9 @@
           class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors {currentTool === 'wall' ? 'bg-blue-50 text-slate-800 ring-1 ring-blue-200' : 'hover:bg-gray-50 text-gray-700'}"
           onclick={() => setTool('wall')}
         >
-          <div class="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center text-lg {currentTool === 'wall' ? 'bg-blue-100' : ''}">▭</div>
+          <div class="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center {currentTool === 'wall' ? 'bg-blue-100' : ''}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="8" rx="1"/><line x1="7" y1="8" x2="7" y2="16"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="17" y1="8" x2="17" y2="16"/></svg>
+          </div>
           <div class="text-left">
             <div class="font-medium">Draw Wall <span class="text-gray-400 text-xs ml-1">W</span></div>
             <div class="text-xs text-gray-400">Click to draw, dbl-click to finish</div>
@@ -108,14 +112,18 @@
               class="flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-colors {currentTool === 'door' ? 'border-blue-400 bg-blue-50' : 'border-gray-100 hover:border-gray-200'}"
               onclick={() => setTool('door')}
             >
-              <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-xl">🚪</div>
+              <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#92400e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="1"/><circle cx="15" cy="12" r="1" fill="#92400e"/><path d="M6 21H4V3h2"/></svg>
+              </div>
               <span class="text-xs font-medium text-gray-600">Door <span class="text-gray-400">D</span></span>
             </button>
             <button
               class="flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-colors {currentTool === 'window' ? 'border-blue-400 bg-blue-50' : 'border-gray-100 hover:border-gray-200'}"
               onclick={() => setTool('window')}
             >
-              <div class="w-10 h-10 rounded-lg bg-cyan-50 flex items-center justify-center text-xl">🪟</div>
+              <div class="w-10 h-10 rounded-lg bg-cyan-50 flex items-center justify-center">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0e7490" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="1"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
+              </div>
               <span class="text-xs font-medium text-gray-600">Window</span>
             </button>
           </div>
@@ -167,7 +175,9 @@
               class="flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-colors {currentPlacing === item.id ? 'border-blue-400 bg-blue-50 ring-1 ring-blue-300' : 'border-gray-100 hover:border-blue-300 hover:bg-blue-50'}"
               onclick={() => onFurnitureClick(item)}
             >
-              <div class="w-10 h-10 rounded-lg flex items-center justify-center text-xl" style="background-color: {item.color}20">{item.icon}</div>
+              <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background-color: {item.color}20">
+                <div class="w-5 h-5 rounded-sm" style="background-color: {item.color}; opacity: 0.7"></div>
+              </div>
               <span class="text-xs font-medium text-gray-600">{item.name}</span>
               <span class="text-[10px] text-gray-400">{item.width}×{item.depth}cm</span>
             </button>
