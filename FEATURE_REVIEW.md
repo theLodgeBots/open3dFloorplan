@@ -99,14 +99,14 @@ Systematic comparison. Each feature gets: ✅ done, 🔧 needs work, ❌ missing
 ## Priority Order (fixing what Jason noticed first)
 
 ### Phase 1: Scale & Proportions (CRITICAL — Jason's feedback)
-1. Door/window sizing — default 90cm door, 120cm window, properly scaled to wall
-2. Door arc drawing — proper quarter-circle with correct radius
-3. Furniture scale — ensure cm dimensions render correctly in 2D
-4. Wall thickness — render as filled rectangles (15-20cm thick), not thin lines
+1. ✅ Door/window sizing — default 90cm door, 120cm window, properly scaled to wall (already correct)
+2. ✅ Door arc drawing — solid thin arc, thicker door leaf line, jamb ticks at gap edges
+3. ✅ Furniture scale — cm dimensions render correctly in 2D (already correct)
+4. ✅ Wall thickness — 15cm filled rectangles with proper corner joins (already implemented)
 
 ### Phase 2: Visual Polish
 5. Top-down furniture SVG icons (sofa, bed, toilet, etc. look architectural)
-6. Clean dimension lines with proper arrowheads
+6. ✅ Clean dimension lines with proper arrowheads — extension lines, gapped dimension line, 45° tick marks
 7. Canvas background & grid refinement
 8. Toolbar/sidebar styling to match planner5d aesthetic
 
