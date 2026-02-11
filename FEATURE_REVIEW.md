@@ -111,7 +111,7 @@ Systematic comparison. Each feature gets: ✅ done, 🔧 needs work, ❌ missing
 8. ✅ Toolbar/sidebar styling — SVG icons for tools, undo/redo, export menu; clean minimal aesthetic
 
 ### Phase 3: Interaction Improvements  
-9. Drag doors/windows along walls
+9. ✅ Drag doors/windows along walls — click to select, drag to slide along wall
 10. Furniture snap-to-wall
 11. Selection handles (resize, rotate)
 12. Wall endpoint drag-to-resize
