@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { activeFloor, selectedTool, selectedElementId, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall } from '$lib/stores/project';
+  import { activeFloor, selectedTool, selectedElementId, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall, moveWallParallel, splitWall } from '$lib/stores/project';
   import type { Point, Wall, Door, Window as Win, FurnitureItem } from '$lib/models/types';
   import type { Floor, Room } from '$lib/models/types';
   import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
@@ -77,6 +77,12 @@
   let handleDragStart: Point = { x: 0, y: 0 };
   let handleOrigScale: { x: number; y: number } = { x: 1, y: 1 };
   let handleOrigRotation: number = 0;
+
+  // Wall parallel drag state (drag midpoint to move wall parallel)
+  let draggingWallParallel: { wallId: string; startMousePos: Point; origStart: Point; origEnd: Point; origCurve?: Point } | null = $state(null);
+
+  // Curve handle drag state
+  let draggingCurveHandle: string | null = $state(null); // wallId being curved
 
   // Wall snap state for visual feedback
   let wallSnapInfo: { wallId: string; side: 'normal' | 'anti'; wallAngle: number } | null = $state(null);
@@ -254,7 +260,52 @@
   }
 
   function wallLength(w: Wall): number {
+    if (w.curvePoint) {
+      // Approximate quadratic bezier length with 20 segments
+      let len = 0;
+      const N = 20;
+      let px = w.start.x, py = w.start.y;
+      for (let i = 1; i <= N; i++) {
+        const t = i / N;
+        const mt = 1 - t;
+        const nx = mt * mt * w.start.x + 2 * mt * t * w.curvePoint.x + t * t * w.end.x;
+        const ny = mt * mt * w.start.y + 2 * mt * t * w.curvePoint.y + t * t * w.end.y;
+        len += Math.hypot(nx - px, ny - py);
+        px = nx; py = ny;
+      }
+      return len;
+    }
     return Math.hypot(w.end.x - w.start.x, w.end.y - w.start.y);
+  }
+
+  /** Get point on wall at parameter t (0-1), handling curves */
+  function wallPointAt(w: Wall, t: number): Point {
+    if (w.curvePoint) {
+      const mt = 1 - t;
+      return {
+        x: mt * mt * w.start.x + 2 * mt * t * w.curvePoint.x + t * t * w.end.x,
+        y: mt * mt * w.start.y + 2 * mt * t * w.curvePoint.y + t * t * w.end.y,
+      };
+    }
+    return {
+      x: w.start.x + (w.end.x - w.start.x) * t,
+      y: w.start.y + (w.end.y - w.start.y) * t,
+    };
+  }
+
+  /** Get tangent direction at parameter t on wall */
+  function wallTangentAt(w: Wall, t: number): Point {
+    if (w.curvePoint) {
+      const mt = 1 - t;
+      const dx = 2 * mt * (w.curvePoint.x - w.start.x) + 2 * t * (w.end.x - w.curvePoint.x);
+      const dy = 2 * mt * (w.curvePoint.y - w.start.y) + 2 * t * (w.end.y - w.curvePoint.y);
+      const len = Math.hypot(dx, dy) || 1;
+      return { x: dx / len, y: dy / len };
+    }
+    const dx = w.end.x - w.start.x;
+    const dy = w.end.y - w.start.y;
+    const len = Math.hypot(dx, dy) || 1;
+    return { x: dx / len, y: dy / len };
   }
 
   function wallThicknessScreen(w: Wall): number {
@@ -264,12 +315,102 @@
   function drawWall(w: Wall, selected: boolean) {
     const s = worldToScreen(w.start.x, w.start.y);
     const e = worldToScreen(w.end.x, w.end.y);
+    const thickness = wallThicknessScreen(w);
+
+    if (w.curvePoint) {
+      // Draw curved wall as thick bezier path
+      const cp = worldToScreen(w.curvePoint.x, w.curvePoint.y);
+      const SEGS = 24;
+      const outerPts: { x: number; y: number }[] = [];
+      const innerPts: { x: number; y: number }[] = [];
+
+      for (let i = 0; i <= SEGS; i++) {
+        const t = i / SEGS;
+        const mt = 1 - t;
+        const px = mt * mt * s.x + 2 * mt * t * cp.x + t * t * e.x;
+        const py = mt * mt * s.y + 2 * mt * t * cp.y + t * t * e.y;
+        // Tangent
+        const tdx = 2 * mt * (cp.x - s.x) + 2 * t * (e.x - cp.x);
+        const tdy = 2 * mt * (cp.y - s.y) + 2 * t * (e.y - cp.y);
+        const tlen = Math.hypot(tdx, tdy) || 1;
+        const nx = (-tdy / tlen) * thickness / 2;
+        const ny = (tdx / tlen) * thickness / 2;
+        outerPts.push({ x: px + nx, y: py + ny });
+        innerPts.push({ x: px - nx, y: py - ny });
+      }
+
+      ctx.fillStyle = selected ? '#93c5fd' : '#404040';
+      ctx.strokeStyle = selected ? '#3b82f6' : '#333333';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(outerPts[0].x, outerPts[0].y);
+      for (let i = 1; i < outerPts.length; i++) ctx.lineTo(outerPts[i].x, outerPts[i].y);
+      for (let i = innerPts.length - 1; i >= 0; i--) ctx.lineTo(innerPts[i].x, innerPts[i].y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Dimension label for curved wall (arc length)
+      const wlen = wallLength(w);
+      if (wlen >= 10) {
+        const midPt = wallPointAt(w, 0.5);
+        const midS = worldToScreen(midPt.x, midPt.y);
+        const midTan = wallTangentAt(w, 0.5);
+        const offsetDist = thickness / 2 + 16;
+        ctx.fillStyle = '#374151';
+        const fontSize = Math.max(10, 11 * zoom);
+        ctx.font = `${fontSize}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${(wlen / 100).toFixed(2)} m`, midS.x - midTan.y * offsetDist, midS.y + midTan.x * offsetDist);
+      }
+
+      // Curve handle (midpoint) and endpoint handles when selected
+      if (selected) {
+        const handleSize = 5;
+        // Endpoint handles
+        for (const pt of [s, e]) {
+          ctx.fillStyle = '#ffffff';
+          ctx.strokeStyle = '#3b82f6';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, handleSize, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        }
+        // Curve control point handle (diamond shape)
+        ctx.fillStyle = '#fbbf24';
+        ctx.strokeStyle = '#d97706';
+        ctx.lineWidth = 1.5;
+        const sz = 6;
+        ctx.beginPath();
+        ctx.moveTo(cp.x, cp.y - sz);
+        ctx.lineTo(cp.x + sz, cp.y);
+        ctx.lineTo(cp.x, cp.y + sz);
+        ctx.lineTo(cp.x - sz, cp.y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // Dashed guide lines from curve point to endpoints
+        ctx.strokeStyle = '#d9770680';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(cp.x, cp.y);
+        ctx.lineTo(e.x, e.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      return;
+    }
+
+    // Straight wall
     const dx = e.x - s.x;
     const dy = e.y - s.y;
     const len = Math.hypot(dx, dy);
     if (len < 1) return;
 
-    const thickness = wallThicknessScreen(w);
     const nx = (-dy / len) * thickness / 2;
     const ny = (dx / len) * thickness / 2;
 
@@ -367,19 +508,31 @@
         ctx.fill();
         ctx.stroke();
       }
+      // Midpoint curve handle (diamond — drag to make wall curved)
+      const midX = (s.x + e.x) / 2;
+      const midY = (s.y + e.y) / 2;
+      const sz = 5;
+      ctx.fillStyle = '#fbbf2480';
+      ctx.strokeStyle = '#d97706';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(midX, midY - sz);
+      ctx.lineTo(midX + sz, midY);
+      ctx.lineTo(midX, midY + sz);
+      ctx.lineTo(midX - sz, midY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
     }
   }
 
   function drawDoorOnWall(wall: Wall, door: Door) {
     const t = door.position;
-    const wx = wall.start.x + (wall.end.x - wall.start.x) * t;
-    const wy = wall.start.y + (wall.end.y - wall.start.y) * t;
-    const s = worldToScreen(wx, wy);
+    const wpt = wallPointAt(wall, t);
+    const s = worldToScreen(wpt.x, wpt.y);
 
-    const dx = wall.end.x - wall.start.x;
-    const dy = wall.end.y - wall.start.y;
-    const len = Math.hypot(dx, dy);
-    const ux = dx / len, uy = dy / len;
+    const tan = wallTangentAt(wall, t);
+    const ux = tan.x, uy = tan.y;
     const nx = -uy, ny = ux;
 
     const halfDoor = (door.width / 2) * zoom;
@@ -559,14 +712,11 @@
 
   function drawWindowOnWall(wall: Wall, win: Win) {
     const t = win.position;
-    const wx = wall.start.x + (wall.end.x - wall.start.x) * t;
-    const wy = wall.start.y + (wall.end.y - wall.start.y) * t;
-    const s = worldToScreen(wx, wy);
+    const wpt = wallPointAt(wall, t);
+    const s = worldToScreen(wpt.x, wpt.y);
 
-    const dx = wall.end.x - wall.start.x;
-    const dy = wall.end.y - wall.start.y;
-    const len = Math.hypot(dx, dy);
-    const ux = dx / len, uy = dy / len;
+    const tan = wallTangentAt(wall, t);
+    const ux = tan.x, uy = tan.y;
     const nx = -uy, ny = ux;
 
     const hw = (win.width / 2) * zoom;
@@ -1235,8 +1385,17 @@
 
   function findWallAt(p: Point): Wall | null {
     if (!currentFloor) return null;
+    const threshold = 15 / zoom;
     for (const w of currentFloor.walls) {
-      if (pointToSegmentDist(p, w.start, w.end) < 15 / zoom) return w;
+      if (w.curvePoint) {
+        // Check distance to bezier curve by sampling
+        for (let i = 0; i <= 20; i++) {
+          const pt = wallPointAt(w, i / 20);
+          if (Math.hypot(p.x - pt.x, p.y - pt.y) < threshold + w.thickness / 2) return w;
+        }
+      } else {
+        if (pointToSegmentDist(p, w.start, w.end) < threshold) return w;
+      }
     }
     return null;
   }
@@ -1291,10 +1450,8 @@
     for (const d of currentFloor.doors) {
       const wall = currentFloor.walls.find(w => w.id === d.wallId);
       if (!wall) continue;
-      const t = d.position;
-      const cx = wall.start.x + (wall.end.x - wall.start.x) * t;
-      const cy = wall.start.y + (wall.end.y - wall.start.y) * t;
-      if (Math.hypot(p.x - cx, p.y - cy) < (d.width / 2 + 5) / zoom) return d;
+      const cp = wallPointAt(wall, d.position);
+      if (Math.hypot(p.x - cp.x, p.y - cp.y) < (d.width / 2 + 5) / zoom) return d;
     }
     return null;
   }
@@ -1304,10 +1461,8 @@
     for (const w of currentFloor.windows) {
       const wall = currentFloor.walls.find(wl => wl.id === w.wallId);
       if (!wall) continue;
-      const t = w.position;
-      const cx = wall.start.x + (wall.end.x - wall.start.x) * t;
-      const cy = wall.start.y + (wall.end.y - wall.start.y) * t;
-      if (Math.hypot(p.x - cx, p.y - cy) < (w.width / 2 + 5) / zoom) return w;
+      const cp = wallPointAt(wall, w.position);
+      if (Math.hypot(p.x - cp.x, p.y - cp.y) < (w.width / 2 + 5) / zoom) return w;
     }
     return null;
   }
@@ -1342,6 +1497,17 @@
   }
 
   function positionOnWall(p: Point, w: Wall): number {
+    if (w.curvePoint) {
+      // Find closest t on bezier by sampling
+      let bestT = 0.5, bestDist = Infinity;
+      for (let i = 0; i <= 40; i++) {
+        const t = i / 40;
+        const pt = wallPointAt(w, t);
+        const d = Math.hypot(p.x - pt.x, p.y - pt.y);
+        if (d < bestDist) { bestDist = d; bestT = t; }
+      }
+      return Math.max(0.1, Math.min(0.9, bestT));
+    }
     const dx = w.end.x - w.start.x, dy = w.end.y - w.start.y;
     const len2 = dx * dx + dy * dy;
     if (len2 === 0) return 0.5;
@@ -1405,6 +1571,28 @@
           if (Math.hypot(wp.x - selWall.end.x, wp.y - selWall.end.y) < epThreshold) {
             draggingWallEndpoint = { wallId: selWall.id, endpoint: 'end' };
             draggingConnectedEndpoints = findConnectedEndpoints(selWall.end, selWall.id);
+            commitFurnitureMove();
+            return;
+          }
+          // Check midpoint handle: Alt+drag = curve, normal drag = parallel move
+          const curveHandlePt = selWall.curvePoint
+            ? selWall.curvePoint
+            : { x: (selWall.start.x + selWall.end.x) / 2, y: (selWall.start.y + selWall.end.y) / 2 };
+          if (Math.hypot(wp.x - curveHandlePt.x, wp.y - curveHandlePt.y) < epThreshold) {
+            if (e.altKey) {
+              draggingCurveHandle = selWall.id;
+            } else if (!selWall.curvePoint) {
+              // Parallel drag for straight walls
+              draggingWallParallel = {
+                wallId: selWall.id,
+                startMousePos: { ...wp },
+                origStart: { ...selWall.start },
+                origEnd: { ...selWall.end },
+              };
+            } else {
+              // For curved walls, midpoint handle still curves
+              draggingCurveHandle = selWall.id;
+            }
             commitFurnitureMove();
             return;
           }
@@ -1514,6 +1702,21 @@
         moveWallEndpoint(conn.wallId, conn.endpoint, pt);
       }
     }
+    if (draggingCurveHandle && currentFloor) {
+      const wall = currentFloor.walls.find(w => w.id === draggingCurveHandle);
+      if (wall) {
+        // Check if mouse is close enough to the straight line (if so, snap back to straight)
+        const mx = (wall.start.x + wall.end.x) / 2;
+        const my = (wall.start.y + wall.end.y) / 2;
+        const distToMid = Math.hypot(mousePos.x - mx, mousePos.y - my);
+        if (distToMid < 5) {
+          // Snap back to straight wall
+          updateWall(draggingCurveHandle, { curvePoint: undefined });
+        } else {
+          updateWall(draggingCurveHandle, { curvePoint: { x: snap(mousePos.x), y: snap(mousePos.y) } });
+        }
+      }
+    }
     if (draggingHandle && currentSelectedId && currentFloor) {
       const fi = currentFloor.furniture.find(f => f.id === currentSelectedId);
       if (fi) {
@@ -1590,6 +1793,8 @@
     if (draggingFurnitureId) commitFurnitureMove();
     if (draggingHandle) commitFurnitureMove();
     if (draggingWallEndpoint) commitFurnitureMove();
+    if (draggingCurveHandle) commitFurnitureMove();
+    draggingCurveHandle = null;
     draggingFurnitureId = null;
     draggingDoorId = null;
     draggingWindowId = null;
@@ -1678,6 +1883,7 @@
 
   let cursorStyle = $derived(
     spaceDown || isPanning ? 'grab' :
+    draggingCurveHandle ? 'crosshair' :
     draggingWallEndpoint ? 'crosshair' :
     draggingHandle === 'rotate' ? 'grabbing' :
     draggingHandle?.startsWith('resize') ? 'nwse-resize' :

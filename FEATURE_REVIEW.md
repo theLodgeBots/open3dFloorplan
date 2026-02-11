@@ -11,7 +11,7 @@ Systematic comparison. Each feature gets: ✅ done, 🔧 needs work, ❌ missing
 - 🔧 **Wall thickness visual** — planner5d shows thick filled walls with proper joins; ours are thin lines
 - ✅ **Wall drag-to-resize** — grab a wall endpoint and drag to resize/reshape; connected corner endpoints move together
 - 🔧 **Wall segment editing** — click a wall to select, drag midpoint to move parallel
-- ❌ **Curved walls** — planner5d supports arcs
+- ✅ **Curved walls** — quadratic bezier curves via draggable midpoint handle, toggle in properties panel
 - ❌ **Wall splitting** — click middle of wall to split into two segments
 
 ## 2. Doors & Windows
@@ -126,4 +126,4 @@ Systematic comparison. Each feature gets: ✅ done, 🔧 needs work, ❌ missing
 17. ✅ Door/window catalog — 6 door types (single, double, sliding, french, pocket, bifold) + 5 window types (standard, fixed, casement, sliding, bay) with catalog grid in BuildPanel, unique 2D renderings per type, type selector in PropertiesPanel
 18. ✅ Contextual toolbar — floating toolbar appears above selected elements with duplicate, delete, and flip-swing (doors) buttons
 19. ✅ Rulers on canvas edges — horizontal/vertical rulers with auto-scaling tick marks (cm/m), mouse position indicators, toggle button
-20. Curved walls
+20. ✅ Curved walls — quadratic bezier with drag handle, 2D/3D rendering, door/window placement on curves

@@ -7,6 +7,8 @@ export interface Wall {
   thickness: number;
   height: number;
   color: string;
+  /** Optional quadratic bezier control point for curved walls */
+  curvePoint?: Point;
 }
 
 export interface Room {

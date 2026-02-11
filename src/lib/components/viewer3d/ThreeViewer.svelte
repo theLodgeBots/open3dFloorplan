@@ -155,6 +155,58 @@
       const exteriorMat = wallColor
         ? new THREE.MeshStandardMaterial({ color: wallColor.clone().offsetHSL(0, -0.05, -0.1), roughness: 0.85 })
         : defaultExteriorMat;
+      // Curved wall handling
+      if (wall.curvePoint) {
+        const h = wall.height;
+        const t = Math.max(wall.thickness, WALL_THICKNESS);
+        const SEGS = 16;
+        const materials = [
+          exteriorMat, exteriorMat,
+          interiorMat, interiorMat,
+          interiorMat, exteriorMat,
+        ];
+        for (let i = 0; i < SEGS; i++) {
+          const t0 = i / SEGS;
+          const t1 = (i + 1) / SEGS;
+          const mt0 = 1 - t0, mt1 = 1 - t1;
+          const p0x = mt0*mt0*wall.start.x + 2*mt0*t0*wall.curvePoint.x + t0*t0*wall.end.x;
+          const p0y = mt0*mt0*wall.start.y + 2*mt0*t0*wall.curvePoint.y + t0*t0*wall.end.y;
+          const p1x = mt1*mt1*wall.start.x + 2*mt1*t1*wall.curvePoint.x + t1*t1*wall.end.x;
+          const p1y = mt1*mt1*wall.start.y + 2*mt1*t1*wall.curvePoint.y + t1*t1*wall.end.y;
+          const segLen = Math.hypot(p1x - p0x, p1y - p0y);
+          if (segLen < 0.5) continue;
+          const segAngle = Math.atan2(p1y - p0y, p1x - p0x);
+          const segCx = (p0x + p1x) / 2;
+          const segCy = (p0y + p1y) / 2;
+          const geo = new THREE.BoxGeometry(segLen, h, t);
+          const mesh = new THREE.Mesh(geo, materials);
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+          mesh.position.set(segCx, h / 2, segCy);
+          mesh.rotation.y = -segAngle;
+          wallGroup.add(mesh);
+        }
+        // Baseboard for curved wall
+        for (let i = 0; i < SEGS; i++) {
+          const t0 = i / SEGS, t1 = (i + 1) / SEGS;
+          const mt0 = 1 - t0, mt1 = 1 - t1;
+          const p0x = mt0*mt0*wall.start.x + 2*mt0*t0*wall.curvePoint.x + t0*t0*wall.end.x;
+          const p0y = mt0*mt0*wall.start.y + 2*mt0*t0*wall.curvePoint.y + t0*t0*wall.end.y;
+          const p1x = mt1*mt1*wall.start.x + 2*mt1*t1*wall.curvePoint.x + t1*t1*wall.end.x;
+          const p1y = mt1*mt1*wall.start.y + 2*mt1*t1*wall.curvePoint.y + t1*t1*wall.end.y;
+          const segLen = Math.hypot(p1x - p0x, p1y - p0y);
+          if (segLen < 0.5) continue;
+          const segAngle = Math.atan2(p1y - p0y, p1x - p0x);
+          const bbGeo = new THREE.BoxGeometry(segLen, BASEBOARD_HEIGHT, t + 2);
+          const bbMesh = new THREE.Mesh(bbGeo, baseboardMat);
+          bbMesh.position.set((p0x + p1x) / 2, BASEBOARD_HEIGHT / 2, (p0y + p1y) / 2);
+          bbMesh.rotation.y = -segAngle;
+          bbMesh.castShadow = true;
+          wallGroup.add(bbMesh);
+        }
+        continue;
+      }
+
       const dx = wall.end.x - wall.start.x;
       const dy = wall.end.y - wall.start.y;
       const len = Math.hypot(dx, dy);

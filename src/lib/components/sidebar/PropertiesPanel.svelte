@@ -18,7 +18,17 @@
   let selectedWindow = $derived(floor?.windows.find(w => w.id === selId) ?? null);
   let selectedRoom = $derived(floor?.rooms.find(r => r.id === selRoomId) ?? detectedRooms.find(r => r.id === selRoomId) ?? null);
 
-  let wallLength = $derived(selectedWall ? Math.round(Math.hypot(selectedWall.end.x - selectedWall.start.x, selectedWall.end.y - selectedWall.start.y)) : 0);
+  let wallLength = $derived(selectedWall ? Math.round(selectedWall.curvePoint ? (() => {
+    let len = 0; const N = 20;
+    let px = selectedWall.start.x, py = selectedWall.start.y;
+    for (let i = 1; i <= N; i++) {
+      const t = i / N, mt = 1 - t;
+      const nx = mt*mt*selectedWall.start.x + 2*mt*t*selectedWall.curvePoint!.x + t*t*selectedWall.end.x;
+      const ny = mt*mt*selectedWall.start.y + 2*mt*t*selectedWall.curvePoint!.y + t*t*selectedWall.end.y;
+      len += Math.hypot(nx - px, ny - py); px = nx; py = ny;
+    }
+    return len;
+  })() : Math.hypot(selectedWall.end.x - selectedWall.start.x, selectedWall.end.y - selectedWall.start.y)) : 0);
 
   function onWallThickness(e: Event) {
     if (!selectedWall) return;
@@ -129,6 +139,29 @@
         <span class="text-xs text-gray-500">Height (cm)</span>
         <input type="number" value={selectedWall.height} oninput={onWallHeight} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
+      <div class="flex items-center gap-2">
+        <span class="text-xs text-gray-500">Curved</span>
+        <button
+          class="px-2 py-0.5 text-xs rounded {selectedWall.curvePoint ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-gray-100 text-gray-500 border border-gray-200'}"
+          onclick={() => {
+            if (selectedWall) {
+              if (selectedWall.curvePoint) {
+                updateWall(selectedWall.id, { curvePoint: undefined });
+              } else {
+                // Set curve point to offset midpoint
+                const mx = (selectedWall.start.x + selectedWall.end.x) / 2;
+                const my = (selectedWall.start.y + selectedWall.end.y) / 2;
+                const dx = selectedWall.end.x - selectedWall.start.x;
+                const dy = selectedWall.end.y - selectedWall.start.y;
+                const len = Math.hypot(dx, dy) || 1;
+                updateWall(selectedWall.id, { curvePoint: { x: mx + (-dy / len) * 60, y: my + (dx / len) * 60 } });
+              }
+            }
+          }}
+        >
+          {selectedWall.curvePoint ? '◆ On' : '◇ Off'}
+        </button>
+      </div>
       <div>
         <span class="text-xs text-gray-500">Color</span>
         <div class="flex gap-1 flex-wrap mt-1">

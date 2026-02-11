@@ -341,6 +341,68 @@ export function duplicateFurniture(id: string): string | null {
   return newId;
 }
 
+/** Move a wall parallel to itself (both endpoints shift by the same perpendicular offset) without undo snapshot (for dragging) */
+export function moveWallParallel(id: string, dx: number, dy: number) {
+  const p = get(currentProject);
+  if (!p) return;
+  const floor = p.floors.find((f) => f.id === p.activeFloorId);
+  if (!floor) return;
+  const w = floor.walls.find((w) => w.id === id);
+  if (w) {
+    w.start = { x: w.start.x + dx, y: w.start.y + dy };
+    w.end = { x: w.end.x + dx, y: w.end.y + dy };
+    if (w.curvePoint) {
+      w.curvePoint = { x: w.curvePoint.x + dx, y: w.curvePoint.y + dy };
+    }
+    p.updatedAt = new Date();
+    currentProject.set({ ...p });
+  }
+}
+
+/** Split a wall into two segments at a given parameter t (0-1) */
+export function splitWall(id: string, t: number): string | null {
+  const p = get(currentProject);
+  if (!p) return null;
+  const floor = p.floors.find((f) => f.id === p.activeFloorId);
+  if (!floor) return null;
+  const w = floor.walls.find((w) => w.id === id);
+  if (!w || w.curvePoint) return null; // don't split curved walls
+  snapshot();
+  const midPt: Point = {
+    x: w.start.x + (w.end.x - w.start.x) * t,
+    y: w.start.y + (w.end.y - w.start.y) * t,
+  };
+  const newId = uid();
+  // New wall from midpoint to original end
+  floor.walls.push({ id: newId, start: { ...midPt }, end: { ...w.end }, thickness: w.thickness, height: w.height, color: w.color });
+  // Shorten original wall to midpoint
+  w.end = { ...midPt };
+  // Move doors/windows on the original wall: adjust positions
+  for (const d of floor.doors) {
+    if (d.wallId === id) {
+      if (d.position > t) {
+        d.wallId = newId;
+        d.position = (d.position - t) / (1 - t);
+      } else {
+        d.position = d.position / t;
+      }
+    }
+  }
+  for (const win of floor.windows) {
+    if (win.wallId === id) {
+      if (win.position > t) {
+        win.wallId = newId;
+        win.position = (win.position - t) / (1 - t);
+      } else {
+        win.position = win.position / t;
+      }
+    }
+  }
+  p.updatedAt = new Date();
+  currentProject.set({ ...p });
+  return newId;
+}
+
 /** Duplicate a wall */
 export function duplicateWall(id: string): string | null {
   const p = get(currentProject);
