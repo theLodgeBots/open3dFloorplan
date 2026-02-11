@@ -105,9 +105,9 @@ Systematic comparison. Each feature gets: ✅ done, 🔧 needs work, ❌ missing
 4. ✅ Wall thickness — 15cm filled rectangles with proper corner joins (already implemented)
 
 ### Phase 2: Visual Polish
-5. Top-down furniture SVG icons (sofa, bed, toilet, etc. look architectural)
+5. ✅ Top-down furniture architectural icons (sofa, bed, toilet, etc. — canvas-drawn top-down views)
 6. ✅ Clean dimension lines with proper arrowheads — extension lines, gapped dimension line, 45° tick marks
-7. Canvas background & grid refinement
+7. ✅ Canvas background & grid refinement (major/minor grid, subtle background)
 8. Toolbar/sidebar styling to match planner5d aesthetic
 
 ### Phase 3: Interaction Improvements  

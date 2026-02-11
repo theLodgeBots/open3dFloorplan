@@ -6,6 +6,7 @@
   import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
   import { getMaterial } from '$lib/utils/materials';
   import { getCatalogItem } from '$lib/utils/furnitureCatalog';
+  import { drawFurnitureIcon } from '$lib/utils/furnitureIcons';
   import { handleGlobalShortcut } from '$lib/utils/shortcuts';
 
   let canvas: HTMLCanvasElement;
@@ -116,7 +117,9 @@
     if (!ctx || !showGrid) return;
     const step = GRID * zoom;
     if (step < 4) return;
-    ctx.strokeStyle = '#e5e7eb';
+
+    // Minor grid
+    ctx.strokeStyle = '#e8eaed';
     ctx.lineWidth = 0.5;
     const offX = (width / 2 - camX * zoom) % step;
     const offY = (height / 2 - camY * zoom) % step;
@@ -125,6 +128,21 @@
     }
     for (let y = offY; y < height; y += step) {
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+    }
+
+    // Major grid (every 100cm / 1m)
+    const majorStep = 100 * zoom;
+    if (majorStep >= 20) {
+      ctx.strokeStyle = '#d1d5db';
+      ctx.lineWidth = 0.8;
+      const mOffX = (width / 2 - camX * zoom) % majorStep;
+      const mOffY = (height / 2 - camY * zoom) % majorStep;
+      for (let x = mOffX; x < width; x += majorStep) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+      }
+      for (let y = mOffY; y < height; y += majorStep) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+      }
     }
   }
 
@@ -376,22 +394,20 @@
     ctx.translate(s.x, s.y);
     ctx.rotate(angle);
 
-    // Rectangle
-    ctx.fillStyle = cat.color + '60';
-    ctx.strokeStyle = selected ? '#3b82f6' : cat.color;
+    // Architectural top-down icon
+    const strokeColor = selected ? '#3b82f6' : cat.color;
     ctx.lineWidth = selected ? 2 : 1;
-    ctx.fillRect(-w / 2, -d / 2, w, d);
-    ctx.strokeRect(-w / 2, -d / 2, w, d);
+    drawFurnitureIcon(ctx, item.catalogId, w, d, cat.color, strokeColor);
 
-    // Label
-    ctx.fillStyle = '#374151';
-    const fontSize = Math.max(8, Math.min(14, Math.min(w, d) * 0.25));
-    ctx.font = `${fontSize}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(cat.icon, 0, -fontSize * 0.4);
-    ctx.font = `${fontSize * 0.7}px sans-serif`;
-    ctx.fillText(cat.name, 0, fontSize * 0.5);
+    // Label (only if large enough)
+    const fontSize = Math.max(8, Math.min(12, Math.min(w, d) * 0.2));
+    if (Math.min(w, d) > 20) {
+      ctx.fillStyle = '#374151';
+      ctx.font = `${fontSize * 0.7}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(cat.name, 0, d / 2 + fontSize * 0.8);
+    }
 
     // Rotation handle when selected
     if (selected) {
@@ -423,18 +439,7 @@
     ctx.translate(s.x, s.y);
     ctx.rotate(angle);
     ctx.globalAlpha = 0.5;
-    ctx.fillStyle = cat.color + '60';
-    ctx.strokeStyle = cat.color;
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 4]);
-    ctx.fillRect(-w / 2, -d / 2, w, d);
-    ctx.strokeRect(-w / 2, -d / 2, w, d);
-    ctx.setLineDash([]);
-    ctx.fillStyle = '#374151';
-    ctx.font = `${Math.max(8, Math.min(w, d) * 0.25)}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(cat.icon, 0, 0);
+    drawFurnitureIcon(ctx, currentPlacingId, w, d, cat.color, cat.color);
     ctx.globalAlpha = 1;
     ctx.restore();
   }
@@ -633,7 +638,7 @@
   function draw() {
     if (!ctx) return;
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = '#fafafa';
+    ctx.fillStyle = '#f8f9fa';
     ctx.fillRect(0, 0, width, height);
     drawGrid();
 
