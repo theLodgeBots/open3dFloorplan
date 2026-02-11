@@ -571,7 +571,15 @@
 
     // Room floors with materials + floating labels
     const FALLBACK_ROOM_COLORS = [0xbfdbfe, 0xfde68a, 0xbbf7d0, 0xfecaca, 0xddd6fe, 0xa5f3fc, 0xfed7aa];
-    const rooms = detectRooms(floor.walls);
+    let rooms = detectRooms(floor.walls);
+    // Merge user-edited room properties (name, floorTexture) from floor.rooms
+    for (const room of rooms) {
+      const saved = floor.rooms.find(r => r.id === room.id || (r.walls.length === room.walls.length && r.walls.every(w => room.walls.includes(w))));
+      if (saved) {
+        room.name = saved.name;
+        room.floorTexture = saved.floorTexture;
+      }
+    }
     for (let ri = 0; ri < rooms.length; ri++) {
       const room = rooms[ri];
       const poly = getRoomPolygon(room, floor.walls);
