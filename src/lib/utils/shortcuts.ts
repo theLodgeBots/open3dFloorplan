@@ -1,4 +1,4 @@
-import { selectedTool, undo, redo, viewMode, selectedElementId, selectedElementIds, removeElement } from '$lib/stores/project';
+import { selectedTool, undo, redo, viewMode, selectedElementId, selectedElementIds, removeElement, panMode } from '$lib/stores/project';
 import { get } from 'svelte/store';
 import { localStore } from '$lib/services/datastore';
 import { currentProject } from '$lib/stores/project';
@@ -56,9 +56,10 @@ export function handleGlobalShortcut(e: KeyboardEvent, ctx: ShortcutContext = {}
     }
     return true;
   }
-  if (e.key === 'w' || e.key === 'W') { selectedTool.set('wall'); return true; }
-  if (e.key === 'd' || e.key === 'D') { selectedTool.set('door'); return true; }
-  if (e.key === 'v' || e.key === 'V') { selectedTool.set('select'); return true; }
+  if (e.key === 'w' || e.key === 'W') { selectedTool.set('wall'); panMode.set(false); return true; }
+  if (e.key === 'd' || e.key === 'D') { selectedTool.set('door'); panMode.set(false); return true; }
+  if (e.key === 'v' || e.key === 'V') { selectedTool.set('select'); panMode.set(false); return true; }
+  if (e.key === 'h' || e.key === 'H') { panMode.set(true); return true; }
   if (e.key === 'r' || e.key === 'R') {
     if (ctx.rotateFurniture) ctx.rotateFurniture();
     return true;

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { selectedTool, placingFurnitureId, placingDoorType, placingWindowType, placingStair, addStair, activeFloor, setBackgroundImage } from '$lib/stores/project';
+  import { selectedTool, placingFurnitureId, placingDoorType, placingWindowType, placingStair, addStair, placingColumn, placingColumnShape, activeFloor, setBackgroundImage } from '$lib/stores/project';
   import type { Tool } from '$lib/stores/project';
   import type { Door, Window as Win } from '$lib/models/types';
   import { roomPresets, placePreset } from '$lib/utils/roomPresets';
@@ -81,8 +81,18 @@
   let isPlacingStair = $state(false);
   placingStair.subscribe(v => { isPlacingStair = v; });
 
+  let isPlacingColumn = $state(false);
+  placingColumn.subscribe(v => { isPlacingColumn = v; });
+
   function onPlaceStair() {
     placingStair.set(true);
+    selectedTool.set('select');
+    placingFurnitureId.set(null);
+  }
+
+  function onPlaceColumn(shape: 'round' | 'square') {
+    placingColumn.set(true);
+    placingColumnShape.set(shape);
     selectedTool.set('select');
     placingFurnitureId.set(null);
   }
@@ -217,6 +227,31 @@
             <div class="text-xs text-gray-400">Click to place stairs</div>
           </div>
         </button>
+
+        <div class="flex gap-2">
+          <button
+            class="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm transition-colors {isPlacingColumn ? 'bg-blue-50 text-slate-800 ring-1 ring-blue-200' : 'hover:bg-gray-50 text-gray-700'}"
+            onclick={() => onPlaceColumn('round')}
+          >
+            <div class="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center {isPlacingColumn ? 'bg-blue-100' : ''}">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="6"/><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+            </div>
+            <div class="text-left">
+              <div class="font-medium text-xs">Round Column</div>
+            </div>
+          </button>
+          <button
+            class="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm transition-colors {isPlacingColumn ? 'bg-blue-50 text-slate-800 ring-1 ring-blue-200' : 'hover:bg-gray-50 text-gray-700'}"
+            onclick={() => onPlaceColumn('square')}
+          >
+            <div class="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center {isPlacingColumn ? 'bg-blue-100' : ''}">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12"/><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+            </div>
+            <div class="text-left">
+              <div class="font-medium text-xs">Square Column</div>
+            </div>
+          </button>
+        </div>
 
         <h3 class="text-xs font-semibold text-gray-400 uppercase mb-2 mt-3">Import</h3>
         <button

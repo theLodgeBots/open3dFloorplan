@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { activeFloor, selectedTool, selectedElementId, selectedElementIds, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall, moveWallParallel, splitWall, snapEnabled, placingStair, addStair, moveStair, updateStair, calibrationMode, calibrationPoints, updateBackgroundImage, canvasZoom } from '$lib/stores/project';
-  import type { Point, Wall, Door, Window as Win, FurnitureItem, Stair } from '$lib/models/types';
+  import { activeFloor, selectedTool, selectedElementId, selectedElementIds, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall, moveWallParallel, splitWall, snapEnabled, placingStair, addStair, moveStair, updateStair, placingColumn, placingColumnShape, addColumn, moveColumn, updateColumn, calibrationMode, calibrationPoints, updateBackgroundImage, canvasZoom, panMode } from '$lib/stores/project';
+  import type { Point, Wall, Door, Window as Win, FurnitureItem, Stair, Column } from '$lib/models/types';
   import type { Floor, Room } from '$lib/models/types';
   import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
   import { getMaterial } from '$lib/utils/materials';
@@ -83,6 +83,10 @@
   let isPlacingStair: boolean = $state(false);
   let draggingStairId: string | null = $state(null);
   let stairDragOffset: Point = { x: 0, y: 0 };
+  let isPlacingColumn: boolean = $state(false);
+  let placingColShape: 'round' | 'square' = $state('round');
+  let draggingColumnId: string | null = $state(null);
+  let columnDragOffset: Point = { x: 0, y: 0 };
   let isCalibrating: boolean = $state(false);
   let calPoints: Point[] = $state([]);
   let bgImage: HTMLImageElement | null = $state(null);
@@ -1783,6 +1787,64 @@
     ctx.restore();
   }
 
+  function drawColumn(col: Column, selected: boolean) {
+    const s = worldToScreen(col.position.x, col.position.y);
+    const r = (col.diameter / 2) * zoom;
+
+    ctx.save();
+    ctx.translate(s.x, s.y);
+
+    if (col.shape === 'round') {
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fillStyle = selected ? '#bfdbfe' : col.color;
+      ctx.fill();
+      ctx.strokeStyle = selected ? '#3b82f6' : '#555';
+      ctx.lineWidth = selected ? 2 : 1;
+      ctx.stroke();
+      // Cross lines for architectural convention
+      ctx.strokeStyle = selected ? '#3b82f680' : '#88888880';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(-r, -r); ctx.lineTo(r, r);
+      ctx.moveTo(-r, r); ctx.lineTo(r, -r);
+      ctx.stroke();
+    } else {
+      const angle = (col.rotation * Math.PI) / 180;
+      ctx.rotate(angle);
+      const side = col.diameter * zoom;
+      ctx.fillStyle = selected ? '#bfdbfe' : col.color;
+      ctx.fillRect(-side / 2, -side / 2, side, side);
+      ctx.strokeStyle = selected ? '#3b82f6' : '#555';
+      ctx.lineWidth = selected ? 2 : 1;
+      ctx.strokeRect(-side / 2, -side / 2, side, side);
+      // Cross lines
+      ctx.strokeStyle = selected ? '#3b82f680' : '#88888880';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(-side / 2, -side / 2); ctx.lineTo(side / 2, side / 2);
+      ctx.moveTo(-side / 2, side / 2); ctx.lineTo(side / 2, -side / 2);
+      ctx.stroke();
+    }
+
+    if (selected) {
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 3]);
+      if (col.shape === 'round') {
+        ctx.beginPath();
+        ctx.arc(0, 0, r + 4, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        const side = col.diameter * zoom;
+        ctx.strokeRect(-side / 2 - 4, -side / 2 - 4, side + 8, side + 8);
+      }
+      ctx.setLineDash([]);
+    }
+
+    ctx.restore();
+  }
+
   function draw() {
     if (!ctx) return;
     ctx.clearRect(0, 0, width, height);
@@ -1857,6 +1919,22 @@
       for (const stair of floor.stairs) {
         drawStair(stair, isSelected(stair.id));
       }
+    }
+
+    // Columns
+    if (floor.columns) {
+      for (const col of floor.columns) {
+        drawColumn(col, isSelected(col.id));
+      }
+    }
+
+    // Column placement preview
+    if (isPlacingColumn) {
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      const preview: Column = { id: 'preview', position: mousePos, rotation: 0, shape: placingColShape, diameter: 30, height: 280, color: '#cccccc' };
+      drawColumn(preview, false);
+      ctx.restore();
     }
 
     // Stair placement preview
@@ -2000,6 +2078,8 @@
     const unsub9 = placingWindowType.subscribe((t) => { currentWindowType = t; });
     const unsub10 = snapEnabled.subscribe((v) => { currentSnapEnabled = v; });
     const unsub11 = placingStair.subscribe((v) => { isPlacingStair = v; });
+    const unsub_col = placingColumn.subscribe((v) => { isPlacingColumn = v; });
+    const unsub_cols = placingColumnShape.subscribe((v) => { placingColShape = v; });
     const unsub12 = calibrationMode.subscribe((v) => { isCalibrating = v; });
     const unsub13 = calibrationPoints.subscribe((pts) => { calPoints = pts; });
     const unsub_multi = selectedElementIds.subscribe((ids) => { currentSelectedIds = ids; });
@@ -2013,7 +2093,7 @@
       }
     });
 
-    return () => { resizeObs.disconnect(); unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); unsub8(); unsub9(); unsub10(); unsub11(); unsub12(); unsub13(); unsub_multi(); unsub14(); };
+    return () => { resizeObs.disconnect(); unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); unsub8(); unsub9(); unsub10(); unsub11(); unsub12(); unsub13(); unsub_multi(); unsub14(); unsub_col(); unsub_cols(); };
   });
 
   function zoomToFit() {
@@ -2107,6 +2187,23 @@
     return null;
   }
 
+  function findColumnAt(p: Point): Column | null {
+    if (!currentFloor?.columns) return null;
+    for (const col of [...currentFloor.columns].reverse()) {
+      const dx = p.x - col.position.x;
+      const dy = p.y - col.position.y;
+      if (col.shape === 'round') {
+        if (Math.hypot(dx, dy) < col.diameter / 2) return col;
+      } else {
+        const angle = -(col.rotation * Math.PI) / 180;
+        const rx = dx * Math.cos(angle) - dy * Math.sin(angle);
+        const ry = dx * Math.sin(angle) + dy * Math.cos(angle);
+        if (Math.abs(rx) < col.diameter / 2 && Math.abs(ry) < col.diameter / 2) return col;
+      }
+    }
+    return null;
+  }
+
   function findStairAt(p: Point): Stair | null {
     if (!currentFloor?.stairs) return null;
     for (const stair of [...currentFloor.stairs].reverse()) {
@@ -2190,7 +2287,7 @@
   }
 
   function onMouseDown(e: MouseEvent) {
-    if (e.button === 1 || (e.button === 0 && spaceDown)) {
+    if (e.button === 1 || (e.button === 0 && (spaceDown || $panMode))) {
       isPanning = true;
       panStartX = e.clientX;
       panStartY = e.clientY;
@@ -2220,6 +2317,15 @@
         }
         return newPts;
       });
+      return;
+    }
+
+    // Column placement
+    if (isPlacingColumn) {
+      const pos = { x: snap(wp.x), y: snap(wp.y) };
+      const id = addColumn(pos, placingColShape);
+      selectedElementId.set(id);
+      placingColumn.set(false);
       return;
     }
 
@@ -2348,6 +2454,16 @@
       if (win) {
         selectElement(win.id, e.shiftKey);
         if (!e.shiftKey) draggingWindowId = win.id;
+        return;
+      }
+      // Check columns
+      const col = findColumnAt(wp);
+      if (col) {
+        selectElement(col.id, e.shiftKey);
+        if (!e.shiftKey) {
+          draggingColumnId = col.id;
+          columnDragOffset = { x: wp.x - col.position.x, y: wp.y - col.position.y };
+        }
         return;
       }
       // Check stairs
@@ -2545,6 +2661,10 @@
         }
       }
     }
+    if (draggingColumnId && currentFloor?.columns) {
+      const basePos = { x: mousePos.x - columnDragOffset.x, y: mousePos.y - columnDragOffset.y };
+      moveColumn(draggingColumnId, { x: snap(basePos.x), y: snap(basePos.y) });
+    }
     if (draggingStairId && currentFloor?.stairs) {
       const basePos = { x: mousePos.x - stairDragOffset.x, y: mousePos.y - stairDragOffset.y };
       moveStair(draggingStairId, { x: snap(basePos.x), y: snap(basePos.y) });
@@ -2658,6 +2778,12 @@
             if (ptInRect(st.position)) ids.add(st.id);
           }
         }
+        // Columns: center inside
+        if (currentFloor.columns) {
+          for (const col of currentFloor.columns) {
+            if (ptInRect(col.position)) ids.add(col.id);
+          }
+        }
 
         if (ids.size > 0) {
           selectedElementIds.set(ids);
@@ -2679,6 +2805,7 @@
     draggingCurveHandle = null;
     draggingFurnitureId = null;
     draggingStairId = null;
+    draggingColumnId = null;
     draggingDoorId = null;
     draggingWindowId = null;
     draggingHandle = null;
@@ -2769,7 +2896,7 @@
   }
 
   let cursorStyle = $derived(
-    spaceDown || isPanning ? 'grab' :
+    spaceDown || isPanning || $panMode ? 'grab' :
     draggingWallParallel ? 'move' :
     draggingCurveHandle ? 'crosshair' :
     draggingWallEndpoint ? 'crosshair' :

@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { activeFloor, selectedElementId, selectedRoomId, updateWall, updateDoor, updateWindow, updateRoom, updateFurniture, detectedRoomsStore, updateStair, updateBackgroundImage, setBackgroundImage, calibrationMode, calibrationPoints } from '$lib/stores/project';
+  import { activeFloor, selectedElementId, selectedRoomId, updateWall, updateDoor, updateWindow, updateRoom, updateFurniture, detectedRoomsStore, updateStair, updateColumn, updateBackgroundImage, setBackgroundImage, calibrationMode, calibrationPoints } from '$lib/stores/project';
   import { floorMaterials, wallColors } from '$lib/utils/materials';
   import { getCatalogItem } from '$lib/utils/furnitureCatalog';
-  import type { Floor, Wall, Door, Window as Win, Room, FurnitureItem, Stair } from '$lib/models/types';
+  import type { Floor, Wall, Door, Window as Win, Room, FurnitureItem, Stair, Column } from '$lib/models/types';
 
   let floor: Floor | null = $state(null);
   let selId: string | null = $state(null);
@@ -20,6 +20,7 @@
   let selectedWindow = $derived(floor?.windows.find(w => w.id === selId) ?? null);
   let selectedFurniture = $derived(floor?.furniture.find(f => f.id === selId) ?? null);
   let selectedStair = $derived(floor?.stairs?.find(s => s.id === selId) ?? null);
+  let selectedColumn = $derived(floor?.columns?.find(c => c.id === selId) ?? null);
   let hasBgImage = $derived(!!floor?.backgroundImage);
   let selectedRoom = $derived(floor?.rooms.find(r => r.id === selRoomId) ?? detectedRooms.find(r => r.id === selRoomId) ?? null);
 
@@ -215,7 +216,7 @@
     return match ? match.id : 'custom';
   });
 
-  let hasSelection = $derived(!!selectedWall || !!selectedDoor || !!selectedWindow || !!selectedFurniture || !!selectedRoom || !!selectedStair || hasBgImage);
+  let hasSelection = $derived(!!selectedWall || !!selectedDoor || !!selectedWindow || !!selectedFurniture || !!selectedRoom || !!selectedStair || !!selectedColumn || hasBgImage);
 </script>
 
 {#if hasSelection}
@@ -628,6 +629,38 @@
         <span class="text-xs text-gray-500">Rotation (degrees)</span>
         <input type="number" value={selectedStair.rotation} oninput={(e) => updateStair(selectedStair!.id, { rotation: Number((e.target as HTMLInputElement).value) })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
+    </div>
+  {:else if selectedColumn}
+    <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+      <span class="w-6 h-6 bg-gray-200 rounded flex items-center justify-center text-xs">🏛️</span>
+      Column Properties
+    </h3>
+    <div class="space-y-3">
+      <label class="block">
+        <span class="text-xs text-gray-500">Shape</span>
+        <div class="flex gap-2">
+          <button onclick={() => updateColumn(selectedColumn!.id, { shape: 'round' })} class="flex-1 px-2 py-1.5 border rounded text-sm transition-colors {selectedColumn.shape === 'round' ? 'bg-blue-100 border-blue-400 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}">⭕ Round</button>
+          <button onclick={() => updateColumn(selectedColumn!.id, { shape: 'square' })} class="flex-1 px-2 py-1.5 border rounded text-sm transition-colors {selectedColumn.shape === 'square' ? 'bg-blue-100 border-blue-400 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}">⬜ Square</button>
+        </div>
+      </label>
+      <label class="block">
+        <span class="text-xs text-gray-500">{selectedColumn.shape === 'round' ? 'Diameter' : 'Side Length'} (cm)</span>
+        <input type="number" value={selectedColumn.diameter} min="10" max="200" oninput={(e) => updateColumn(selectedColumn!.id, { diameter: Number((e.target as HTMLInputElement).value) })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+      </label>
+      <label class="block">
+        <span class="text-xs text-gray-500">Height (cm)</span>
+        <input type="number" value={selectedColumn.height} min="50" max="1000" oninput={(e) => updateColumn(selectedColumn!.id, { height: Number((e.target as HTMLInputElement).value) })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+      </label>
+      <label class="block">
+        <span class="text-xs text-gray-500">Color</span>
+        <input type="color" value={selectedColumn.color} oninput={(e) => updateColumn(selectedColumn!.id, { color: (e.target as HTMLInputElement).value })} class="w-full h-8 cursor-pointer" />
+      </label>
+      {#if selectedColumn.shape === 'square'}
+        <label class="block">
+          <span class="text-xs text-gray-500">Rotation (degrees)</span>
+          <input type="number" value={selectedColumn.rotation} oninput={(e) => updateColumn(selectedColumn!.id, { rotation: Number((e.target as HTMLInputElement).value) })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        </label>
+      {/if}
     </div>
   {/if}
 

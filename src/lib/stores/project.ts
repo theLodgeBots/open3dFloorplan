@@ -1,5 +1,5 @@
 import { writable, derived, get } from 'svelte/store';
-import type { Project, Floor, Wall, Door, Window as Win, FurnitureItem, Point, Stair, BackgroundImage } from '$lib/models/types';
+import type { Project, Floor, Wall, Door, Window as Win, FurnitureItem, Point, Stair, Column, BackgroundImage } from '$lib/models/types';
 
 function uid(): string {
   return Math.random().toString(36).slice(2, 10);
@@ -7,7 +7,7 @@ function uid(): string {
 
 export function createDefaultFloor(level = 0): Floor {
   const id = uid();
-  return { id, name: level === 0 ? 'Ground Floor' : `Floor ${level}`, level, walls: [], rooms: [], doors: [], windows: [], furniture: [], stairs: [] };
+  return { id, name: level === 0 ? 'Ground Floor' : `Floor ${level}`, level, walls: [], rooms: [], doors: [], windows: [], furniture: [], stairs: [], columns: [] };
 }
 
 export function createDefaultProject(name = 'Untitled Project'): Project {
@@ -32,6 +32,8 @@ export const activeFloor = derived(currentProject, ($p) => {
 export type Tool = 'select' | 'wall' | 'door' | 'window' | 'furniture';
 export const selectedTool = writable<Tool>('select');
 export const snapEnabled = writable<boolean>(true);
+/** When true, left-click drag pans the canvas instead of selecting */
+export const panMode = writable<boolean>(false);
 export const selectedElementId = writable<string | null>(null);
 /** Multi-select: set of element IDs currently selected (used alongside selectedElementId for marquee/shift-click) */
 export const selectedElementIds = writable<Set<string>>(new Set());
@@ -232,6 +234,48 @@ export function updateBackgroundImage(updates: Partial<BackgroundImage>) {
   });
 }
 
+// Column functions
+export function addColumn(position: Point, shape: 'round' | 'square' = 'round'): string {
+  const id = uid();
+  mutate((f) => {
+    if (!f.columns) f.columns = [];
+    f.columns.push({ id, position, rotation: 0, shape, diameter: 30, height: 280, color: '#cccccc' });
+  });
+  return id;
+}
+
+export function updateColumn(id: string, updates: Partial<Column>) {
+  mutate((f) => {
+    if (!f.columns) return;
+    const c = f.columns.find((c) => c.id === id);
+    if (c) Object.assign(c, updates);
+  });
+}
+
+export function removeColumn(id: string) {
+  mutate((f) => {
+    if (!f.columns) return;
+    f.columns = f.columns.filter((c) => c.id !== id);
+  });
+}
+
+export function moveColumn(id: string, position: Point) {
+  const p = get(currentProject);
+  if (!p) return;
+  const floor = p.floors.find((f) => f.id === p.activeFloorId);
+  if (!floor || !floor.columns) return;
+  const c = floor.columns.find((c) => c.id === id);
+  if (c) {
+    c.position = position;
+    p.updatedAt = new Date();
+    currentProject.set({ ...p });
+  }
+}
+
+/** Tool for placing columns */
+export const placingColumn = writable<boolean>(false);
+export const placingColumnShape = writable<'round' | 'square'>('round');
+
 /** Tool for placing stairs */
 export const placingStair = writable<boolean>(false);
 
@@ -246,6 +290,7 @@ export function removeElement(id: string) {
     f.windows = f.windows.filter((w) => w.id !== id);
     f.furniture = f.furniture.filter((fi) => fi.id !== id);
     if (f.stairs) f.stairs = f.stairs.filter((s) => s.id !== id);
+    if (f.columns) f.columns = f.columns.filter((c) => c.id !== id);
   });
 }
 

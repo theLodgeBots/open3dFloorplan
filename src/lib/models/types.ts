@@ -71,6 +71,16 @@ export interface Stair {
   direction: 'up' | 'down';
 }
 
+export interface Column {
+  id: string;
+  position: Point;
+  rotation: number;
+  shape: 'round' | 'square';
+  diameter: number;  // cm (for round) or side length (for square)
+  height: number;    // cm
+  color: string;
+}
+
 export interface BackgroundImage {
   dataUrl: string;
   position: Point;
@@ -90,6 +100,7 @@ export interface Floor {
   windows: Window[];
   furniture: FurnitureItem[];
   stairs: Stair[];
+  columns: Column[];
   backgroundImage?: BackgroundImage;
 }
 
