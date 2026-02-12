@@ -3163,7 +3163,7 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>
           </button>
         {/if}
-        {#if el.type === 'wall'}
+        {#if el.type === 'wall' && currentSelectedId && currentSelectedIds.size === 0}
           <button
             class="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700"
             title="Split wall at midpoint"
