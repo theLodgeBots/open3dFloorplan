@@ -683,16 +683,17 @@
 
       // Triangulate the polygon using ear-clipping via THREE.ShapeGeometry
       const shape = new THREE.Shape();
-      shape.moveTo(poly[0].x, poly[0].y);
-      for (let i = 1; i < poly.length; i++) shape.lineTo(poly[i].x, poly[i].y);
+      // Negate Y so that after -PI/2 X rotation, 2D Y maps to +Z (matching wall coords)
+      shape.moveTo(poly[0].x, -poly[0].y);
+      for (let i = 1; i < poly.length; i++) shape.lineTo(poly[i].x, -poly[i].y);
       shape.closePath();
 
       const geo = new THREE.ShapeGeometry(shape);
       
-      // Compute room bounds for UV normalization
+      // Compute room bounds for UV normalization (using negated Y to match shape coords)
       const bounds = poly.reduce((b, p) => ({
         minX: Math.min(b.minX, p.x), maxX: Math.max(b.maxX, p.x),
-        minY: Math.min(b.minY, p.y), maxY: Math.max(b.maxY, p.y),
+        minY: Math.min(b.minY, -p.y), maxY: Math.max(b.maxY, -p.y),
       }), { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
       const roomW = bounds.maxX - bounds.minX;
       const roomH = bounds.maxY - bounds.minY;
