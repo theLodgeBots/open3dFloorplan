@@ -14,6 +14,7 @@
   selectedRoomId.subscribe((id) => { selRoomId = id; });
   detectedRoomsStore.subscribe((rooms) => { detectedRooms = rooms; });
 
+  let { is3D = false }: { is3D?: boolean } = $props();
   let wallSideTab = $state<'interior' | 'exterior'>('interior');
   let selectedWall = $derived(floor?.walls.find(w => w.id === selId) ?? null);
   let selectedDoor = $derived(floor?.doors.find(d => d.id === selId) ?? null);
@@ -220,7 +221,7 @@
 </script>
 
 {#if hasSelection}
-<div class="w-64 bg-white border-l border-gray-200 flex flex-col h-full overflow-y-auto p-3">
+<div class="{is3D ? 'w-80' : 'w-64'} bg-white border-l border-gray-200 flex flex-col h-full overflow-y-auto p-3">
   {#if selectedWall}
     <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
       <span class="w-6 h-6 bg-gray-200 rounded flex items-center justify-center text-xs">▭</span>

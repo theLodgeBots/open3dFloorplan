@@ -54,7 +54,9 @@
   <div class="h-screen flex flex-col overflow-hidden">
     <TopBar />
     <div class="flex flex-1 overflow-hidden">
-      <BuildPanel />
+      {#if mode === '2d'}
+        <BuildPanel />
+      {/if}
       <div class="flex-1 relative">
         {#if mode === '2d'}
           <FloorPlanCanvas />
@@ -62,7 +64,7 @@
           <ThreeViewer />
         {/if}
       </div>
-      <PropertiesPanel />
+      <PropertiesPanel is3D={mode === '3d'} />
     </div>
   </div>
 
