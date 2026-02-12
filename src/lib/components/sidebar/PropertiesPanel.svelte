@@ -220,7 +220,8 @@
   let hasSelection = $derived(!!selectedWall || !!selectedDoor || !!selectedWindow || !!selectedFurniture || !!selectedRoom || !!selectedStair || !!selectedColumn || (!is3D && hasBgImage));
 </script>
 
-<div class="{is3D ? (hasSelection ? 'w-80' : 'w-0') : 'w-64'} bg-white border-l border-gray-200 flex flex-col h-full overflow-hidden transition-all duration-200 {hasSelection ? 'p-3 overflow-y-auto' : is3D ? 'p-0' : 'p-3'}">
+{#if !is3D || hasSelection}
+<div class="{is3D ? 'w-80' : 'w-64'} bg-white border-l border-gray-200 flex flex-col h-full overflow-y-auto p-3">
 {#if hasSelection}
   {#if selectedWall}
     <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
@@ -730,3 +731,4 @@
   {/if}
 {/if}
 </div>
+{/if}
