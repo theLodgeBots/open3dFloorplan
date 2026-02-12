@@ -107,6 +107,7 @@ export interface Floor {
 export interface Project {
   id: string;
   name: string;
+  description?: string;
   floors: Floor[];
   activeFloorId: string;
   createdAt: Date;

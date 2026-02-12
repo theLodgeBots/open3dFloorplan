@@ -1,8 +1,32 @@
 <script lang="ts">
   import { projectSettings } from '$lib/stores/settings';
   import type { ProjectSettings } from '$lib/stores/settings';
+  import { currentProject, updateProjectName } from '$lib/stores/project';
+  import type { Project } from '$lib/models/types';
 
   let { open = $bindable(false) }: { open: boolean } = $props();
+  let projectName = $state('');
+  let projectDescription = $state('');
+
+  currentProject.subscribe((p) => {
+    if (p) {
+      projectName = p.name;
+      projectDescription = p.description ?? '';
+    }
+  });
+
+  function onNameChange(e: Event) {
+    projectName = (e.target as HTMLInputElement).value;
+    updateProjectName(projectName);
+  }
+
+  function onDescriptionChange(e: Event) {
+    projectDescription = (e.target as HTMLTextAreaElement).value;
+    currentProject.update((p) => {
+      if (p) return { ...p, description: projectDescription };
+      return p;
+    });
+  }
   let activeTab = $state<'project' | 'dimensions'>('dimensions');
   let settings = $state<ProjectSettings>({
     units: 'metric',
@@ -58,7 +82,26 @@
       <div class="p-5 overflow-y-auto">
         {#if activeTab === 'project'}
           <div class="space-y-4">
-            <p class="text-sm text-gray-500">Project settings coming soon — name, description, thumbnail generation.</p>
+            <label class="block">
+              <span class="text-sm font-medium text-gray-700">Project Name</span>
+              <input
+                type="text"
+                value={projectName}
+                oninput={onNameChange}
+                class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                placeholder="Untitled Project"
+              />
+            </label>
+            <label class="block">
+              <span class="text-sm font-medium text-gray-700">Description</span>
+              <textarea
+                value={projectDescription}
+                oninput={onDescriptionChange}
+                rows="3"
+                class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none resize-none"
+                placeholder="Add a description for this project..."
+              ></textarea>
+            </label>
           </div>
 
         {:else if activeTab === 'dimensions'}
