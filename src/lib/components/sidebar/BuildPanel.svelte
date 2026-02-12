@@ -5,7 +5,7 @@
   import { roomPresets, placePreset } from '$lib/utils/roomPresets';
   import { furnitureCatalog, furnitureCategories } from '$lib/utils/furnitureCatalog';
   import type { FurnitureDef } from '$lib/utils/furnitureCatalog';
-  import { importRoomPlan, extractRoomJsonFromZip } from '$lib/utils/roomplanImport';
+  import { importRoomPlan, extractRoomJsonFromZip, ORTHO_VERSION } from '$lib/utils/roomplanImport';
   import { currentProject, loadProject } from '$lib/stores/project';
   import type { Project } from '$lib/models/types';
 
@@ -428,7 +428,7 @@
         <label class="flex items-start gap-2.5 cursor-pointer">
           <input type="checkbox" bind:checked={optOrthogonal} class="accent-blue-500 mt-0.5" />
           <div>
-            <div class="text-sm font-medium text-gray-700">Enforce orthogonal</div>
+            <div class="text-sm font-medium text-gray-700">Enforce orthogonal <span class="text-xs text-blue-400 font-mono">{ORTHO_VERSION}</span></div>
             <div class="text-xs text-gray-400">Force all walls to 90°/180° angles</div>
           </div>
         </label>

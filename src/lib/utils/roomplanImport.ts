@@ -196,6 +196,9 @@ function angleDiff(a: number, b: number): number {
  * then rotate ALL points by its inverse so walls become axis-aligned.
  * This preserves topology (connected corners stay connected).
  */
+/** Orthogonal enforcement version (shown in import dialog) */
+export const ORTHO_VERSION = 'v3';
+
 function enforceOrthogonal(walls: Wall[], mergeDistance = 15, furniture?: FurnitureItem[]): void {
   if (walls.length === 0) return;
 
@@ -206,14 +209,13 @@ function enforceOrthogonal(walls: Wall[], mergeDistance = 15, furniture?: Furnit
     const dy = wall.end.y - wall.start.y;
     const len = Math.hypot(dx, dy);
     if (len < 1) continue;
-    // Use 4× angle so π/2 wraps to 2π (circular mean in mod-π/2 space)
     const angle = Math.atan2(dy, dx) * 4;
     sinSum += Math.sin(angle) * len;
     cosSum += Math.cos(angle) * len;
   }
   const dominantAngle = Math.atan2(sinSum, cosSum) / 4;
 
-  // 2. Find nearest axis to dominant angle (0, π/2, π, -π/2)
+  // 2. Find nearest axis to dominant angle
   const AXES = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
   let bestAxis = 0;
   let bestDiff = Infinity;
@@ -221,8 +223,6 @@ function enforceOrthogonal(walls: Wall[], mergeDistance = 15, furniture?: Furnit
     const diff = angleDiff(dominantAngle, a);
     if (diff < bestDiff) { bestDiff = diff; bestAxis = a; }
   }
-
-  // Rotation to apply: snap dominant → nearest axis
   const rotationAngle = bestAxis - dominantAngle;
 
   // 3. Find centroid of all wall endpoints
@@ -240,8 +240,8 @@ function enforceOrthogonal(walls: Wall[], mergeDistance = 15, furniture?: Furnit
   function rotatePoint(p: { x: number; y: number }) {
     const dx = p.x - cx;
     const dy = p.y - cy;
-    p.x = Math.round(cx + dx * cosR - dy * sinR);
-    p.y = Math.round(cy + dx * sinR + dy * cosR);
+    p.x = cx + dx * cosR - dy * sinR;
+    p.y = cy + dx * sinR + dy * cosR;
   }
 
   // 4. Rotate all wall endpoints
@@ -258,7 +258,33 @@ function enforceOrthogonal(walls: Wall[], mergeDistance = 15, furniture?: Furnit
     }
   }
 
-  // 6. Merge nearby endpoints
+  // 6. Snap each wall to exact horizontal or vertical
+  for (const wall of walls) {
+    const dx = wall.end.x - wall.start.x;
+    const dy = wall.end.y - wall.start.y;
+    const angle = Math.atan2(dy, dx);
+    // Determine closest axis direction
+    const nearestAxis = Math.round(angle / (Math.PI / 2)) * (Math.PI / 2);
+    const isHorizontal = Math.abs(Math.cos(nearestAxis)) > Math.abs(Math.sin(nearestAxis));
+
+    if (isHorizontal) {
+      // Force same Y for both endpoints (use midpoint Y)
+      const midY = (wall.start.y + wall.end.y) / 2;
+      wall.start.y = Math.round(midY);
+      wall.end.y = Math.round(midY);
+      wall.start.x = Math.round(wall.start.x);
+      wall.end.x = Math.round(wall.end.x);
+    } else {
+      // Force same X for both endpoints (use midpoint X)
+      const midX = (wall.start.x + wall.end.x) / 2;
+      wall.start.x = Math.round(midX);
+      wall.end.x = Math.round(midX);
+      wall.start.y = Math.round(wall.start.y);
+      wall.end.y = Math.round(wall.end.y);
+    }
+  }
+
+  // 7. Merge nearby endpoints to reconnect corners
   mergeEndpoints(walls, mergeDistance);
 }
 
