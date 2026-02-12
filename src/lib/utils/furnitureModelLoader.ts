@@ -25,8 +25,8 @@ interface ModelMapping {
 
 const MODEL_MAP: Record<string, ModelMapping> = {
   // Living Room
-  sofa:           { file: 'loungeSofaLong', scale: 110 },
-  loveseat:       { file: 'loungeSofa', scale: 100 },
+  sofa:           { file: 'loungeDesignSofa', scale: 110 },
+  loveseat:       { file: 'loungeDesignSofa', scale: 100 },
   chair:          { file: 'loungeChair', scale: 95 },
   coffee_table:   { file: 'tableCoffee', scale: 100 },
   tv_stand:       { file: 'cabinetTelevision', scale: 100 },
@@ -60,7 +60,7 @@ const MODEL_MAP: Record<string, ModelMapping> = {
   washer_dryer:   { file: 'washerDryerStacked', scale: 100 },
 
   // Office
-  desk:           { file: 'desk', scale: 110 },
+  desk:           { file: 'table', scale: 110 },
   office_chair:   { file: 'chairDesk', scale: 90 },
 
   // Dining
