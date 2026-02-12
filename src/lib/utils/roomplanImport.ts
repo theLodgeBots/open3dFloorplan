@@ -197,7 +197,7 @@ function angleDiff(a: number, b: number): number {
  * This preserves topology (connected corners stay connected).
  */
 /** Orthogonal enforcement version (shown in import dialog) */
-export const ORTHO_VERSION = 'v4';
+export const ORTHO_VERSION = 'v5';
 
 function enforceOrthogonal(walls: Wall[], mergeDistance = 15, furniture?: FurnitureItem[]): void {
   if (walls.length === 0) return;
@@ -209,7 +209,6 @@ function enforceOrthogonal(walls: Wall[], mergeDistance = 15, furniture?: Furnit
     const dy = wall.end.y - wall.start.y;
     const len = Math.hypot(dx, dy);
     if (len < 1) continue;
-    // Multiply angle by 4 so 0°/90°/180°/270° all map to 0° in this space
     const angle = Math.atan2(dy, dx) * 4;
     sinSum += Math.sin(angle) * len;
     cosSum += Math.cos(angle) * len;
@@ -225,7 +224,6 @@ function enforceOrthogonal(walls: Wall[], mergeDistance = 15, furniture?: Furnit
   }
   const rotationAngle = bestAxis - dominantAngle;
 
-  // Centroid for rotation pivot
   let cx = 0, cy = 0, n = 0;
   for (const wall of walls) {
     cx += wall.start.x + wall.end.x;
@@ -254,20 +252,58 @@ function enforceOrthogonal(walls: Wall[], mergeDistance = 15, furniture?: Furnit
     }
   }
 
-  // ── Step 2: Build corner graph ──
-  // Cluster endpoints that are within mergeDistance into "corner nodes"
-  type Endpoint = { wall: Wall; which: 'start' | 'end' };
+  // ── Step 2: Classify each wall as H or V ──
+  const wallOrientation = new Map<Wall, 'H' | 'V'>();
+  for (const wall of walls) {
+    const dx = wall.end.x - wall.start.x;
+    const dy = wall.end.y - wall.start.y;
+    const angle = Math.atan2(dy, dx);
+    const nearestAxis = Math.round(angle / (Math.PI / 2)) * (Math.PI / 2);
+    wallOrientation.set(wall, Math.abs(Math.cos(nearestAxis)) > Math.abs(Math.sin(nearestAxis)) ? 'H' : 'V');
+  }
+
+  // ── Step 3: Enforce exact H/V per wall ──
+  // H walls: lock both endpoints to same Y (average)
+  // V walls: lock both endpoints to same X (average)
+  for (const wall of walls) {
+    const orient = wallOrientation.get(wall)!;
+    if (orient === 'H') {
+      const midY = Math.round((wall.start.y + wall.end.y) / 2);
+      wall.start.y = midY;
+      wall.end.y = midY;
+      wall.start.x = Math.round(wall.start.x);
+      wall.end.x = Math.round(wall.end.x);
+    } else {
+      const midX = Math.round((wall.start.x + wall.end.x) / 2);
+      wall.start.x = midX;
+      wall.end.x = midX;
+      wall.start.y = Math.round(wall.start.y);
+      wall.end.y = Math.round(wall.end.y);
+    }
+  }
+
+  // ── Step 4: Smart corner merge ──
+  // When merging nearby endpoints, respect wall orientation:
+  //   H wall endpoints: Y is authoritative (locked), only merge X
+  //   V wall endpoints: X is authoritative (locked), only merge Y
+  //   H meets V: perfect corner — H provides Y, V provides X
+  type Endpoint = { wall: Wall; which: 'start' | 'end'; orient: 'H' | 'V' };
   const eps: Endpoint[] = [];
   for (const wall of walls) {
-    eps.push({ wall, which: 'start' });
-    eps.push({ wall, which: 'end' });
+    const orient = wallOrientation.get(wall)!;
+    eps.push({ wall, which: 'start', orient });
+    eps.push({ wall, which: 'end', orient });
   }
 
   function getP(ep: Endpoint): Point {
     return ep.which === 'start' ? ep.wall.start : ep.wall.end;
   }
+  function setP(ep: Endpoint, x: number, y: number) {
+    if (ep.which === 'start') { ep.wall.start.x = x; ep.wall.start.y = y; }
+    else { ep.wall.end.x = x; ep.wall.end.y = y; }
+  }
 
-  // Union-Find to cluster nearby endpoints
+  // Union-Find
   const parent: number[] = eps.map((_, i) => i);
   function find(i: number): number {
     while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; }
@@ -285,7 +321,6 @@ function enforceOrthogonal(walls: Wall[], mergeDistance = 15, furniture?: Furnit
     }
   }
 
-  // Build corner clusters: cornerId → list of endpoint indices
   const corners = new Map<number, number[]>();
   for (let i = 0; i < eps.length; i++) {
     const root = find(i);
@@ -293,84 +328,154 @@ function enforceOrthogonal(walls: Wall[], mergeDistance = 15, furniture?: Furnit
     corners.get(root)!.push(i);
   }
 
-  // ── Step 3: Classify each wall as H or V ──
-  const wallOrientation = new Map<Wall, 'H' | 'V'>();
-  for (const wall of walls) {
-    const dx = wall.end.x - wall.start.x;
-    const dy = wall.end.y - wall.start.y;
-    const angle = Math.atan2(dy, dx);
-    const nearestAxis = Math.round(angle / (Math.PI / 2)) * (Math.PI / 2);
-    wallOrientation.set(wall, Math.abs(Math.cos(nearestAxis)) > Math.abs(Math.sin(nearestAxis)) ? 'H' : 'V');
-  }
-
-  // ── Step 4: Solve corner positions using wall constraints ──
-  // For each corner, collect constraints:
-  //   - H walls constrain the corner's Y (wall midpoint Y)
-  //   - V walls constrain the corner's X (wall midpoint X)
-  // Then average the constraints for each axis, falling back to endpoint average.
   for (const [, members] of corners) {
-    let xConstrained: number[] = [];
-    let yConstrained: number[] = [];
-    let allX: number[] = [];
-    let allY: number[] = [];
+    if (members.length < 2) continue;
+
+    // Collect authoritative values per axis
+    const xFromV: number[] = []; // V walls own their X
+    const yFromH: number[] = []; // H walls own their Y
+    const allX: number[] = [];
+    const allY: number[] = [];
 
     for (const idx of members) {
-      const ep = eps[idx];
-      const p = getP(ep);
+      const p = getP(eps[idx]);
       allX.push(p.x);
       allY.push(p.y);
-
-      const orient = wallOrientation.get(ep.wall)!;
-      if (orient === 'H') {
-        // This wall is horizontal → both endpoints should share the same Y
-        // Use the wall's midpoint Y as the constraint
-        const midY = (ep.wall.start.y + ep.wall.end.y) / 2;
-        yConstrained.push(midY);
-      } else {
-        // This wall is vertical → both endpoints should share the same X
-        const midX = (ep.wall.start.x + ep.wall.end.x) / 2;
-        xConstrained.push(midX);
-      }
+      if (eps[idx].orient === 'V') xFromV.push(p.x);
+      if (eps[idx].orient === 'H') yFromH.push(p.y);
     }
 
-    // Final corner position: use constrained average if available, else endpoint average
-    const finalX = Math.round(xConstrained.length > 0
-      ? xConstrained.reduce((a, b) => a + b, 0) / xConstrained.length
+    // X: prefer V-wall authority, fallback to average
+    const finalX = Math.round(xFromV.length > 0
+      ? xFromV.reduce((a, b) => a + b, 0) / xFromV.length
       : allX.reduce((a, b) => a + b, 0) / allX.length);
-    const finalY = Math.round(yConstrained.length > 0
-      ? yConstrained.reduce((a, b) => a + b, 0) / yConstrained.length
+
+    // Y: prefer H-wall authority, fallback to average
+    const finalY = Math.round(yFromH.length > 0
+      ? yFromH.reduce((a, b) => a + b, 0) / yFromH.length
       : allY.reduce((a, b) => a + b, 0) / allY.length);
 
-    // Apply to all endpoints in this corner cluster
     for (const idx of members) {
       const ep = eps[idx];
-      if (ep.which === 'start') {
-        ep.wall.start.x = finalX;
-        ep.wall.start.y = finalY;
+      if (ep.orient === 'H') {
+        // H wall: keep its locked Y, take merged X
+        setP(ep, finalX, getP(ep).y);
       } else {
-        ep.wall.end.x = finalX;
-        ep.wall.end.y = finalY;
+        // V wall: keep its locked X, take merged Y
+        setP(ep, getP(ep).x, finalY);
       }
     }
   }
 
-  // ── Step 5: Final per-wall axis enforcement ──
-  // After corner solving, force exact H/V alignment per wall
-  // by adjusting the endpoint that's NOT a shared corner (or splitting the diff)
-  for (const wall of walls) {
-    const orient = wallOrientation.get(wall)!;
-    if (orient === 'H') {
-      const midY = Math.round((wall.start.y + wall.end.y) / 2);
-      wall.start.y = midY;
-      wall.end.y = midY;
-    } else {
-      const midX = Math.round((wall.start.x + wall.end.x) / 2);
-      wall.start.x = midX;
-      wall.end.x = midX;
+  // ── Step 5: Iterative orientation-aware merge + re-enforce ──
+  for (let iter = 0; iter < 5; iter++) {
+    // Rebuild eps list with current positions
+    const iterEps: Endpoint[] = [];
+    for (const wall of walls) {
+      const orient = wallOrientation.get(wall)!;
+      iterEps.push({ wall, which: 'start', orient });
+      iterEps.push({ wall, which: 'end', orient });
+    }
+
+    // Re-cluster
+    const iterParent: number[] = iterEps.map((_, i) => i);
+    function iterFind(i: number): number {
+      while (iterParent[i] !== i) { iterParent[i] = iterParent[iterParent[i]]; i = iterParent[i]; }
+      return i;
+    }
+    function iterUnion(a: number, b: number) { iterParent[iterFind(a)] = iterFind(b); }
+
+    for (let i = 0; i < iterEps.length; i++) {
+      const pi = getP(iterEps[i]);
+      for (let j = i + 1; j < iterEps.length; j++) {
+        const pj = getP(iterEps[j]);
+        if (Math.hypot(pi.x - pj.x, pi.y - pj.y) < mergeDistance) {
+          iterUnion(i, j);
+        }
+      }
+    }
+
+    const iterCorners = new Map<number, number[]>();
+    for (let i = 0; i < iterEps.length; i++) {
+      const root = iterFind(i);
+      if (!iterCorners.has(root)) iterCorners.set(root, []);
+      iterCorners.get(root)!.push(i);
+    }
+
+    // Orientation-aware merge
+    for (const [, members] of iterCorners) {
+      if (members.length < 2) continue;
+      const xFromV: number[] = [];
+      const yFromH: number[] = [];
+      const allX: number[] = [];
+      const allY: number[] = [];
+
+      for (const idx of members) {
+        const p = getP(iterEps[idx]);
+        allX.push(p.x);
+        allY.push(p.y);
+        if (iterEps[idx].orient === 'V') xFromV.push(p.x);
+        if (iterEps[idx].orient === 'H') yFromH.push(p.y);
+      }
+
+      const finalX = Math.round(xFromV.length > 0
+        ? xFromV.reduce((a, b) => a + b, 0) / xFromV.length
+        : allX.reduce((a, b) => a + b, 0) / allX.length);
+      const finalY = Math.round(yFromH.length > 0
+        ? yFromH.reduce((a, b) => a + b, 0) / yFromH.length
+        : allY.reduce((a, b) => a + b, 0) / allY.length);
+
+      for (const idx of members) {
+        setP(iterEps[idx], finalX, finalY);
+      }
+    }
+
+    // Re-enforce H/V
+    for (const wall of walls) {
+      const orient = wallOrientation.get(wall)!;
+      if (orient === 'H') {
+        const midY = Math.round((wall.start.y + wall.end.y) / 2);
+        wall.start.y = midY;
+        wall.end.y = midY;
+      } else {
+        const midX = Math.round((wall.start.x + wall.end.x) / 2);
+        wall.start.x = midX;
+        wall.end.x = midX;
+      }
     }
   }
 
-  // ── Step 6: Final endpoint merge (catch any remaining small gaps) ──
+  // ── Step 6: Final coordinate snapping for rounding artifacts ──
+  // After iteration, some corners differ by 1-2cm due to rounding.
+  // Group same-orientation walls by their locked coordinate and unify nearby values.
+  function snapCoordGroups(getCoord: (w: Wall) => number, setCoord: (w: Wall, v: number) => void, filter: (w: Wall) => boolean) {
+    const vals = walls.filter(filter).map(w => ({ wall: w, val: getCoord(w) }));
+    vals.sort((a, b) => a.val - b.val);
+    let i = 0;
+    while (i < vals.length) {
+      let j = i;
+      while (j < vals.length && vals[j].val - vals[i].val <= 3) j++;
+      // Snap group [i, j) to weighted average
+      const avg = Math.round(vals.slice(i, j).reduce((s, v) => s + v.val, 0) / (j - i));
+      for (let k = i; k < j; k++) setCoord(vals[k].wall, avg);
+      i = j;
+    }
+  }
+
+  // Snap V walls' X coordinates
+  snapCoordGroups(
+    w => w.start.x,
+    (w, v) => { w.start.x = v; w.end.x = v; },
+    w => wallOrientation.get(w) === 'V'
+  );
+  // Snap H walls' Y coordinates
+  snapCoordGroups(
+    w => w.start.y,
+    (w, v) => { w.start.y = v; w.end.y = v; },
+    w => wallOrientation.get(w) === 'H'
+  );
+
+  // Final merge
   mergeEndpoints(walls, mergeDistance);
 }
 
