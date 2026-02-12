@@ -33,6 +33,7 @@
   let panStartX = 0;
   let panStartY = 0;
   let spaceDown = $state(false);
+  let shiftDown = $state(false);
 
   // Furniture drag state
   let draggingFurnitureId: string | null = $state(null);
@@ -2287,7 +2288,7 @@
   }
 
   function onMouseDown(e: MouseEvent) {
-    if (e.button === 1 || (e.button === 0 && (spaceDown || $panMode))) {
+    if (e.button === 1 || (e.button === 0 && (spaceDown || $panMode || (e.shiftKey && currentTool === 'select')))) {
       isPanning = true;
       panStartX = e.clientX;
       panStartY = e.clientY;
@@ -2830,6 +2831,7 @@
   }
 
   function onKeyDown(e: KeyboardEvent) {
+    shiftDown = e.shiftKey;
     if (e.code === 'Space') { spaceDown = true; e.preventDefault(); return; }
 
     // Canvas-specific Escape handling (before global shortcut eats it)
@@ -2878,6 +2880,7 @@
   }
 
   function onKeyUp(e: KeyboardEvent) {
+    shiftDown = e.shiftKey;
     if (e.code === 'Space') spaceDown = false;
   }
 
@@ -2896,7 +2899,7 @@
   }
 
   let cursorStyle = $derived(
-    spaceDown || isPanning || $panMode ? 'grab' :
+    spaceDown || isPanning || $panMode || (shiftDown && currentTool === 'select') ? 'grab' :
     draggingWallParallel ? 'move' :
     draggingCurveHandle ? 'crosshair' :
     draggingWallEndpoint ? 'crosshair' :
