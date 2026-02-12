@@ -120,6 +120,35 @@
   let marqueeEnd: Point | null = $state(null);
   let currentSelectedIds: Set<string> = $state(new Set());
 
+  // Multi-select drag state
+  let draggingMultiSelect: { startMousePos: Point; origPositions: Map<string, { start?: Point; end?: Point; position?: Point }> } | null = $state(null);
+
+  /**
+   * Compute bounding box of all multi-selected elements.
+   */
+  function getMultiSelectBBox(): { minX: number; minY: number; maxX: number; maxY: number } | null {
+    if (currentSelectedIds.size < 2 || !currentFloor) return null;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let found = false;
+    function expand(x: number, y: number) { if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; found = true; }
+    for (const id of currentSelectedIds) {
+      const wall = currentFloor!.walls.find(w => w.id === id);
+      if (wall) { expand(wall.start.x, wall.start.y); expand(wall.end.x, wall.end.y); continue; }
+      const fi = currentFloor!.furniture.find(f => f.id === id);
+      if (fi) { expand(fi.position.x, fi.position.y); continue; }
+      if (currentFloor!.stairs) { const st = currentFloor!.stairs.find(s => s.id === id); if (st) { expand(st.position.x, st.position.y); continue; } }
+      if (currentFloor!.columns) { const col = currentFloor!.columns.find(c => c.id === id); if (col) { expand(col.position.x, col.position.y); continue; } }
+      // doors/windows — compute position on wall
+      const door = currentFloor!.doors.find(d => d.id === id);
+      if (door) { const w = currentFloor!.walls.find(w => w.id === door.wallId); if (w) { const cx = w.start.x + (w.end.x - w.start.x) * door.position; const cy = w.start.y + (w.end.y - w.start.y) * door.position; expand(cx, cy); } continue; }
+      const win = currentFloor!.windows.find(w => w.id === id);
+      if (win) { const w = currentFloor!.walls.find(w => w.id === win.wallId); if (w) { const cx = w.start.x + (w.end.x - w.start.x) * win.position; const cy = w.start.y + (w.end.y - w.start.y) * win.position; expand(cx, cy); } continue; }
+    }
+    if (!found) return null;
+    const pad = 20;
+    return { minX: minX - pad, minY: minY - pad, maxX: maxX + pad, maxY: maxY + pad };
+  }
+
   /**
    * Snap furniture position so its edge is flush against the nearest wall.
    * Returns adjusted position and rotation, or null if no wall is close enough.
@@ -2053,6 +2082,29 @@
       }
     }
 
+    // Multi-select bounding box
+    {
+      const bbox = getMultiSelectBBox();
+      if (bbox) {
+        const s1 = worldToScreen(bbox.minX, bbox.minY);
+        const s2 = worldToScreen(bbox.maxX, bbox.maxY);
+        ctx.strokeStyle = '#8b5cf6';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 4]);
+        ctx.strokeRect(s1.x, s1.y, s2.x - s1.x, s2.y - s1.y);
+        ctx.setLineDash([]);
+        // Move icon in center
+        const cx = (s1.x + s2.x) / 2, cy = (s1.y + s2.y) / 2;
+        ctx.fillStyle = 'rgba(139, 92, 246, 0.15)';
+        ctx.fillRect(s1.x, s1.y, s2.x - s1.x, s2.y - s1.y);
+        ctx.fillStyle = '#8b5cf6';
+        ctx.font = '16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('⇔', cx, cy);
+      }
+    }
+
     // Measurement
     if (measureStart && measuring) drawMeasurement();
 
@@ -2501,6 +2553,25 @@
           selectedElementId.set(null);
           selectedElementIds.set(new Set());
         } else {
+          // Check if clicking inside multi-select bounding box to drag
+          const bbox = getMultiSelectBBox();
+          if (bbox && wp.x >= bbox.minX && wp.x <= bbox.maxX && wp.y >= bbox.minY && wp.y <= bbox.maxY) {
+            // Start multi-select drag
+            const origPositions = new Map<string, { start?: Point; end?: Point; position?: Point }>();
+            if (currentFloor) {
+              for (const id of currentSelectedIds) {
+                const wall = currentFloor.walls.find(w => w.id === id);
+                if (wall) { origPositions.set(id, { start: { ...wall.start }, end: { ...wall.end } }); continue; }
+                const fi = currentFloor.furniture.find(f => f.id === id);
+                if (fi) { origPositions.set(id, { position: { ...fi.position } }); continue; }
+                if (currentFloor.stairs) { const st = currentFloor.stairs.find(s => s.id === id); if (st) { origPositions.set(id, { position: { ...st.position } }); continue; } }
+                if (currentFloor.columns) { const col = currentFloor.columns.find(c => c.id === id); if (col) { origPositions.set(id, { position: { ...col.position } }); continue; } }
+              }
+            }
+            draggingMultiSelect = { startMousePos: { ...wp }, origPositions };
+            commitFurnitureMove();
+            return;
+          }
           // Empty space — start marquee selection
           marqueeStart = { ...wp };
           marqueeEnd = { ...wp };
@@ -2583,22 +2654,13 @@
     if (draggingWallParallel && currentFloor) {
       const wall = currentFloor.walls.find(w => w.id === draggingWallParallel.wallId);
       if (wall) {
-        // Constrain movement to perpendicular direction only
-        const wdx = draggingWallParallel.origEnd.x - draggingWallParallel.origStart.x;
-        const wdy = draggingWallParallel.origEnd.y - draggingWallParallel.origStart.y;
-        const wLen = Math.hypot(wdx, wdy);
-        if (wLen > 0) {
-          // Normal (perpendicular) direction
-          const nx = -wdy / wLen;
-          const ny = wdx / wLen;
-          // Project mouse delta onto normal
+        // Free movement in all directions
+        {
           const mdx = mousePos.x - draggingWallParallel.startMousePos.x;
           const mdy = mousePos.y - draggingWallParallel.startMousePos.y;
-          let proj = mdx * nx + mdy * ny;
-          // Snap to grid
-          proj = Math.round(proj / SNAP) * SNAP;
-          const dx = proj * nx;
-          const dy = proj * ny;
+          // Snap delta to grid
+          const dx = Math.round(mdx / SNAP) * SNAP;
+          const dy = Math.round(mdy / SNAP) * SNAP;
           // Set wall positions from original + offset
           const newStart = {
             x: draggingWallParallel.origStart.x + dx,
@@ -2617,6 +2679,24 @@
           for (const conn of draggingWallParallel.connectedEnd) {
             moveWallEndpoint(conn.wallId, conn.endpoint, newEnd);
           }
+        }
+      }
+    }
+    if (draggingMultiSelect && currentFloor) {
+      const dx = Math.round((mousePos.x - draggingMultiSelect.startMousePos.x) / SNAP) * SNAP;
+      const dy = Math.round((mousePos.y - draggingMultiSelect.startMousePos.y) / SNAP) * SNAP;
+      for (const [id, orig] of draggingMultiSelect.origPositions) {
+        if (orig.start && orig.end) {
+          // Wall — move both endpoints
+          moveWallEndpoint(id, 'start', { x: orig.start.x + dx, y: orig.start.y + dy });
+          moveWallEndpoint(id, 'end', { x: orig.end.x + dx, y: orig.end.y + dy });
+        } else if (orig.position) {
+          // Furniture, stair, or column
+          const newPos = { x: orig.position.x + dx, y: orig.position.y + dy };
+          const fi = currentFloor.furniture.find(f => f.id === id);
+          if (fi) { moveFurniture(id, newPos); continue; }
+          if (currentFloor.stairs) { const st = currentFloor.stairs.find(s => s.id === id); if (st) { moveStair(id, newPos); continue; } }
+          if (currentFloor.columns) { const col = currentFloor.columns.find(c => c.id === id); if (col) { moveColumn(id, newPos); continue; } }
         }
       }
     }
@@ -2805,6 +2885,8 @@
     if (draggingWallEndpoint) commitFurnitureMove();
     if (draggingWallParallel) commitFurnitureMove();
     if (draggingCurveHandle) commitFurnitureMove();
+    if (draggingMultiSelect) commitFurnitureMove();
+    draggingMultiSelect = null;
     draggingWallParallel = null;
     draggingCurveHandle = null;
     draggingFurnitureId = null;
