@@ -88,9 +88,9 @@ function loadGLBModel(catalogId: string): Promise<THREE.Group | null> {
     return Promise.resolve(modelCache.get(cacheKey)!.clone());
   }
 
-  // Return existing loading promise
+  // Return existing loading promise — clone from cache (not from resolved value, which may be mutated)
   if (loadingPromises.has(cacheKey)) {
-    return loadingPromises.get(cacheKey)!.then(g => g?.clone() ?? null);
+    return loadingPromises.get(cacheKey)!.then(() => modelCache.has(cacheKey) ? modelCache.get(cacheKey)!.clone() : null);
   }
 
   const promise = new Promise<THREE.Group | null>((resolve) => {
@@ -150,9 +150,7 @@ function scaleToFit(model: THREE.Group, def: FurnitureDef, mapping: ModelMapping
   scaledBox.getCenter(center);
   model.position.sub(center);
   // Put bottom on ground plane
-  const scaledMin = new THREE.Vector3();
-  scaledBox.getMin(scaledMin);
-  model.position.y -= scaledMin.y - model.position.y;
+  model.position.y -= scaledBox.min.y;
 
   // Recompute after repositioning
   const finalBox = new THREE.Box3().setFromObject(model);
@@ -180,11 +178,17 @@ export function createFurnitureModelWithGLB(
   if (mapping) {
     loadGLBModel(catalogId).then((glbModel) => {
       if (glbModel) {
-        // Remove procedural, add GLB
-        container.remove(procedural);
-        scaleToFit(glbModel, def, mapping);
-        container.add(glbModel);
-        onLoaded?.(container);
+        try {
+          // Remove procedural, add GLB
+          container.remove(procedural);
+          scaleToFit(glbModel, def, mapping);
+          container.add(glbModel);
+          onLoaded?.(container);
+        } catch (err) {
+          // scaleToFit or GLB add failed — fall back to procedural
+          console.warn(`[FurnitureLoader] GLB error for ${catalogId}:`, err);
+          container.add(procedural);
+        }
       }
     });
   }

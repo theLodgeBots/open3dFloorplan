@@ -654,7 +654,6 @@
     }
 
     // Furniture
-    console.log('[3D] furniture count:', floor.furniture?.length, floor.furniture?.map(f => f.catalogId));
     for (const fi of floor.furniture) {
       const cat = getCatalogItem(fi.catalogId);
       if (!cat) continue;
