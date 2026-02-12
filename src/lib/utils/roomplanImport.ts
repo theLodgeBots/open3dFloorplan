@@ -174,8 +174,8 @@ export function importRoomPlan(jsonData: any): Floor {
     // rpX→ourX, rpZ→ourY. The rotation angle from atan2(t[8],t[0]) gives rotation in XZ plane.
     // Wall local X-axis direction in world: (t[0], t[8]) = (cos(a), sin(a)) in XZ
     // So in our 2D: direction = (t[0], t[8]) which is (cos(a), sin(a))
-    const wallDirX = rw.transform[0]; // direction in RP X
-    const wallDirZ = rw.transform[8]; // direction in RP Z
+    const wallDirX = rw.transform[0]; // col0[0]: local X axis in world X
+    const wallDirZ = rw.transform[2]; // col0[2]: local X axis in world Z
 
     const start: Point = {
       x: center.x - wallDirX * halfWidth,
