@@ -2660,7 +2660,7 @@
           draggingRoomId = room.id;
           roomDragStartMouse = { x: wp.x, y: wp.y };
           roomDragStartPositions.clear();
-          for (const wid of room.wallIds) {
+          for (const wid of room.walls) {
             const w = currentFloor!.walls.find(wall => wall.id === wid);
             if (w) roomDragStartPositions.set(wid, { start: { ...w.start }, end: { ...w.end } });
           }

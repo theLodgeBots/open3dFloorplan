@@ -221,7 +221,7 @@
 </script>
 
 {#if hasSelection}
-<div class="{is3D ? 'w-80' : 'w-64'} shrink-0 bg-white border-l border-gray-200 flex flex-col h-full overflow-y-auto p-3 absolute right-0 top-0 bottom-0 z-20 shadow-lg">
+<div class="{is3D ? 'w-80' : 'w-64'} shrink-0 bg-white border-l border-gray-200 flex flex-col overflow-y-auto p-3 fixed right-0 z-20 shadow-lg" style="top: 48px; bottom: 36px;">
   {#if selectedWall}
     <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
       <span class="w-6 h-6 bg-gray-200 rounded flex items-center justify-center text-xs">▭</span>
