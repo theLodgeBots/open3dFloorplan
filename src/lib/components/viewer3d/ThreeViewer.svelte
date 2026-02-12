@@ -1039,25 +1039,38 @@
     });
 
     // Highlight selected wall in 3D
+    // Store original materials so we can restore them (shared materials must not be mutated)
+    const originalMaterials = new Map<THREE.Mesh, THREE.Material | THREE.Material[]>();
     const unsubSel = selectedElementId.subscribe((id) => {
-      // Restore previously highlighted meshes
-      for (const [mesh, origColor] of originalEmissive) {
-        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-        for (const m of mats) if (m instanceof THREE.MeshStandardMaterial) m.emissive.copy(origColor);
+      // Restore previously highlighted meshes to their original materials
+      for (const [mesh, origMat] of originalMaterials) {
+        mesh.material = origMat;
       }
+      originalMaterials.clear();
       originalEmissive.clear();
       selectedWallId3D = id;
       if (!id) return;
-      // Highlight matching wall meshes
+      // Highlight matching wall meshes by cloning their materials
       for (const [mesh, wallId] of wallMeshMap) {
-        if (wallId === id) {
-          const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-          for (const m of mats) {
-            if (m instanceof THREE.MeshStandardMaterial) {
-              originalEmissive.set(mesh, m.emissive.clone());
-              m.emissive.set(0x3388ff);
-              m.emissiveIntensity = 0.3;
+        if (wallId === id && mesh instanceof THREE.Mesh) {
+          originalMaterials.set(mesh, mesh.material);
+          // Clone materials so we don't mutate shared instances
+          if (Array.isArray(mesh.material)) {
+            mesh.material = mesh.material.map((m: THREE.Material) => {
+              const cloned = m.clone();
+              if (cloned instanceof THREE.MeshStandardMaterial) {
+                cloned.emissive.set(0x3388ff);
+                cloned.emissiveIntensity = 0.3;
+              }
+              return cloned;
+            });
+          } else {
+            const cloned = mesh.material.clone();
+            if (cloned instanceof THREE.MeshStandardMaterial) {
+              cloned.emissive.set(0x3388ff);
+              cloned.emissiveIntensity = 0.3;
             }
+            mesh.material = cloned;
           }
         }
       }
