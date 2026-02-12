@@ -275,7 +275,7 @@
         </div>
         {#if wallSideTab === 'interior'}
           {@const sideColor = selectedWall.interiorColor || selectedWall.color}
-          {@const sideTex = selectedWall.interiorTexture || selectedWall.texture}
+          {@const sideTex = selectedWall.interiorTexture === 'none' ? undefined : (selectedWall.interiorTexture || selectedWall.texture)}
           <div class="space-y-2">
             <span class="text-xs text-gray-500">Color</span>
             <div class="grid grid-cols-6 gap-1.5">
@@ -296,7 +296,7 @@
             <div class="grid grid-cols-3 gap-1.5">
               <button
                 class="p-1.5 rounded-md border-2 text-[10px] text-center h-14 {!sideTex ? 'border-blue-500 ring-1 ring-blue-200' : 'border-gray-200 hover:border-gray-300'}"
-                onclick={() => { if (selectedWall) updateWall(selectedWall.id, { interiorTexture: undefined }); }}
+                onclick={() => { if (selectedWall) updateWall(selectedWall.id, { interiorTexture: 'none' }); }}
               >None</button>
               {#each wallColors.filter(wc => wc.texture) as wc}
                 {@const texPath = ({ 'red-brick': '/textures/brick.jpg', 'exposed-brick': '/textures/exposed-brick.jpg', 'stone': '/textures/stone.jpg', 'wood-panel': '/textures/wood-panel.jpg', 'concrete-block': '/textures/concrete.jpg', 'subway-tile': '/textures/subway-tile.jpg' })[wc.id] ?? ''}

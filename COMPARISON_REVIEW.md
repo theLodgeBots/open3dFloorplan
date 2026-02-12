@@ -120,7 +120,7 @@
 | Shift-click multi-select | ✓ | ✓ | ✅ |
 | Background image with scale calibration | ✓ | ✓ (two-point scale + opacity + lock) | ✅ |
 | Mini-map / overview | ✓ | ✗ | ❌ |
-| Layer visibility toggles | ✓ | ✗ | ❌ |
+| Layer visibility toggles | ✓ | ✓ (furniture, doors, windows, stairs, labels, dimensions) | ✅ |
 
 ## 8. 3D VIEW
 

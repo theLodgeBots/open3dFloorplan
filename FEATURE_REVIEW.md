@@ -81,6 +81,7 @@ Systematic comparison. Each feature gets: ✅ done, 🔧 needs work, ❌ missing
 - ✅ JSON download/import
 - ✅ Auto-save to localStorage
 - ✅ **PDF export** — A4 landscape with title, centered floor plan image, scale indicator, date footer (jsPDF)
+- ✅ **3D screenshot** — camera button next to walkthrough toggle, saves PNG
 - ❌ **Cloud save** (Firebase — planned for later)
 
 ## 9. Keyboard Shortcuts
@@ -127,3 +128,8 @@ Systematic comparison. Each feature gets: ✅ done, 🔧 needs work, ❌ missing
 18. ✅ Contextual toolbar — floating toolbar appears above selected elements with duplicate, delete, and flip-swing (doors) buttons
 19. ✅ Rulers on canvas edges — horizontal/vertical rulers with auto-scaling tick marks (cm/m), mouse position indicators, toggle button
 20. ✅ Curved walls — quadratic bezier with drag handle, 2D/3D rendering, door/window placement on curves
+
+### Phase 6: Environment & UX
+21. ✅ 3D screenshot — camera button captures 3D view as PNG download
+22. ✅ Environment/skybox — improved sky gradient + ground plane with shadow reception
+23. ✅ Layer visibility toggles — show/hide furniture, doors, windows, stairs, room labels, dimensions via panel
