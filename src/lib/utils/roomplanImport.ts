@@ -192,29 +192,14 @@ function angleDiff(a: number, b: number): number {
 }
 
 /**
- * Enforce orthogonal: find the dominant wall direction, then snap
- * every wall to be parallel or perpendicular to it.
+ * Enforce orthogonal: snap every wall to the nearest axis direction
+ * (0°, 90°, 180°, 270°) so all walls are perfectly horizontal or vertical.
  */
 function enforceOrthogonal(walls: Wall[], mergeDistance = 15): void {
   if (walls.length === 0) return;
 
-  // Find dominant orientation (mod π/2) weighted by wall length.
-  // Map each wall angle to [0, π/2) then do weighted circular mean on that range.
-  let sinSum = 0, cosSum = 0;
-  for (const wall of walls) {
-    const dx = wall.end.x - wall.start.x;
-    const dy = wall.end.y - wall.start.y;
-    const len = Math.hypot(dx, dy);
-    if (len < 1) continue;
-    const angle = Math.atan2(dy, dx);
-    // Multiply by 4 to map π/2 period → full circle for circular mean
-    sinSum += Math.sin(angle * 4) * len;
-    cosSum += Math.cos(angle * 4) * len;
-  }
+  const AXES = [0, Math.PI / 2, Math.PI, -Math.PI / 2]; // right, down, left, up
 
-  const dominantAngle = Math.atan2(sinSum, cosSum) / 4;
-
-  // Snap each wall to nearest of: dominant, dominant+90°, dominant+180°, dominant-90°
   for (const wall of walls) {
     const dx = wall.end.x - wall.start.x;
     const dy = wall.end.y - wall.start.y;
@@ -223,13 +208,12 @@ function enforceOrthogonal(walls: Wall[], mergeDistance = 15): void {
 
     const currentAngle = Math.atan2(dy, dx);
 
-    // Find nearest allowed angle
-    let bestAngle = dominantAngle;
+    // Find nearest axis angle
+    let bestAngle = 0;
     let bestDiff = Infinity;
-    for (let i = 0; i < 4; i++) {
-      const candidate = dominantAngle + i * Math.PI / 2;
-      const diff = angleDiff(currentAngle, candidate);
-      if (diff < bestDiff) { bestDiff = diff; bestAngle = candidate; }
+    for (const a of AXES) {
+      const diff = angleDiff(currentAngle, a);
+      if (diff < bestDiff) { bestDiff = diff; bestAngle = a; }
     }
 
     // Recalculate endpoints from midpoint + snapped angle
