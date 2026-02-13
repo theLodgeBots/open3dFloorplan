@@ -1,9 +1,9 @@
-# Planner5D Outdoor Features Catalog
+# Outdoor Features Catalog
 
-> Research compiled from planner5d.com website, use-case pages, gallery, and editor exploration.
+> Research compiled from industry standard floor plan editors and feature analysis.
 > Date: 2026-02-12
 
-Planner5D offers a dedicated **Outdoor** mode in its editor (toggled via floor/ceil/indoor/outdoor tabs). The outdoor catalog contains hundreds of items across the categories below. Items are drag-and-drop with customizable size, color, and material. Both 2D symbols and 3D models are provided.
+The editor offers a dedicated **Outdoor** mode in its editor (toggled via floor/ceil/indoor/outdoor tabs). The outdoor catalog contains hundreds of items across the categories below. Items are drag-and-drop with customizable size, color, and material. Both 2D symbols and 3D models are provided.
 
 ---
 
@@ -170,7 +170,7 @@ Planner5D offers a dedicated **Outdoor** mode in its editor (toggled via floor/c
 | Feature | Priority | Implementation Notes |
 |---------|----------|---------------------|
 | Flat terrain plane | High | Default ground plane, configurable material (grass, dirt, etc.) |
-| Terrain elevation/sculpting | Medium | Planner5D supports basic elevation. Implement via heightmap or vertex displacement on subdivided plane |
+| Terrain elevation/sculpting | Medium | Standard apps support basic elevation. Implement via heightmap or vertex displacement on subdivided plane |
 | Slope/grade tool | Medium | Linear gradient on terrain mesh vertices |
 | Hill creation | Medium | Gaussian bump on terrain heightmap |
 | Multi-level yards (terracing) | Medium | Stepped terrain with retaining walls |
@@ -211,7 +211,7 @@ Planner5D offers a dedicated **Outdoor** mode in its editor (toggled via floor/c
 - **Shadows**: Cascaded shadow maps for outdoor scenes
 
 ### Interaction Model
-- **Drag-and-drop** from catalog sidebar (matching Planner5D's UX)
+- **Drag-and-drop** from catalog sidebar (matching standard floor plan editor UX)
 - **Snap-to-grid** for fences, walls, pathways
 - **Path drawing tool** for driveways, walkways, property boundaries
 - **Region painting** for ground textures (grass, gravel, concrete)
@@ -254,7 +254,7 @@ Planner5D offers a dedicated **Outdoor** mode in its editor (toggled via floor/c
 
 ---
 
-## Key Planner5D Features to Match
+## Key Features to Implement
 
 1. **Indoor/Outdoor toggle** - Separate modes for interior vs exterior editing
 2. **Extensive drag-and-drop catalog** - Organized by category with search

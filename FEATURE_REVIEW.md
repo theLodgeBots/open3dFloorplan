@@ -1,4 +1,4 @@
-# Feature Review: planner5d vs open3dFloorplan
+# Feature Review: open3dFloorplan
 
 Systematic comparison. Each feature gets: ✅ done, 🔧 needs work, ❌ missing.
 
@@ -8,7 +8,7 @@ Systematic comparison. Each feature gets: ✅ done, 🔧 needs work, ❌ missing
 - ✅ Magnetic snap to existing endpoints
 - ✅ Close loop (click near start or double-click)
 - ✅ Dimension labels on walls
-- 🔧 **Wall thickness visual** — planner5d shows thick filled walls with proper joins; ours are thin lines
+- 🔧 **Wall thickness visual** — reference apps show thick filled walls with proper joins; ours are thin lines
 - ✅ **Wall drag-to-resize** — grab a wall endpoint and drag to resize/reshape; connected corner endpoints move together
 - ✅ **Wall segment editing** — click a wall to select, drag midpoint to move parallel
 - ✅ **Curved walls** — quadratic bezier curves via draggable midpoint handle, toggle in properties panel
@@ -31,7 +31,7 @@ Systematic comparison. Each feature gets: ✅ done, 🔧 needs work, ❌ missing
 - ✅ **Furniture icons** — canvas-drawn architectural top-down views per item type
 - ✅ **Snap to walls** — furniture snaps edge-flush to nearby walls with auto-rotation alignment
 - ✅ **Selection handles** — resize handles at 4 corners, rotation handle above, dashed selection border
-- 🔧 **3D furniture models** — detailed procedural models (43 types) but not imported glTF; planner5d uses real 3D model assets
+- 🔧 **3D furniture models** — detailed procedural models (43 types) but not imported glTF; reference apps use real 3D model assets
 - ✅ **Furniture properties** — color picker (preset + custom), dimensions (W/D/H), material selector, rotation, reset to defaults
 
 ## 4. Room Detection & Display

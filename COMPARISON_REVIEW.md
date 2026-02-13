@@ -1,8 +1,8 @@
-# Planner5D vs open3dFloorplan — Feature Comparison
+# Feature Status — open3dFloorplan
 
 ## Legend
 - ✅ We have it
-- 🟡 Partial — we have something but planner5d does it better
+- 🟡 Partial — we have something but needs improvement
 - ❌ We don't have it
 - 🚫 Skippable — premium/niche feature, low priority
 
@@ -10,7 +10,7 @@
 
 ## 1. CORE DRAWING & EDITING
 
-| Feature | Planner5D | open3dFloorplan | Status |
+| Feature | Target | open3dFloorplan | Status |
 |---------|-----------|-----------------|--------|
 | Draw walls (click-to-click) | ✓ | ✓ | ✅ |
 | Wall thickness control | ✓ | ✓ | ✅ |
@@ -31,7 +31,7 @@
 
 ## 2. DOORS & WINDOWS
 
-| Feature | Planner5D | open3dFloorplan | Status |
+| Feature | Target | open3dFloorplan | Status |
 |---------|-----------|-----------------|--------|
 | Door types (single, double, sliding, french, pocket, bifold) | ✓ | ✓ | ✅ |
 | Window types (standard, fixed, casement, sliding, bay) | ✓ | ✓ | ✅ |
@@ -45,7 +45,7 @@
 
 ## 3. CONSTRUCTION ELEMENTS
 
-| Feature | Planner5D | open3dFloorplan | Status |
+| Feature | Target | open3dFloorplan | Status |
 |---------|-----------|-----------------|--------|
 | Stairs (straight) | ✓ | ✓ | ✅ |
 | Stairs (L, spiral, U shapes) | ✓ | ✗ | ❌ |
@@ -59,7 +59,7 @@
 
 ## 4. FURNITURE & OBJECTS
 
-| Feature | Planner5D | open3dFloorplan | Status |
+| Feature | Target | open3dFloorplan | Status |
 |---------|-----------|-----------------|--------|
 | Furniture catalog | ✓ (1000+ items) | ✓ (~43 items, 8 categories) | 🟡 |
 | Room-based browsing (living room, kitchen, etc.) | ✓ | ✓ (8 categories) | ✅ |
@@ -78,7 +78,7 @@
 
 ## 5. OUTDOOR / LANDSCAPE
 
-| Feature | Planner5D | open3dFloorplan | Status |
+| Feature | Target | open3dFloorplan | Status |
 |---------|-----------|-----------------|--------|
 | Trees and plants | ✓ | ✗ | ❌ |
 | Paths and lawns | ✓ | ✗ | ❌ |
@@ -89,7 +89,7 @@
 
 ## 6. MATERIALS & TEXTURES
 
-| Feature | Planner5D | open3dFloorplan | Status |
+| Feature | Target | open3dFloorplan | Status |
 |---------|-----------|-----------------|--------|
 | Wall paint colors | ✓ (extensive) | ✓ (15 colors) | ✅ |
 | Wall textures (brick, stone, wood panel) | ✓ | ✓ (6 textures: brick, stone, wood panel, concrete, subway tile) | ✅ |
@@ -103,7 +103,7 @@
 
 ## 7. 2D VIEW
 
-| Feature | Planner5D | open3dFloorplan | Status |
+| Feature | Target | open3dFloorplan | Status |
 |---------|-----------|-----------------|--------|
 | Grid background | ✓ | ✓ | ✅ |
 | Room labels with area | ✓ | ✓ | ✅ |
@@ -124,7 +124,7 @@
 
 ## 8. 3D VIEW
 
-| Feature | Planner5D | open3dFloorplan | Status |
+| Feature | Target | open3dFloorplan | Status |
 |---------|-----------|-----------------|--------|
 | Orbit camera | ✓ | ✓ | ✅ |
 | First-person walkthrough | ✓ | ✓ (WASD look, arrows move, sprint, eye height slider) | ✅ |
@@ -146,7 +146,7 @@
 
 ## 9. MULTI-FLOOR
 
-| Feature | Planner5D | open3dFloorplan | Status |
+| Feature | Target | open3dFloorplan | Status |
 |---------|-----------|-----------------|--------|
 | Multiple floors | ✓ | ✓ | ✅ |
 | Add/remove floors | ✓ | ✓ | ✅ |
@@ -156,7 +156,7 @@
 
 ## 10. EXPORT & SHARING
 
-| Feature | Planner5D | open3dFloorplan | Status |
+| Feature | Target | open3dFloorplan | Status |
 |---------|-----------|-----------------|--------|
 | PNG export | ✓ | ✓ | ✅ |
 | SVG export | ✗ | ✓ | ✅ (we're ahead!) |
@@ -169,7 +169,7 @@
 
 ## 11. PROJECT MANAGEMENT
 
-| Feature | Planner5D | open3dFloorplan | Status |
+| Feature | Target | open3dFloorplan | Status |
 |---------|-----------|-----------------|--------|
 | Auto-save (local) | ✓ | ✓ | ✅ |
 | Cloud save | ✓ | ✗ | ❌ |
@@ -180,7 +180,7 @@
 
 ## 12. UI/UX
 
-| Feature | Planner5D | open3dFloorplan | Status |
+| Feature | Target | open3dFloorplan | Status |
 |---------|-----------|-----------------|--------|
 | Keyboard shortcuts | ✓ | ✓ | ✅ |
 | Tooltips / onboarding | ✓ (tutorial popups) | ✗ | ❌ |
@@ -259,7 +259,7 @@
 
 - **Core wall drawing is solid** — snap, angle, magnetic, curves, split, connected corners, parallel drag
 - **Door/window system is feature-complete** — 6 door types, 5 window types, 4-direction flip, placement preview, distance dimensions
-- **Export is BETTER than planner5d** — SVG, DXF/DWG without premium, plus PDF, PNG, JSON
+- **Export is strong export support** — SVG, DXF/DWG without premium, plus PDF, PNG, JSON
 - **Material system** — 15 wall colors + 6 wall textures + 14 floor materials, all in 2D and 3D
 - **Decor & lighting** — Rugs, plants, curtains, art + 7 lighting fixtures with real 3D light sources
 - **Stairs** — Straight stairs with treads/risers in both 2D and 3D

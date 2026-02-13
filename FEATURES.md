@@ -1,6 +1,6 @@
-# Feature Reference — Planner5D vs Our Implementation
+# Feature Reference — Implementation Status
 
-## Planner5D Features Observed
+## Target Features
 
 ### Top Bar
 - [x] Project navigation (All Projects / Floor name)
@@ -93,7 +93,7 @@
 3. Properties panel
 4. Better 3D rendering
 5. Room presets
-6. Green-themed UI like planner5d
+6. Green-themed UI matching standard editors
 
 ## Phase 3 (next)
 1. Furniture placement (2D drag & drop)
