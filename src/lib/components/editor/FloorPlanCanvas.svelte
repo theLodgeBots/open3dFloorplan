@@ -23,6 +23,10 @@
   let camX = $state(0);
   let camY = $state(0);
   let zoom = $state(1);
+
+  // Dirty flag for render optimization — only redraw when something changes
+  let canvasDirty = true;
+  function markDirty() { canvasDirty = true; }
   // Sync zoom with shared store
   canvasZoom.subscribe(v => { zoom = v; });
   $effect(() => { canvasZoom.set(zoom); });
@@ -361,6 +365,7 @@
       canvas.width = width;
       canvas.height = height;
     }
+    markDirty();
   }
 
   function drawGrid() {
@@ -449,938 +454,31 @@
     return Math.max(w.thickness * zoom, 4);
   }
 
-  /** Draw distance dimensions from door center to wall endpoints when door is selected */
+
+  // ── Delegating wrappers to extracted modules ──────────────────────────
+
   function drawDoorDistanceDimensions(wall: Wall, door: Door) {
-    const wLength = wallLength(wall);
-    if (wLength < 10) return; // skip tiny walls
-    
-    // Calculate distances from door center to wall endpoints (in cm)
-    const distFromA = wLength * door.position;
-    const distFromB = wLength * (1 - door.position);
-    
-    // Get door center position
-    const doorCenter = wallPointAt(wall, door.position);
-    const dcScreen = worldToScreen(doorCenter.x, doorCenter.y);
-    
-    // Get wall endpoints
-    const wallStartScreen = worldToScreen(wall.start.x, wall.start.y);
-    const wallEndScreen = worldToScreen(wall.end.x, wall.end.y);
-    
-    // Draw thin lines from door center to each endpoint
-    if (dimSettings.showExtensionLines) {
-      ctx.strokeStyle = '#3b82f6';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([3, 3]);
-      
-      ctx.beginPath();
-      ctx.moveTo(dcScreen.x, dcScreen.y);
-      ctx.lineTo(wallStartScreen.x, wallStartScreen.y);
-      ctx.stroke();
-      
-      ctx.beginPath();
-      ctx.moveTo(dcScreen.x, dcScreen.y);
-      ctx.lineTo(wallEndScreen.x, wallEndScreen.y);
-      ctx.stroke();
-      
-      ctx.setLineDash([]);
-    }
-    
-    // Draw pill dimension labels
-    const fontSize = Math.max(10, 11 * zoom);
-    ctx.font = `${fontSize}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    
-    // Distance to start point (A)
-    const midPointA = {
-      x: (dcScreen.x + wallStartScreen.x) / 2,
-      y: (dcScreen.y + wallStartScreen.y) / 2
-    };
-    const labelTextA = `${formatLength(distFromA, dimSettings.units)}`;
-    const textWidthA = ctx.measureText(labelTextA).width;
-    const pillWidthA = textWidthA + 12;
-    const pillHeightA = fontSize + 6;
-    
-    // Green pill background
-    ctx.fillStyle = '#3b82f6';
-    ctx.beginPath();
-    ctx.roundRect(midPointA.x - pillWidthA / 2, midPointA.y - pillHeightA / 2, pillWidthA, pillHeightA, pillHeightA / 2);
-    ctx.fill();
-    
-    // White text
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(labelTextA, midPointA.x, midPointA.y);
-    
-    // Distance to end point (B)
-    const midPointB = {
-      x: (dcScreen.x + wallEndScreen.x) / 2,
-      y: (dcScreen.y + wallEndScreen.y) / 2
-    };
-    const labelTextB = `${formatLength(distFromB, dimSettings.units)}`;
-    const textWidthB = ctx.measureText(labelTextB).width;
-    const pillWidthB = textWidthB + 12;
-    const pillHeightB = fontSize + 6;
-    
-    // Green pill background
-    ctx.fillStyle = '#3b82f6';
-    ctx.beginPath();
-    ctx.roundRect(midPointB.x - pillWidthB / 2, midPointB.y - pillHeightB / 2, pillWidthB, pillHeightB, pillHeightB / 2);
-    ctx.fill();
-    
-    // White text
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(labelTextB, midPointB.x, midPointB.y);
+    _drawDoorDistanceDimensions(getCS(), wall, door, dimSettings);
   }
 
-  /** Draw distance dimensions from window center to wall endpoints when window is selected */
   function drawWindowDistanceDimensions(wall: Wall, window: Win) {
-    const wLength = wallLength(wall);
-    if (wLength < 10) return; // skip tiny walls
-    
-    // Calculate distances from window center to wall endpoints (in cm)
-    const distFromA = wLength * window.position;
-    const distFromB = wLength * (1 - window.position);
-    
-    // Get window center position
-    const windowCenter = wallPointAt(wall, window.position);
-    const wcScreen = worldToScreen(windowCenter.x, windowCenter.y);
-    
-    // Get wall endpoints
-    const wallStartScreen = worldToScreen(wall.start.x, wall.start.y);
-    const wallEndScreen = worldToScreen(wall.end.x, wall.end.y);
-    
-    // Draw thin lines from window center to each endpoint
-    if (dimSettings.showExtensionLines) {
-      ctx.strokeStyle = '#3b82f6';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([3, 3]);
-      
-      ctx.beginPath();
-      ctx.moveTo(wcScreen.x, wcScreen.y);
-      ctx.lineTo(wallStartScreen.x, wallStartScreen.y);
-      ctx.stroke();
-      
-      ctx.beginPath();
-      ctx.moveTo(wcScreen.x, wcScreen.y);
-      ctx.lineTo(wallEndScreen.x, wallEndScreen.y);
-      ctx.stroke();
-      
-      ctx.setLineDash([]);
-    }
-    
-    // Draw pill dimension labels
-    const fontSize = Math.max(10, 11 * zoom);
-    ctx.font = `${fontSize}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    
-    // Distance to start point (A)
-    const midPointA = {
-      x: (wcScreen.x + wallStartScreen.x) / 2,
-      y: (wcScreen.y + wallStartScreen.y) / 2
-    };
-    const labelTextA = `${formatLength(distFromA, dimSettings.units)}`;
-    const textWidthA = ctx.measureText(labelTextA).width;
-    const pillWidthA = textWidthA + 12;
-    const pillHeightA = fontSize + 6;
-    
-    // Green pill background
-    ctx.fillStyle = '#3b82f6';
-    ctx.beginPath();
-    ctx.roundRect(midPointA.x - pillWidthA / 2, midPointA.y - pillHeightA / 2, pillWidthA, pillHeightA, pillHeightA / 2);
-    ctx.fill();
-    
-    // White text
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(labelTextA, midPointA.x, midPointA.y);
-    
-    // Distance to end point (B)
-    const midPointB = {
-      x: (wcScreen.x + wallEndScreen.x) / 2,
-      y: (wcScreen.y + wallEndScreen.y) / 2
-    };
-    const labelTextB = `${formatLength(distFromB, dimSettings.units)}`;
-    const textWidthB = ctx.measureText(labelTextB).width;
-    const pillWidthB = textWidthB + 12;
-    const pillHeightB = fontSize + 6;
-    
-    // Green pill background
-    ctx.fillStyle = '#3b82f6';
-    ctx.beginPath();
-    ctx.roundRect(midPointB.x - pillWidthB / 2, midPointB.y - pillHeightB / 2, pillWidthB, pillHeightB, pillHeightB / 2);
-    ctx.fill();
-    
-    // White text
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(labelTextB, midPointB.x, midPointB.y);
+    _drawWindowDistanceDimensions(getCS(), wall, window, dimSettings);
   }
 
   function drawWall(w: Wall, selected: boolean) {
-    const s = worldToScreen(w.start.x, w.start.y);
-    const e = worldToScreen(w.end.x, w.end.y);
-    const thickness = wallThicknessScreen(w);
-
-    if (w.curvePoint) {
-      // Draw curved wall as thick bezier path
-      const cp = worldToScreen(w.curvePoint.x, w.curvePoint.y);
-      const SEGS = 24;
-      const outerPts: { x: number; y: number }[] = [];
-      const innerPts: { x: number; y: number }[] = [];
-
-      for (let i = 0; i <= SEGS; i++) {
-        const t = i / SEGS;
-        const mt = 1 - t;
-        const px = mt * mt * s.x + 2 * mt * t * cp.x + t * t * e.x;
-        const py = mt * mt * s.y + 2 * mt * t * cp.y + t * t * e.y;
-        // Tangent
-        const tdx = 2 * mt * (cp.x - s.x) + 2 * t * (e.x - cp.x);
-        const tdy = 2 * mt * (cp.y - s.y) + 2 * t * (e.y - cp.y);
-        const tlen = Math.hypot(tdx, tdy) || 1;
-        const nx = (-tdy / tlen) * thickness / 2;
-        const ny = (tdx / tlen) * thickness / 2;
-        outerPts.push({ x: px + nx, y: py + ny });
-        innerPts.push({ x: px - nx, y: py - ny });
-      }
-
-      ctx.fillStyle = selected ? '#93c5fd' : '#404040';
-      ctx.strokeStyle = selected ? '#3b82f6' : '#333333';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(outerPts[0].x, outerPts[0].y);
-      for (let i = 1; i < outerPts.length; i++) ctx.lineTo(outerPts[i].x, outerPts[i].y);
-      for (let i = innerPts.length - 1; i >= 0; i--) ctx.lineTo(innerPts[i].x, innerPts[i].y);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-
-      // Dimension label for curved wall (arc length)
-      const wlen = wallLength(w);
-      if (wlen >= 10 && showDimensions && dimSettings.showExternalDimensions) {
-        const midPt = wallPointAt(w, 0.5);
-        const midS = worldToScreen(midPt.x, midPt.y);
-        const midTan = wallTangentAt(w, 0.5);
-        const offsetDist = thickness / 2 + 16;
-        ctx.fillStyle = dimSettings.dimensionLineColor;
-        const fontSize = Math.max(10, 11 * zoom);
-        ctx.font = `${fontSize}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(formatLength(wlen, dimSettings.units), midS.x - midTan.y * offsetDist, midS.y + midTan.x * offsetDist);
-      }
-
-      // Curve handle (midpoint) and endpoint handles when selected
-      if (selected) {
-        const handleSize = 5;
-        // Endpoint handles
-        for (const pt of [s, e]) {
-          ctx.fillStyle = '#ffffff';
-          ctx.strokeStyle = '#3b82f6';
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.arc(pt.x, pt.y, handleSize, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
-        }
-        // Curve control point handle (diamond shape)
-        ctx.fillStyle = '#fbbf24';
-        ctx.strokeStyle = '#d97706';
-        ctx.lineWidth = 1.5;
-        const sz = 6;
-        ctx.beginPath();
-        ctx.moveTo(cp.x, cp.y - sz);
-        ctx.lineTo(cp.x + sz, cp.y);
-        ctx.lineTo(cp.x, cp.y + sz);
-        ctx.lineTo(cp.x - sz, cp.y);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        // Dashed guide lines from curve point to endpoints
-        ctx.strokeStyle = '#d9770680';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([4, 4]);
-        ctx.beginPath();
-        ctx.moveTo(s.x, s.y);
-        ctx.lineTo(cp.x, cp.y);
-        ctx.lineTo(e.x, e.y);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-      return;
-    }
-
-    // Straight wall
-    const dx = e.x - s.x;
-    const dy = e.y - s.y;
-    const len = Math.hypot(dx, dy);
-    if (len < 1) return;
-
-    const nx = (-dy / len) * thickness / 2;
-    const ny = (dx / len) * thickness / 2;
-
-    ctx.fillStyle = selected ? '#93c5fd' : '#404040';
-    ctx.strokeStyle = selected ? '#3b82f6' : '#333333';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(s.x + nx, s.y + ny);
-    ctx.lineTo(e.x + nx, e.y + ny);
-    ctx.lineTo(e.x - nx, e.y - ny);
-    ctx.lineTo(s.x - nx, s.y - ny);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    // Wall texture pattern overlay
-    if (w.texture) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(s.x + nx, s.y + ny);
-      ctx.lineTo(e.x + nx, e.y + ny);
-      ctx.lineTo(e.x - nx, e.y - ny);
-      ctx.lineTo(s.x - nx, s.y - ny);
-      ctx.closePath();
-      ctx.clip();
-
-      const texCanvas = getWallTextureCanvas(w.texture, w.color);
-      if (texCanvas) {
-        // Use the high-res texture as a pattern
-        const scale = zoom * 0.25; // scale texture to match zoom
-        ctx.globalAlpha = 0.6;
-        const angle = Math.atan2(dy, dx);
-        const cxp = (s.x + e.x) / 2;
-        const cyp = (s.y + e.y) / 2;
-        ctx.translate(cxp, cyp);
-        ctx.rotate(angle);
-        ctx.scale(scale, scale);
-        const pat = ctx.createPattern(texCanvas, 'repeat');
-        if (pat) {
-          ctx.fillStyle = pat;
-          ctx.fillRect(-len / 2 / scale, -thickness / 2 / scale, len / scale, thickness / scale);
-        }
-      }
-      ctx.restore();
-    }
-
-    // Dimension line with arrowheads (architectural style)
-    if (!showDimensions || !dimSettings.showExternalDimensions) return;
-    const wlen = wallLength(w);
-    if (wlen < 10) return; // skip tiny walls
-    const mx = (s.x + e.x) / 2;
-    const my = (s.y + e.y) / 2;
-    const offsetDist = thickness / 2 + 20;
-    const nnx = (-dy / len);
-    const nny = (dx / len);
-
-    // Pick dimension line side (flip if out of bounds)
-    let dimSide = 1;
-    const testX = mx + nnx * offsetDist;
-    const testY = my + nny * offsetDist;
-    if (testX < 10 || testX > width - 10 || testY < 10 || testY > height - 10) dimSide = -1;
-
-    const dOffX = nnx * offsetDist * dimSide;
-    const dOffY = nny * offsetDist * dimSide;
-
-    // Extension lines (from wall endpoints to dimension line)
-    if (dimSettings.showExtensionLines) {
-      const extLen = offsetDist + 4;
-      ctx.strokeStyle = dimSettings.dimensionLineColor + '80'; // extension lines: lighter variant
-      ctx.lineWidth = 0.5;
-      ctx.beginPath();
-      ctx.moveTo(s.x + nnx * (thickness / 2 + 2) * dimSide, s.y + nny * (thickness / 2 + 2) * dimSide);
-      ctx.lineTo(s.x + nnx * extLen * dimSide, s.y + nny * extLen * dimSide);
-      ctx.moveTo(e.x + nnx * (thickness / 2 + 2) * dimSide, e.y + nny * (thickness / 2 + 2) * dimSide);
-      ctx.lineTo(e.x + nnx * extLen * dimSide, e.y + nny * extLen * dimSide);
-      ctx.stroke();
-    }
-
-    // Dimension line
-    const ds = { x: s.x + dOffX, y: s.y + dOffY };
-    const de = { x: e.x + dOffX, y: e.y + dOffY };
-    const dimMx = (ds.x + de.x) / 2;
-    const dimMy = (ds.y + de.y) / 2;
-
-    ctx.fillStyle = dimSettings.dimensionLineColor;
-    const fontSize = Math.max(10, 11 * zoom);
-    ctx.font = `${fontSize}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const dimLabel = formatLength(wlen, dimSettings.units);
-    const textW = ctx.measureText(dimLabel).width;
-
-    // Draw dimension line with gap for text
-    const ux2 = dx / len, uy2 = dy / len;
-    const halfGap = textW / 2 + 4;
-    ctx.strokeStyle = dimSettings.dimensionLineColor;
-    ctx.lineWidth = 0.75;
-    ctx.beginPath();
-    ctx.moveTo(ds.x, ds.y);
-    ctx.lineTo(dimMx - ux2 * halfGap, dimMy - uy2 * halfGap);
-    ctx.moveTo(dimMx + ux2 * halfGap, dimMy + uy2 * halfGap);
-    ctx.lineTo(de.x, de.y);
-    ctx.stroke();
-
-    // Arrowheads (tick marks — 45° slash at each end, architectural style)
-    const tickSize = Math.max(4, 5 * zoom);
-    ctx.strokeStyle = dimSettings.dimensionLineColor;
-    ctx.lineWidth = 1;
-    for (const pt of [ds, de]) {
-      ctx.beginPath();
-      ctx.moveTo(pt.x - (ux2 + nnx * dimSide) * tickSize, pt.y - (uy2 + nny * dimSide) * tickSize);
-      ctx.lineTo(pt.x + (ux2 + nnx * dimSide) * tickSize, pt.y + (uy2 + nny * dimSide) * tickSize);
-      ctx.stroke();
-    }
-
-    // Dimension text
-    ctx.fillStyle = dimSettings.dimensionLineColor;
-    ctx.fillText(dimLabel, dimMx, dimMy);
-
-    // Endpoint handles when selected (for drag-to-resize)
-    if (selected) {
-      const handleSize = 5;
-      for (const pt of [s, e]) {
-        ctx.fillStyle = '#ffffff';
-        ctx.strokeStyle = '#3b82f6';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.arc(pt.x, pt.y, handleSize, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-      }
-      // Midpoint handle — square for parallel drag (Alt+drag to curve)
-      const midX = (s.x + e.x) / 2;
-      const midY = (s.y + e.y) / 2;
-      const sz = 5;
-      ctx.fillStyle = '#3b82f6';
-      ctx.strokeStyle = '#1d4ed8';
-      ctx.lineWidth = 1.5;
-      ctx.fillRect(midX - sz, midY - sz, sz * 2, sz * 2);
-      ctx.strokeRect(midX - sz, midY - sz, sz * 2, sz * 2);
-      // Draw perpendicular arrows to indicate parallel drag direction
-      const perpX = -(dy / len) * 12;
-      const perpY = (dx / len) * 12;
-      ctx.strokeStyle = '#3b82f680';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(midX - perpX, midY - perpY);
-      ctx.lineTo(midX + perpX, midY + perpY);
-      ctx.stroke();
-      // Small arrowheads
-      const arrowSz = 3;
-      for (const sign of [1, -1]) {
-        const ax = midX + perpX * sign;
-        const ay = midY + perpY * sign;
-        const adx = perpX / 12 * arrowSz * sign;
-        const ady = perpY / 12 * arrowSz * sign;
-        ctx.beginPath();
-        ctx.moveTo(ax, ay);
-        ctx.lineTo(ax - adx + ady * 0.5, ay - ady - adx * 0.5);
-        ctx.moveTo(ax, ay);
-        ctx.lineTo(ax - adx - ady * 0.5, ay - ady + adx * 0.5);
-        ctx.stroke();
-      }
-    }
+    _drawWall(getCS(), w, selected, showDimensions, dimSettings);
   }
 
   function drawDoorOnWall(wall: Wall, door: Door) {
-    const t = door.position;
-    const wpt = wallPointAt(wall, t);
-    const s = worldToScreen(wpt.x, wpt.y);
-
-    const tan = wallTangentAt(wall, t);
-    const ux = tan.x, uy = tan.y;
-    const nx = -uy, ny = ux;
-
-    const halfDoor = (door.width / 2) * zoom;
-    const thickness = wallThicknessScreen(wall);
-    const wallAngle = Math.atan2(uy, ux);
-    const swingDir = door.swingDirection === 'left' ? 1 : -1;
-    const sideFlip = (door.flipSide ?? false) ? -1 : 1;
-
-    // Clear wall area for door gap (background color)
-    ctx.fillStyle = '#fafafa';
-    const gux = ux * halfDoor;
-    const guy = uy * halfDoor;
-    const gnx = nx * (thickness / 2 + 1);
-    const gny = ny * (thickness / 2 + 1);
-    ctx.beginPath();
-    ctx.moveTo(s.x - gux + gnx, s.y - guy + gny);
-    ctx.lineTo(s.x + gux + gnx, s.y + guy + gny);
-    ctx.lineTo(s.x + gux - gnx, s.y + guy - gny);
-    ctx.lineTo(s.x - gux - gnx, s.y - guy - gny);
-    ctx.closePath();
-    ctx.fill();
-
-    // Door jamb ticks (for all types)
-    const jamb = thickness / 2 + 2;
-    ctx.strokeStyle = '#444';
-    ctx.lineWidth = 1.5;
-    for (const sign of [-1, 1]) {
-      const jx = s.x + ux * halfDoor * sign;
-      const jy = s.y + uy * halfDoor * sign;
-      ctx.beginPath();
-      ctx.moveTo(jx + nx * jamb, jy + ny * jamb);
-      ctx.lineTo(jx - nx * jamb, jy - ny * jamb);
-      ctx.stroke();
-    }
-
-    const doorType = door.type || 'single';
-
-    if (doorType === 'single' || doorType === 'pocket') {
-      // Single swing door / pocket door
-      // swingDir: left=-1 means hinge on left jamb, right=+1 means hinge on right jamb
-      // sideFlip: +1 = inward (normal side), -1 = outward (opposite side of wall)
-      const r = door.width * zoom;
-      // Hinge at left or right jamb of the door gap
-      const hingeX = s.x + ux * halfDoor * swingDir;
-      const hingeY = s.y + uy * halfDoor * swingDir;
-      // Arc swings from wall direction toward perpendicular (inward or outward)
-      const startAngle = wallAngle + (swingDir === 1 ? Math.PI : 0);
-      const endAngle = startAngle + (-swingDir) * sideFlip * (Math.PI / 2);
-
-      if (doorType === 'pocket') {
-        // Pocket: dashed line showing door recessed into wall
-        ctx.setLineDash([4, 3]);
-        ctx.strokeStyle = '#999';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(hingeX, hingeY);
-        ctx.lineTo(hingeX + ux * halfDoor * 2 * swingDir, hingeY + uy * halfDoor * 2 * swingDir);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      } else {
-        // Swing arc
-        ctx.strokeStyle = '#666';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(hingeX, hingeY, r, Math.min(startAngle, endAngle), Math.max(startAngle, endAngle));
-        ctx.stroke();
-      }
-
-      // Door panel line
-      ctx.lineWidth = 2.5;
-      ctx.strokeStyle = '#444';
-      ctx.beginPath();
-      ctx.moveTo(hingeX, hingeY);
-      const panelAngle = doorType === 'pocket' ? startAngle : endAngle;
-      ctx.lineTo(hingeX + r * Math.cos(panelAngle), hingeY + r * Math.sin(panelAngle));
-      ctx.stroke();
-
-      // Hinge dot
-      ctx.fillStyle = '#444';
-      ctx.beginPath();
-      ctx.arc(hingeX, hingeY, 2.5, 0, Math.PI * 2);
-      ctx.fill();
-
-    } else if (doorType === 'double' || doorType === 'french') {
-      // Double/French: two swing arcs from each side
-      const r = halfDoor;
-      for (const side of [-1, 1] as const) {
-        const hx = s.x + ux * halfDoor * side;
-        const hy = s.y + uy * halfDoor * side;
-        const arcSwing = side === -1 ? swingDir : -swingDir;
-        const sa = wallAngle + Math.PI * (side === 1 ? 1 : 0);
-        const ea = sa + arcSwing * sideFlip * (Math.PI / 2);
-
-        ctx.strokeStyle = '#666';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(hx, hy, r, Math.min(sa, ea), Math.max(sa, ea));
-        ctx.stroke();
-
-        ctx.lineWidth = 2.5;
-        ctx.strokeStyle = '#444';
-        ctx.beginPath();
-        ctx.moveTo(hx, hy);
-        ctx.lineTo(hx + r * Math.cos(ea), hy + r * Math.sin(ea));
-        ctx.stroke();
-
-        // Hinge dot
-        ctx.fillStyle = '#444';
-        ctx.beginPath();
-        ctx.arc(hx, hy, 2, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      if (doorType === 'french') {
-        // Glass panes: small X marks on each panel
-        ctx.strokeStyle = '#aaa';
-        ctx.lineWidth = 0.5;
-      }
-
-    } else if (doorType === 'sliding') {
-      // Sliding: two overlapping panels with arrow
-      const panelW = halfDoor * 0.9;
-      const offset = thickness * 0.15 * sideFlip;
-      // Panel 1 (fixed)
-      ctx.strokeStyle = '#444';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(s.x - ux * halfDoor, s.y - uy * halfDoor);
-      ctx.lineTo(s.x + ux * panelW * 0.1, s.y + uy * panelW * 0.1);
-      ctx.stroke();
-      // Panel 2 (sliding) slightly offset perpendicular
-      ctx.beginPath();
-      ctx.moveTo(s.x - ux * panelW * 0.1 + nx * offset, s.y - uy * panelW * 0.1 + ny * offset);
-      ctx.lineTo(s.x + ux * halfDoor + nx * offset, s.y + uy * halfDoor + ny * offset);
-      ctx.stroke();
-      // Arrow showing slide direction
-      ctx.strokeStyle = '#999';
-      ctx.lineWidth = 1;
-      const arrowY = ny * (thickness * 0.4);
-      const arrowX = nx * (thickness * 0.4);
-      const ax = s.x - arrowX;
-      const ay = s.y - arrowY;
-      ctx.beginPath();
-      ctx.moveTo(ax - ux * halfDoor * 0.5, ay - uy * halfDoor * 0.5);
-      ctx.lineTo(ax + ux * halfDoor * 0.5, ay + uy * halfDoor * 0.5);
-      ctx.stroke();
-      // Arrow head
-      const ahx = ax + ux * halfDoor * 0.5;
-      const ahy = ay + uy * halfDoor * 0.5;
-      ctx.beginPath();
-      ctx.moveTo(ahx - ux * 6 + nx * 4, ahy - uy * 6 + ny * 4);
-      ctx.lineTo(ahx, ahy);
-      ctx.lineTo(ahx - ux * 6 - nx * 4, ahy - uy * 6 - ny * 4);
-      ctx.stroke();
-
-    } else if (doorType === 'bifold') {
-      // Bifold: zigzag folding panels
-      const panelCount = 4;
-      const panelW = (door.width / panelCount) * zoom;
-      const foldAngle = Math.PI / 6; // 30° fold
-      ctx.strokeStyle = '#444';
-      ctx.lineWidth = 2;
-      let px = s.x - ux * halfDoor;
-      let py = s.y - uy * halfDoor;
-      for (let i = 0; i < panelCount; i++) {
-        const angle = wallAngle + (i % 2 === 0 ? foldAngle * swingDir : -foldAngle * swingDir * 0.3);
-        const ex = px + panelW * Math.cos(angle);
-        const ey = py + panelW * Math.sin(angle);
-        ctx.beginPath();
-        ctx.moveTo(px, py);
-        ctx.lineTo(ex, ey);
-        ctx.stroke();
-        // Fold joint dot
-        ctx.fillStyle = '#666';
-        ctx.beginPath();
-        ctx.arc(px, py, 1.5, 0, Math.PI * 2);
-        ctx.fill();
-        px = ex;
-        py = ey;
-      }
-    }
+    _drawDoorOnWall(getCS(), wall, door);
   }
 
   function drawWindowOnWall(wall: Wall, win: Win) {
-    const t = win.position;
-    const wpt = wallPointAt(wall, t);
-    const s = worldToScreen(wpt.x, wpt.y);
-
-    const tan = wallTangentAt(wall, t);
-    const ux = tan.x, uy = tan.y;
-    const nx = -uy, ny = ux;
-
-    const hw = (win.width / 2) * zoom;
-    const thickness = wallThicknessScreen(wall);
-
-    // Clear wall area for window gap
-    ctx.fillStyle = '#fafafa';
-    const gux = ux * hw;
-    const guy = uy * hw;
-    const gnx = nx * (thickness / 2 + 1);
-    const gny = ny * (thickness / 2 + 1);
-    ctx.beginPath();
-    ctx.moveTo(s.x - gux + gnx, s.y - guy + gny);
-    ctx.lineTo(s.x + gux + gnx, s.y + guy + gny);
-    ctx.lineTo(s.x + gux - gnx, s.y + guy - gny);
-    ctx.lineTo(s.x - gux - gnx, s.y - guy - gny);
-    ctx.closePath();
-    ctx.fill();
-
-    const winType = win.type || 'standard';
-    const gap = Math.max(2, thickness * 0.25);
-
-    if (winType === 'bay') {
-      // Bay window: angled projection (3 segments forming a shallow trapezoid)
-      const bayDepth = gap * 3;
-      const sideW = hw * 0.3; // side panel width along wall
-      const centerW = hw - sideW; // center panel half-width
-
-      ctx.strokeStyle = '#555';
-      ctx.lineWidth = 1.5;
-
-      // Left angled segment
-      const lOuter = { x: s.x - ux * hw, y: s.y - uy * hw };
-      const lInner = { x: s.x - ux * centerW + nx * bayDepth, y: s.y - uy * centerW + ny * bayDepth };
-      ctx.beginPath();
-      ctx.moveTo(lOuter.x, lOuter.y);
-      ctx.lineTo(lInner.x, lInner.y);
-      ctx.stroke();
-
-      // Center segment (parallel to wall, pushed out)
-      const rInner = { x: s.x + ux * centerW + nx * bayDepth, y: s.y + uy * centerW + ny * bayDepth };
-      ctx.beginPath();
-      ctx.moveTo(lInner.x, lInner.y);
-      ctx.lineTo(rInner.x, rInner.y);
-      ctx.stroke();
-
-      // Right angled segment
-      const rOuter = { x: s.x + ux * hw, y: s.y + uy * hw };
-      ctx.beginPath();
-      ctx.moveTo(rInner.x, rInner.y);
-      ctx.lineTo(rOuter.x, rOuter.y);
-      ctx.stroke();
-
-      // Glass lines (thinner, inside each segment)
-      ctx.strokeStyle = '#99c';
-      ctx.lineWidth = 1;
-      const inset = 0.3;
-      // Left glass
-      ctx.beginPath();
-      ctx.moveTo(lOuter.x + (lInner.x - lOuter.x) * inset, lOuter.y + (lInner.y - lOuter.y) * inset);
-      ctx.lineTo(lInner.x - (lInner.x - lOuter.x) * inset, lInner.y - (lInner.y - lOuter.y) * inset);
-      ctx.stroke();
-      // Center glass
-      ctx.beginPath();
-      ctx.moveTo(lInner.x + (rInner.x - lInner.x) * 0.05, lInner.y + (rInner.y - lInner.y) * 0.05);
-      ctx.lineTo(rInner.x - (rInner.x - lInner.x) * 0.05, rInner.y - (rInner.y - lInner.y) * 0.05);
-      ctx.stroke();
-      // Right glass
-      ctx.beginPath();
-      ctx.moveTo(rInner.x + (rOuter.x - rInner.x) * inset, rInner.y + (rOuter.y - rInner.y) * inset);
-      ctx.lineTo(rOuter.x - (rOuter.x - rInner.x) * inset, rOuter.y - (rOuter.y - rInner.y) * inset);
-      ctx.stroke();
-
-    } else if (winType === 'sliding') {
-      // Sliding window: two overlapping panes with arrow
-      ctx.strokeStyle = '#555';
-      ctx.lineWidth = 1.5;
-      const offset = gap * 0.4;
-      // Pane 1 (left half, slightly above center)
-      ctx.beginPath();
-      ctx.moveTo(s.x - ux * hw + nx * offset, s.y - uy * hw + ny * offset);
-      ctx.lineTo(s.x + ux * hw * 0.1 + nx * offset, s.y + uy * hw * 0.1 + ny * offset);
-      ctx.stroke();
-      // Pane 2 (right half, slightly below center)
-      ctx.beginPath();
-      ctx.moveTo(s.x - ux * hw * 0.1 - nx * offset, s.y - uy * hw * 0.1 - ny * offset);
-      ctx.lineTo(s.x + ux * hw - nx * offset, s.y + uy * hw - ny * offset);
-      ctx.stroke();
-      // End caps
-      ctx.lineWidth = 1;
-      for (const side of [-1, 1]) {
-        ctx.beginPath();
-        ctx.moveTo(s.x + ux * hw * side + nx * gap, s.y + uy * hw * side + ny * gap);
-        ctx.lineTo(s.x + ux * hw * side - nx * gap, s.y + uy * hw * side - ny * gap);
-        ctx.stroke();
-      }
-      // Arrow showing slide direction
-      ctx.strokeStyle = '#999';
-      ctx.lineWidth = 1;
-      const aOff = gap * 1.5;
-      const ax1 = s.x - ux * hw * 0.3 + nx * aOff;
-      const ay1 = s.y - uy * hw * 0.3 + ny * aOff;
-      const ax2 = s.x + ux * hw * 0.3 + nx * aOff;
-      const ay2 = s.y + uy * hw * 0.3 + ny * aOff;
-      ctx.beginPath();
-      ctx.moveTo(ax1, ay1);
-      ctx.lineTo(ax2, ay2);
-      ctx.stroke();
-      // Arrowhead
-      ctx.beginPath();
-      ctx.moveTo(ax2 - ux * 5 + nx * 3, ay2 - uy * 5 + ny * 3);
-      ctx.lineTo(ax2, ay2);
-      ctx.lineTo(ax2 - ux * 5 - nx * 3, ay2 - uy * 5 - ny * 3);
-      ctx.stroke();
-
-    } else if (winType === 'fixed') {
-      // Fixed window: simple rectangle, no opening indicator
-      ctx.strokeStyle = '#555';
-      ctx.lineWidth = 1.5;
-      // Outer rectangle
-      ctx.beginPath();
-      ctx.moveTo(s.x - ux * hw + nx * gap, s.y - uy * hw + ny * gap);
-      ctx.lineTo(s.x + ux * hw + nx * gap, s.y + uy * hw + ny * gap);
-      ctx.lineTo(s.x + ux * hw - nx * gap, s.y + uy * hw - ny * gap);
-      ctx.lineTo(s.x - ux * hw - nx * gap, s.y - uy * hw - ny * gap);
-      ctx.closePath();
-      ctx.stroke();
-      // X cross to indicate fixed
-      ctx.strokeStyle = '#aab';
-      ctx.lineWidth = 0.8;
-      ctx.beginPath();
-      ctx.moveTo(s.x - ux * hw + nx * gap, s.y - uy * hw + ny * gap);
-      ctx.lineTo(s.x + ux * hw - nx * gap, s.y + uy * hw - ny * gap);
-      ctx.moveTo(s.x + ux * hw + nx * gap, s.y + uy * hw + ny * gap);
-      ctx.lineTo(s.x - ux * hw - nx * gap, s.y - uy * hw - ny * gap);
-      ctx.stroke();
-
-    } else if (winType === 'casement') {
-      // Casement: like standard but with a small triangle indicating swing direction
-      ctx.strokeStyle = '#555';
-      ctx.lineWidth = 1.5;
-      // Outer line 1
-      ctx.beginPath();
-      ctx.moveTo(s.x - ux * hw + nx * gap, s.y - uy * hw + ny * gap);
-      ctx.lineTo(s.x + ux * hw + nx * gap, s.y + uy * hw + ny * gap);
-      ctx.stroke();
-      // Outer line 2
-      ctx.beginPath();
-      ctx.moveTo(s.x - ux * hw - nx * gap, s.y - uy * hw - ny * gap);
-      ctx.lineTo(s.x + ux * hw - nx * gap, s.y + uy * hw - ny * gap);
-      ctx.stroke();
-      // Middle glass line
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(s.x - ux * hw, s.y - uy * hw);
-      ctx.lineTo(s.x + ux * hw, s.y + uy * hw);
-      ctx.stroke();
-      // End caps
-      ctx.beginPath();
-      ctx.moveTo(s.x - ux * hw + nx * gap, s.y - uy * hw + ny * gap);
-      ctx.lineTo(s.x - ux * hw - nx * gap, s.y - uy * hw - ny * gap);
-      ctx.moveTo(s.x + ux * hw + nx * gap, s.y + uy * hw + ny * gap);
-      ctx.lineTo(s.x + ux * hw - nx * gap, s.y + uy * hw - ny * gap);
-      ctx.stroke();
-      // Swing triangle (indicates casement opens outward)
-      ctx.strokeStyle = '#88a';
-      ctx.lineWidth = 0.8;
-      ctx.beginPath();
-      ctx.moveTo(s.x - ux * hw + nx * gap, s.y - uy * hw + ny * gap);
-      ctx.lineTo(s.x + nx * gap * 2.5, s.y + ny * gap * 2.5);
-      ctx.lineTo(s.x + ux * hw + nx * gap, s.y + uy * hw + ny * gap);
-      ctx.stroke();
-
-    } else {
-      // Standard / default: three parallel lines with end caps
-      ctx.strokeStyle = '#555';
-      ctx.lineWidth = 1.5;
-      // Outer line 1
-      ctx.beginPath();
-      ctx.moveTo(s.x - ux * hw + nx * gap, s.y - uy * hw + ny * gap);
-      ctx.lineTo(s.x + ux * hw + nx * gap, s.y + uy * hw + ny * gap);
-      ctx.stroke();
-      // Outer line 2
-      ctx.beginPath();
-      ctx.moveTo(s.x - ux * hw - nx * gap, s.y - uy * hw - ny * gap);
-      ctx.lineTo(s.x + ux * hw - nx * gap, s.y + uy * hw - ny * gap);
-      ctx.stroke();
-      // Middle glass line
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(s.x - ux * hw, s.y - uy * hw);
-      ctx.lineTo(s.x + ux * hw, s.y + uy * hw);
-      ctx.stroke();
-      // Connecting end caps
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(s.x - ux * hw + nx * gap, s.y - uy * hw + ny * gap);
-      ctx.lineTo(s.x - ux * hw - nx * gap, s.y - uy * hw - ny * gap);
-      ctx.moveTo(s.x + ux * hw + nx * gap, s.y + uy * hw + ny * gap);
-      ctx.lineTo(s.x + ux * hw - nx * gap, s.y + uy * hw - ny * gap);
-      ctx.stroke();
-    }
+    _drawWindowOnWall(getCS(), wall, win);
   }
 
   function drawFurniture(item: FurnitureItem, selected: boolean) {
-    const cat = getCatalogItem(item.catalogId);
-    if (!cat) return;
-    const s = worldToScreen(item.position.x, item.position.y);
-    // Use overridden dimensions or fall back to catalog defaults
-    const sx = item.scale?.x ?? 1;
-    const sy = item.scale?.y ?? 1;
-    const w = (item.width ?? cat.width) * Math.abs(sx) * zoom;
-    const d = (item.depth ?? cat.depth) * Math.abs(sy) * zoom;
-    const angle = (item.rotation * Math.PI) / 180;
-
-    ctx.save();
-    ctx.translate(s.x, s.y);
-    ctx.rotate(angle);
-    ctx.scale(Math.sign(sx) || 1, Math.sign(sy) || 1);
-
-    // Architectural top-down icon - use overridden color or catalog default
-    const itemColor = item.color ?? cat.color;
-    const strokeColor = selected ? '#3b82f6' : itemColor;
-    ctx.lineWidth = selected ? 2 : 1;
-    drawFurnitureIcon(ctx, item.catalogId, w, d, itemColor, strokeColor);
-
-    // Label (only if large enough)
-    const fontSize = Math.max(8, Math.min(12, Math.min(w, d) * 0.2));
-    if (Math.min(w, d) > 20) {
-      ctx.fillStyle = '#374151';
-      ctx.font = `${fontSize * 0.7}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(cat.name, 0, d / 2 + fontSize * 0.8);
-    }
-
-    // Lock icon for locked items
-    if (item.locked) {
-      const lockSize = Math.max(10, Math.min(16, Math.min(w, d) * 0.25));
-      const lx = w / 2 - lockSize - 2;
-      const ly = -d / 2 + 2;
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.beginPath();
-      ctx.roundRect(lx, ly + lockSize * 0.4, lockSize, lockSize * 0.6, 2);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(lx + lockSize / 2, ly + lockSize * 0.4, lockSize * 0.25, Math.PI, 0);
-      ctx.stroke();
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(lx + lockSize / 2, ly + lockSize * 0.65, 1.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Selection handles when selected
-    if (selected) {
-      // Dashed selection border
-      ctx.strokeStyle = '#3b82f6';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 3]);
-      ctx.strokeRect(-w / 2 - 2, -d / 2 - 2, w + 4, d + 4);
-      ctx.setLineDash([]);
-
-      // Resize handles at corners
-      const hs = 5; // handle half-size
-      ctx.fillStyle = '#ffffff';
-      ctx.strokeStyle = '#3b82f6';
-      ctx.lineWidth = 1.5;
-      for (const [hx, hy] of [[-w/2, -d/2], [w/2, -d/2], [-w/2, d/2], [w/2, d/2]]) {
-        ctx.fillRect(hx - hs, hy - hs, hs * 2, hs * 2);
-        ctx.strokeRect(hx - hs, hy - hs, hs * 2, hs * 2);
-      }
-
-      // Rotation handle — circle with stem above
-      const rotY = -d / 2 - 18;
-      ctx.strokeStyle = '#3b82f6';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(0, -d / 2 - 2);
-      ctx.lineTo(0, rotY + 5);
-      ctx.stroke();
-      ctx.fillStyle = '#3b82f6';
-      ctx.beginPath();
-      ctx.arc(0, rotY, 5, 0, Math.PI * 2);
-      ctx.fill();
-      // Small rotation arrow icon
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      ctx.arc(0, rotY, 3, -Math.PI * 0.8, Math.PI * 0.4);
-      ctx.stroke();
-      // Arrowhead
-      const arrowAngle = Math.PI * 0.4;
-      const ax = Math.cos(arrowAngle) * 3;
-      const ay = Math.sin(arrowAngle) * 3;
-      ctx.beginPath();
-      ctx.moveTo(ax + 1.5, rotY + ay - 1);
-      ctx.lineTo(ax, rotY + ay);
-      ctx.lineTo(ax - 1, rotY + ay - 2);
-      ctx.stroke();
-    }
-
-    ctx.restore();
+    _drawFurniture(getCS(), item, selected);
   }
 
   // Track wall snap during placement preview
@@ -1391,7 +489,6 @@
     const cat = getCatalogItem(currentPlacingId);
     if (!cat) return;
 
-    // Check wall snap for preview
     const wallSnap = snapFurnitureToWall(mousePos, currentPlacingId, currentPlacingRotation);
     placementWallSnap = wallSnap;
 
@@ -1403,7 +500,6 @@
     const d = cat.depth * zoom;
     const angle = (rot * Math.PI) / 180;
 
-    // Highlight snap wall
     if (wallSnap && currentFloor) {
       const snapWall = currentFloor.walls.find(wl => wl.id === wallSnap.wallId);
       if (snapWall) {
@@ -1440,14 +536,13 @@
     const ux = tan.x, uy = tan.y;
     const nx = -uy, ny = ux;
     const isDoor = placementPreview.type === 'door';
-    const itemWidth = isDoor ? 90 : 120; // default door 90cm, window 120cm
+    const itemWidth = isDoor ? 90 : 120;
     const halfW = (itemWidth / 2) * zoom;
-    const thickness = wallThicknessScreen(wall);
+    const thickness = Math.max(wall.thickness * zoom, 4);
 
     ctx.save();
     ctx.globalAlpha = 0.5;
 
-    // Ghost gap (white area on wall)
     ctx.fillStyle = '#fafafa';
     const gux = ux * halfW, guy = uy * halfW;
     const gnx = nx * (thickness / 2 + 1), gny = ny * (thickness / 2 + 1);
@@ -1460,7 +555,6 @@
     ctx.fill();
 
     if (isDoor) {
-      // Ghost swing arc
       const wallAngle = Math.atan2(uy, ux);
       const r = itemWidth * zoom;
       const hingeX = s.x - ux * halfW;
@@ -1472,13 +566,11 @@
       ctx.beginPath();
       ctx.arc(hingeX, hingeY, r, Math.min(startAngle, endAngle), Math.max(startAngle, endAngle));
       ctx.stroke();
-      // Door panel
       ctx.lineWidth = 2.5;
       ctx.beginPath();
       ctx.moveTo(hingeX, hingeY);
       ctx.lineTo(hingeX + r * Math.cos(endAngle), hingeY + r * Math.sin(endAngle));
       ctx.stroke();
-      // Jamb ticks
       ctx.lineWidth = 1.5;
       ctx.strokeStyle = '#3b82f6';
       const jamb = thickness / 2 + 2;
@@ -1491,7 +583,6 @@
         ctx.stroke();
       }
     } else {
-      // Ghost window — 3 parallel lines
       ctx.strokeStyle = '#3b82f6';
       ctx.lineWidth = 2;
       for (const off of [-2, 0, 2]) {
@@ -1505,7 +596,6 @@
 
     ctx.globalAlpha = 1;
 
-    // "Click to place" tooltip
     ctx.font = 'bold 11px system-ui, sans-serif';
     const text = isDoor ? 'Click to place door' : 'Click to place window';
     const tm = ctx.measureText(text);
@@ -1515,7 +605,6 @@
     ctx.beginPath();
     ctx.roundRect(tx - pw / 2, ty - ph / 2, pw, ph, 4);
     ctx.fill();
-    // Small triangle pointing down
     ctx.beginPath();
     ctx.moveTo(tx - 5, ty + ph / 2);
     ctx.lineTo(tx + 5, ty + ph / 2);
@@ -1529,7 +618,6 @@
 
     ctx.restore();
 
-    // Highlight the target wall
     const ws = worldToScreen(wall.start.x, wall.start.y);
     const we = worldToScreen(wall.end.x, wall.end.y);
     ctx.strokeStyle = '#3b82f680';
@@ -1573,13 +661,11 @@
     ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y); ctx.stroke();
     ctx.setLineDash([]);
 
-    // Endpoints
     for (const p of [s, e]) {
       ctx.fillStyle = '#ef4444';
       ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fill();
     }
 
-    // Distance label
     const dist = Math.hypot(end.x - measureStart.x, end.y - measureStart.y);
     const mx = (s.x + e.x) / 2;
     const my = (s.y + e.y) / 2;
@@ -1591,153 +677,21 @@
   }
 
   function drawPersistedMeasurements(floor: Floor) {
-    if (!floor.measurements) return;
-    for (const m of floor.measurements) {
-      const s = worldToScreen(m.x1, m.y1);
-      const e = worldToScreen(m.x2, m.y2);
-      const selected = m.id === selectedMeasurementId;
-      ctx.strokeStyle = selected ? '#3b82f6' : '#ef4444';
-      ctx.lineWidth = selected ? 2 : 1;
-      ctx.setLineDash([6, 3]);
-      ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y); ctx.stroke();
-      ctx.setLineDash([]);
-
-      // Endpoints
-      for (const p of [s, e]) {
-        ctx.fillStyle = selected ? '#3b82f6' : '#ef4444';
-        ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fill();
-      }
-
-      // Distance label
-      const dist = Math.hypot(m.x2 - m.x1, m.y2 - m.y1);
-      const mx = (s.x + e.x) / 2;
-      const my = (s.y + e.y) / 2;
-      ctx.fillStyle = selected ? '#3b82f6' : '#ef4444';
-      ctx.font = 'bold 12px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'bottom';
-      ctx.fillText(formatLength(dist, dimSettings.units), mx, my - 6);
-    }
+    _drawPersistedMeasurements(getCS(), floor, selectedMeasurementId, dimSettings);
   }
 
   function hitTestMeasurement(wp: Point, floor: Floor): string | null {
-    if (!floor.measurements) return null;
-    const threshold = 8 / zoom;
-    for (const m of floor.measurements) {
-      // Point-to-segment distance
-      const dx = m.x2 - m.x1, dy = m.y2 - m.y1;
-      const len2 = dx * dx + dy * dy;
-      if (len2 === 0) continue;
-      let t = ((wp.x - m.x1) * dx + (wp.y - m.y1) * dy) / len2;
-      t = Math.max(0, Math.min(1, t));
-      const px = m.x1 + t * dx, py = m.y1 + t * dy;
-      const dist = Math.hypot(wp.x - px, wp.y - py);
-      if (dist < threshold) return m.id;
-    }
-    return null;
+    return _hitTestMeasurement(wp, floor, zoom);
   }
 
-  /** Draw a single dimension annotation with architectural styling */
   function drawAnnotation(a: Annotation, selected: boolean) {
-    const offset = a.offset || 40;
-    const dx = a.x2 - a.x1, dy = a.y2 - a.y1;
-    const len = Math.hypot(dx, dy);
-    if (len < 1) return;
-
-    // Unit vectors
-    const ux = dx / len, uy = dy / len;
-    // Perpendicular (pointing in offset direction)
-    const nx = -uy, ny = ux;
-
-    // Offset dimension line endpoints
-    const d1x = a.x1 + nx * offset, d1y = a.y1 + ny * offset;
-    const d2x = a.x2 + nx * offset, d2y = a.y2 + ny * offset;
-
-    const s1 = worldToScreen(a.x1, a.y1);
-    const s2 = worldToScreen(a.x2, a.y2);
-    const sd1 = worldToScreen(d1x, d1y);
-    const sd2 = worldToScreen(d2x, d2y);
-
-    const color = selected ? '#3b82f6' : '#6366f1';
-
-    // Leader lines (perpendicular from points to dimension line)
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 0.75;
-    const extBeyond = 4 * zoom; // extend slightly past dimension line
-    ctx.beginPath();
-    ctx.moveTo(s1.x, s1.y);
-    ctx.lineTo(sd1.x + nx * extBeyond * zoom, sd1.y + ny * extBeyond * zoom);
-    ctx.moveTo(s2.x, s2.y);
-    ctx.lineTo(sd2.x + nx * extBeyond * zoom, sd2.y + ny * extBeyond * zoom);
-    ctx.stroke();
-
-    // Dimension line
-    const dimMx = (sd1.x + sd2.x) / 2;
-    const dimMy = (sd1.y + sd2.y) / 2;
-
-    // Text
-    const dist = Math.hypot(a.x2 - a.x1, a.y2 - a.y1);
-    const label = a.label || formatLength(dist, dimSettings.units);
-    const fontSize = Math.max(10, 11 * zoom);
-    ctx.font = `${fontSize}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const textW = ctx.measureText(label).width;
-    const halfGap = textW / 2 + 4;
-
-    // Dimension line with gap for text
-    ctx.strokeStyle = color;
-    ctx.lineWidth = selected ? 1.5 : 1;
-    const sux = (sd2.x - sd1.x) / Math.hypot(sd2.x - sd1.x, sd2.y - sd1.y) || 0;
-    const suy = (sd2.y - sd1.y) / Math.hypot(sd2.x - sd1.x, sd2.y - sd1.y) || 0;
-    ctx.beginPath();
-    ctx.moveTo(sd1.x, sd1.y);
-    ctx.lineTo(dimMx - sux * halfGap, dimMy - suy * halfGap);
-    ctx.moveTo(dimMx + sux * halfGap, dimMy + suy * halfGap);
-    ctx.lineTo(sd2.x, sd2.y);
-    ctx.stroke();
-
-    // Arrowheads (filled triangles at each end)
-    const arrowLen = Math.max(6, 7 * zoom);
-    const arrowW = Math.max(2.5, 3 * zoom);
-    ctx.fillStyle = color;
-    for (const [px, py, dir] of [[sd1.x, sd1.y, 1], [sd2.x, sd2.y, -1]] as [number, number, number][]) {
-      const adx = sux * arrowLen * dir;
-      const ady = suy * arrowLen * dir;
-      const apx = -suy * arrowW;
-      const apy = sux * arrowW;
-      ctx.beginPath();
-      ctx.moveTo(px, py);
-      ctx.lineTo(px + adx + apx, py + ady + apy);
-      ctx.lineTo(px + adx - apx, py + ady - apy);
-      ctx.closePath();
-      ctx.fill();
-    }
-
-    // Text label
-    ctx.fillStyle = color;
-    ctx.fillText(label, dimMx, dimMy);
-
-    // Selection highlight
-    if (selected) {
-      // Small circles at annotation points
-      for (const p of [s1, s2]) {
-        ctx.fillStyle = '#3b82f6';
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
+    _drawAnnotation(getCS(), a, selected, dimSettings);
   }
 
   function drawAnnotations(floor: Floor) {
-    if (!floor.annotations) return;
-    for (const a of floor.annotations) {
-      drawAnnotation(a, a.id === selectedAnnotationId);
-    }
+    _drawAnnotations(getCS(), floor, selectedAnnotationId, dimSettings);
   }
 
-  /** Draw annotation preview while placing */
   function drawAnnotationPreview() {
     if (!annotationStart) return;
     const end = mousePos;
@@ -1759,7 +713,6 @@
 
     const color = '#6366f180';
 
-    // Leader lines
     ctx.strokeStyle = color;
     ctx.lineWidth = 0.75;
     ctx.beginPath();
@@ -1769,7 +722,6 @@
     ctx.lineTo(sd2.x, sd2.y);
     ctx.stroke();
 
-    // Dimension line
     ctx.strokeStyle = color;
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -1777,7 +729,6 @@
     ctx.lineTo(sd2.x, sd2.y);
     ctx.stroke();
 
-    // Distance text
     const dist = Math.hypot(end.x - annotationStart.x, end.y - annotationStart.y);
     const dimMx = (sd1.x + sd2.x) / 2;
     const dimMy = (sd1.y + sd2.y) / 2;
@@ -1788,7 +739,6 @@
     ctx.textBaseline = 'middle';
     ctx.fillText(formatLength(dist, dimSettings.units), dimMx, dimMy - 8);
 
-    // Endpoint dots
     for (const p of [s1, s2]) {
       ctx.fillStyle = '#6366f1';
       ctx.beginPath();
@@ -1798,435 +748,29 @@
   }
 
   function hitTestAnnotation(wp: Point, floor: Floor): string | null {
-    if (!floor.annotations) return null;
-    const threshold = 10 / zoom;
-    for (const a of floor.annotations) {
-      const offset = a.offset || 40;
-      const dx = a.x2 - a.x1, dy = a.y2 - a.y1;
-      const len = Math.hypot(dx, dy);
-      if (len < 1) continue;
-      const ux = dx / len, uy = dy / len;
-      const nx = -uy, ny = ux;
-      // Test against the dimension line (offset from points)
-      const d1x = a.x1 + nx * offset, d1y = a.y1 + ny * offset;
-      const d2x = a.x2 + nx * offset, d2y = a.y2 + ny * offset;
-      const ddx = d2x - d1x, ddy = d2y - d1y;
-      const len2 = ddx * ddx + ddy * ddy;
-      if (len2 === 0) continue;
-      let t = ((wp.x - d1x) * ddx + (wp.y - d1y) * ddy) / len2;
-      t = Math.max(0, Math.min(1, t));
-      const px = d1x + t * ddx, py = d1y + t * ddy;
-      const dist = Math.hypot(wp.x - px, wp.y - py);
-      if (dist < threshold) return a.id;
-      // Also test leader lines
-      for (const [lx1, ly1, lx2, ly2] of [[a.x1, a.y1, d1x, d1y], [a.x2, a.y2, d2x, d2y]]) {
-        const ldx = lx2 - lx1, ldy = ly2 - ly1;
-        const llen2 = ldx * ldx + ldy * ldy;
-        if (llen2 === 0) continue;
-        let lt = ((wp.x - lx1) * ldx + (wp.y - ly1) * ldy) / llen2;
-        lt = Math.max(0, Math.min(1, lt));
-        const lpx = lx1 + lt * ldx, lpy = ly1 + lt * ldy;
-        if (Math.hypot(wp.x - lpx, wp.y - lpy) < threshold) return a.id;
-      }
-    }
-    return null;
+    return _hitTestAnnotation(wp, floor, zoom);
   }
 
   function drawTextAnnotations(floor: Floor) {
-    if (!floor.textAnnotations) return;
-    for (const ta of floor.textAnnotations) {
-      const selected = ta.id === selectedTextAnnotationId || ta.id === currentSelectedId;
-      const s = worldToScreen(ta.x, ta.y);
-      const fontSize = Math.max(8, ta.fontSize * zoom);
-      ctx.save();
-      ctx.translate(s.x, s.y);
-      if (ta.rotation) ctx.rotate(ta.rotation * Math.PI / 180);
-      ctx.font = `${fontSize}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = ta.color || '#1e293b';
-      // Draw text (handle multiline)
-      const lines = ta.text.split('\n');
-      const lineHeight = fontSize * 1.2;
-      const totalHeight = lines.length * lineHeight;
-      for (let i = 0; i < lines.length; i++) {
-        ctx.fillText(lines[i], 0, -totalHeight / 2 + lineHeight / 2 + i * lineHeight);
-      }
-      if (selected) {
-        // Measure bounding box
-        let maxW = 0;
-        for (const line of lines) {
-          const w = ctx.measureText(line).width;
-          if (w > maxW) maxW = w;
-        }
-        const pad = 4;
-        ctx.strokeStyle = '#3b82f6';
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([4, 3]);
-        ctx.strokeRect(-maxW / 2 - pad, -totalHeight / 2 - pad, maxW + pad * 2, totalHeight + pad * 2);
-        ctx.setLineDash([]);
-      }
-      ctx.restore();
-    }
+    _drawTextAnnotations(getCS(), floor, selectedTextAnnotationId, currentSelectedId);
   }
 
   function hitTestTextAnnotation(wp: Point, floor: Floor): string | null {
-    if (!floor.textAnnotations) return null;
-    // Create a temporary canvas for measurement
-    const measureCtx = ctx;
-    for (let i = floor.textAnnotations.length - 1; i >= 0; i--) {
-      const ta = floor.textAnnotations[i];
-      // Transform point into text-local coordinates
-      let dx = wp.x - ta.x;
-      let dy = wp.y - ta.y;
-      if (ta.rotation) {
-        const angle = -ta.rotation * Math.PI / 180;
-        const rx = dx * Math.cos(angle) - dy * Math.sin(angle);
-        const ry = dx * Math.sin(angle) + dy * Math.cos(angle);
-        dx = rx; dy = ry;
-      }
-      measureCtx.font = `${ta.fontSize}px sans-serif`;
-      const lines = ta.text.split('\n');
-      const lineHeight = ta.fontSize * 1.2;
-      const totalHeight = lines.length * lineHeight;
-      let maxW = 0;
-      for (const line of lines) {
-        const w = measureCtx.measureText(line).width / zoom;
-        if (w > maxW) maxW = w;
-      }
-      const pad = 8 / zoom;
-      if (Math.abs(dx) < maxW / 2 + pad && Math.abs(dy) < totalHeight / 2 + pad) return ta.id;
-    }
-    return null;
+    return _hitTestTextAnnotation(wp, floor, ctx, zoom);
   }
 
   function drawWallJoints(floor: Floor, selId: string | null) {
-    // Collect wall info at each shared endpoint for proper miter/T-junction rendering
-    interface WallEdge { wallId: string; angle: number; thickness: number; selected: boolean; }
-    const epMap = new Map<string, { x: number; y: number; edges: WallEdge[] }>();
-
-    for (const w of floor.walls) {
-      const sel = w.id === selId || currentSelectedIds.has(w.id);
-      const dx = w.end.x - w.start.x;
-      const dy = w.end.y - w.start.y;
-      const len = Math.hypot(dx, dy);
-      if (len < 1) continue;
-      const angle = Math.atan2(dy, dx);
-
-      // Start endpoint: wall goes outward at `angle`
-      const keyS = `${Math.round(w.start.x)},${Math.round(w.start.y)}`;
-      if (!epMap.has(keyS)) epMap.set(keyS, { x: w.start.x, y: w.start.y, edges: [] });
-      epMap.get(keyS)!.edges.push({ wallId: w.id, angle, thickness: w.thickness, selected: sel });
-
-      // End endpoint: wall goes outward at `angle + PI` (back toward start)
-      const keyE = `${Math.round(w.end.x)},${Math.round(w.end.y)}`;
-      if (!epMap.has(keyE)) epMap.set(keyE, { x: w.end.x, y: w.end.y, edges: [] });
-      epMap.get(keyE)!.edges.push({ wallId: w.id, angle: angle + Math.PI, thickness: w.thickness, selected: sel });
-    }
-
-    for (const [, ep] of epMap) {
-      if (ep.edges.length < 2) continue;
-
-      const anySelected = ep.edges.some(e => e.selected);
-      const center = worldToScreen(ep.x, ep.y);
-
-      // Sort edges by angle
-      const sorted = [...ep.edges].sort((a, b) => {
-        const na = ((a.angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-        const nb = ((b.angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-        return na - nb;
-      });
-
-      // Compute the convex polygon formed by all wall edge corners at this junction
-      // Each wall contributes two edge points (left and right side of the wall at the endpoint)
-      const cornerPoints: { x: number; y: number }[] = [];
-      for (const edge of sorted) {
-        const halfT = Math.max(edge.thickness * zoom, 4) / 2;
-        const cos = Math.cos(edge.angle);
-        const sin = Math.sin(edge.angle);
-        // Perpendicular (left normal)
-        const nx = -sin * halfT;
-        const ny = cos * halfT;
-        cornerPoints.push({ x: center.x + nx, y: center.y + ny });
-        cornerPoints.push({ x: center.x - nx, y: center.y - ny });
-      }
-
-      // Compute convex hull of corner points for clean joint fill
-      const hull = convexHull(cornerPoints);
-      if (hull.length < 3) continue;
-
-      ctx.fillStyle = anySelected ? '#93c5fd' : '#404040';
-      ctx.strokeStyle = anySelected ? '#3b82f6' : '#333333';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(hull[0].x, hull[0].y);
-      for (let i = 1; i < hull.length; i++) {
-        ctx.lineTo(hull[i].x, hull[i].y);
-      }
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-    }
-  }
-
-  /** Compute convex hull of 2D points using Andrew's monotone chain algorithm */
-  function convexHull(points: { x: number; y: number }[]): { x: number; y: number }[] {
-    const pts = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
-    if (pts.length <= 2) return pts;
-
-    const cross = (O: { x: number; y: number }, A: { x: number; y: number }, B: { x: number; y: number }) =>
-      (A.x - O.x) * (B.y - O.y) - (A.y - O.y) * (B.x - O.x);
-
-    // Lower hull
-    const lower: { x: number; y: number }[] = [];
-    for (const p of pts) {
-      while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0)
-        lower.pop();
-      lower.push(p);
-    }
-
-    // Upper hull
-    const upper: { x: number; y: number }[] = [];
-    for (let i = pts.length - 1; i >= 0; i--) {
-      const p = pts[i];
-      while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0)
-        upper.pop();
-      upper.push(p);
-    }
-
-    // Remove last point of each half because it's repeated
-    lower.pop();
-    upper.pop();
-    return lower.concat(upper);
+    _drawWallJoints(getCS(), floor, selId);
   }
 
   function drawSnapPoints() {
-    if (!currentFloor || !showGrid) return;
-    ctx.fillStyle = '#3b82f640';
-    // Draw snap points at wall endpoints
-    const seen = new Set<string>();
-    for (const w of currentFloor.walls) {
-      for (const ep of [w.start, w.end]) {
-        const key = `${ep.x},${ep.y}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        const s = worldToScreen(ep.x, ep.y);
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, 2, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-  }
-
-  const ROOM_FILLS_BY_TYPE: Record<string, string> = {
-    'Living Room': 'rgba(96, 165, 250, 0.08)',   // blue
-    'Bedroom':     'rgba(167, 139, 250, 0.08)',   // violet
-    'Kitchen':     'rgba(251, 191, 36, 0.08)',    // amber
-    'Bathroom':    'rgba(45, 212, 191, 0.08)',    // teal
-    'Dining Room': 'rgba(251, 146, 60, 0.08)',    // orange
-    'Office':      'rgba(52, 211, 153, 0.08)',    // green
-    'Hallway':     'rgba(156, 163, 175, 0.06)',   // gray
-    'Closet':      'rgba(244, 114, 182, 0.06)',   // pink
-    'Laundry':     'rgba(129, 140, 248, 0.08)',   // indigo
-    'Garage':      'rgba(163, 163, 163, 0.08)',   // neutral
-  };
-  const ROOM_FILLS_DEFAULT = [
-    'rgba(167, 139, 250, 0.07)',
-    'rgba(96, 165, 250, 0.07)',
-    'rgba(52, 211, 153, 0.07)',
-    'rgba(251, 191, 36, 0.07)',
-    'rgba(248, 113, 113, 0.07)',
-    'rgba(244, 114, 182, 0.07)',
-    'rgba(45, 212, 191, 0.07)',
-    'rgba(251, 146, 60, 0.07)',
-  ];
-
-  function getRoomFill(room: Room, index: number): string {
-    if (room.color) {
-      // Convert hex color to rgba with low opacity for room fill
-      const hex = room.color.replace('#', '');
-      const r = parseInt(hex.substring(0, 2), 16);
-      const g = parseInt(hex.substring(2, 4), 16);
-      const b = parseInt(hex.substring(4, 6), 16);
-      return `rgba(${r}, ${g}, ${b}, 0.12)`;
-    }
-    return ROOM_FILLS_BY_TYPE[room.name] ?? ROOM_FILLS_DEFAULT[index % ROOM_FILLS_DEFAULT.length];
-  }
-
-  // Floor texture patterns for 2D room rendering
-  type FloorPatternType = 'wood' | 'tile' | 'stone' | 'none';
-  const ROOM_FLOOR_PATTERN: Record<string, FloorPatternType> = {
-    'Living Room': 'wood', 'Bedroom': 'wood', 'Office': 'wood', 'Dining Room': 'wood', 'Hallway': 'wood',
-    'Kitchen': 'tile', 'Bathroom': 'tile', 'Laundry': 'tile',
-    'Garage': 'stone', 'Closet': 'none',
-  };
-
-  function drawRoomFloorPattern(room: Room, screenPoly: {x:number,y:number}[]) {
-    // Try photo texture first
-    if (room.floorTexture) {
-      const texCanvas = getFloorTextureCanvas(room.floorTexture);
-      if (texCanvas) {
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(screenPoly[0].x, screenPoly[0].y);
-        for (let i = 1; i < screenPoly.length; i++) ctx.lineTo(screenPoly[i].x, screenPoly[i].y);
-        ctx.closePath();
-        ctx.clip();
-        ctx.globalAlpha = 0.5;
-        const scale = zoom * 0.15; // each texture tile ≈ 150cm
-        ctx.scale(scale, scale);
-        const pat = ctx.createPattern(texCanvas, 'repeat');
-        if (pat) {
-          ctx.fillStyle = pat;
-          let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-          for (const p of screenPoly) {
-            if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
-            if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
-          }
-          ctx.fillRect(minX / scale - 10, minY / scale - 10, (maxX - minX) / scale + 20, (maxY - minY) / scale + 20);
-        }
-        ctx.restore();
-        return;
-      }
-    }
-
-    // Fallback: old procedural patterns
-    const pattern = ROOM_FLOOR_PATTERN[room.name] ?? 'wood';
-    if (pattern === 'none' || zoom < 0.3) return;
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(screenPoly[0].x, screenPoly[0].y);
-    for (let i = 1; i < screenPoly.length; i++) ctx.lineTo(screenPoly[i].x, screenPoly[i].y);
-    ctx.closePath();
-    ctx.clip();
-
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (const p of screenPoly) {
-      if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
-      if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
-    }
-
-    const alpha = Math.min(0.12, 0.04 + zoom * 0.02);
-    ctx.strokeStyle = `rgba(120, 120, 120, ${alpha})`;
-    ctx.lineWidth = 0.5;
-
-    if (pattern === 'wood') {
-      const spacing = 15 * zoom;
-      if (spacing > 3) {
-        for (let y = minY; y <= maxY; y += spacing) {
-          ctx.beginPath(); ctx.moveTo(minX, y); ctx.lineTo(maxX, y); ctx.stroke();
-        }
-        const jointSpacing = 60 * zoom;
-        if (jointSpacing > 8) {
-          let row = 0;
-          for (let y = minY; y <= maxY; y += spacing) {
-            const offset = (row % 2) * jointSpacing * 0.5;
-            for (let x = minX + offset; x <= maxX; x += jointSpacing) {
-              ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + spacing); ctx.stroke();
-            }
-            row++;
-          }
-        }
-      }
-    } else if (pattern === 'tile') {
-      const tileSize = 30 * zoom;
-      if (tileSize > 5) {
-        for (let x = minX; x <= maxX; x += tileSize) { ctx.beginPath(); ctx.moveTo(x, minY); ctx.lineTo(x, maxY); ctx.stroke(); }
-        for (let y = minY; y <= maxY; y += tileSize) { ctx.beginPath(); ctx.moveTo(minX, y); ctx.lineTo(maxX, y); ctx.stroke(); }
-      }
-    } else if (pattern === 'stone') {
-      const spacing = 25 * zoom;
-      if (spacing > 5) {
-        const w = maxX - minX, h = maxY - minY;
-        for (let d = -h; d <= w; d += spacing) { ctx.beginPath(); ctx.moveTo(minX + d, minY); ctx.lineTo(minX + d + h, maxY); ctx.stroke(); }
-      }
-    }
-
-    ctx.restore();
+    if (!currentFloor) return;
+    _drawSnapPoints(getCS(), currentFloor, showGrid);
   }
 
   function drawRooms() {
     if (!currentFloor) return;
-    for (let ri = 0; ri < detectedRooms.length; ri++) {
-      const room = detectedRooms[ri];
-      const poly = getRoomPolygon(room, currentFloor.walls);
-      if (poly.length < 3) continue;
-      const screenPoly = poly.map(p => worldToScreen(p.x, p.y));
-      ctx.fillStyle = getRoomFill(room, ri);
-      ctx.beginPath();
-      ctx.moveTo(screenPoly[0].x, screenPoly[0].y);
-      for (let i = 1; i < screenPoly.length; i++) ctx.lineTo(screenPoly[i].x, screenPoly[i].y);
-      ctx.closePath();
-      ctx.fill();
-
-      // 2D floor texture pattern (subtle architectural hatching)
-      drawRoomFloorPattern(room, screenPoly);
-
-      const isSelected = currentSelectedRoomId === room.id;
-      if (isSelected) {
-        ctx.strokeStyle = '#3b82f6';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 3]);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-
-      const centroid = roomCentroid(poly);
-      // Apply custom label offset if set
-      const labelX = centroid.x + (room.labelOffset?.x ?? 0);
-      const labelY = centroid.y + (room.labelOffset?.y ?? 0);
-      const sc = worldToScreen(labelX, labelY);
-
-      // Calculate bounding box for dimensions
-      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-      for (const pt of poly) {
-        if (pt.x < minX) minX = pt.x;
-        if (pt.x > maxX) maxX = pt.x;
-        if (pt.y < minY) minY = pt.y;
-        if (pt.y > maxY) maxY = pt.y;
-      }
-      const roomW = maxX - minX;
-      const roomD = maxY - minY;
-
-      if (showRoomLabels) {
-        const nameFontSize = Math.max(12, 14 * zoom);
-        const areaFontSize = Math.max(10, 11 * zoom);
-        const dimFontSize = Math.max(9, 10 * zoom);
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-
-        // Room name (bold, larger)
-        ctx.fillStyle = '#64748b';
-        ctx.font = `bold ${nameFontSize}px sans-serif`;
-        let currentY = sc.y;
-        ctx.fillText(room.name, sc.x, currentY);
-
-        // Area (regular, smaller)
-        currentY += nameFontSize * 0.85;
-        ctx.fillStyle = '#9ca3af';
-        ctx.font = `${areaFontSize}px sans-serif`;
-        ctx.fillText(formatArea(room.area, dimSettings.units), sc.x, currentY);
-
-        // Width × Depth dimensions (lighter color)
-        if (roomW > 10 && roomD > 10) {
-          currentY += areaFontSize * 0.85;
-          ctx.fillStyle = '#b0b8c4';
-          ctx.font = `${dimFontSize}px sans-serif`;
-          ctx.fillText(`${formatLength(roomW, dimSettings.units)} × ${formatLength(roomD, dimSettings.units)}`, sc.x, currentY);
-        }
-
-        // Draw reset icon if label has custom offset
-        if (room.labelOffset && (room.labelOffset.x !== 0 || room.labelOffset.y !== 0)) {
-          const resetSize = Math.max(8, 9 * zoom);
-          const resetX = sc.x + ctx.measureText(room.name).width / 2 + resetSize;
-          const resetY = sc.y - nameFontSize * 0.3;
-          ctx.fillStyle = '#94a3b8';
-          ctx.font = `${resetSize}px sans-serif`;
-          ctx.fillText('↺', resetX, resetY);
-        }
-      }
-    }
+    _drawRooms(getCS(), currentFloor, detectedRooms, currentSelectedRoomId, showRoomLabels, showDimensions, dimSettings);
   }
 
   function drawAngleGuides(start: Point) {
@@ -2250,8 +794,6 @@
     if (hash === lastWallHash) return;
     lastWallHash = hash;
     const newRooms = detectRooms(currentFloor.walls);
-    // Preserve user-edited room data by matching on wall sets
-    // Check both in-memory detected rooms and persisted floor.rooms
     const savedRooms = currentFloor.rooms || [];
     for (const nr of newRooms) {
       const nrWalls = new Set(nr.walls);
@@ -2263,9 +805,7 @@
         nr.id = existing.id;
         nr.name = existing.name;
         nr.floorTexture = existing.floorTexture;
-        if (existing.labelOffset) nr.labelOffset = existing.labelOffset;
       } else {
-        // Check persisted rooms (for data that survives page reload)
         const saved = savedRooms.find(sr => {
           const srWalls = new Set(sr.walls);
           return srWalls.size === nrWalls.size && [...nrWalls].every(w => srWalls.has(w));
@@ -2274,7 +814,6 @@
           nr.id = saved.id;
           nr.name = saved.name;
           if (saved.floorTexture) nr.floorTexture = saved.floorTexture;
-          if (saved.labelOffset) nr.labelOffset = saved.labelOffset;
         }
       }
     }
@@ -2283,48 +822,16 @@
   }
 
   function drawGuides() {
-    if (!ctx || !currentFloor) return;
-    const guides = currentFloor.guides ?? [];
-    const R = RULER_SIZE;
-    for (const g of guides) {
-      const selected = g.id === selectedGuideId;
-      const color = g.orientation === 'horizontal' ? '#00bcd4' : '#e040fb'; // cyan / magenta
-      ctx.save();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = selected ? 1.5 : 1;
-      ctx.setLineDash([6, 4]);
-      ctx.globalAlpha = selected ? 1.0 : 0.7;
-      ctx.beginPath();
-      if (g.orientation === 'horizontal') {
-        const sy = worldToScreen(0, g.position).y;
-        ctx.moveTo(R, sy);
-        ctx.lineTo(width, sy);
-      } else {
-        const sx = worldToScreen(g.position, 0).x;
-        ctx.moveTo(sx, R);
-        ctx.lineTo(sx, height);
-      }
-      ctx.stroke();
-      ctx.setLineDash([]);
+    if (!currentFloor) return;
+    _drawGuides(getCS(), currentFloor, selectedGuideId, RULER_SIZE);
+  }
 
-      // Label
-      ctx.font = '10px sans-serif';
-      ctx.fillStyle = color;
-      ctx.globalAlpha = 1;
-      const label = formatLength(g.position);
-      if (g.orientation === 'horizontal') {
-        const sy = worldToScreen(0, g.position).y;
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'bottom';
-        ctx.fillText(label, R + 4, sy - 2);
-      } else {
-        const sx = worldToScreen(g.position, 0).x;
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'top';
-        ctx.fillText(label, sx + 4, R + 2);
-      }
-      ctx.restore();
-    }
+  function drawStair(stair: Stair, selected: boolean) {
+    _drawStair(getCS(), stair, selected);
+  }
+
+  function drawColumn(col: Column, selected: boolean) {
+    _drawColumn(getCS(), col, selected);
   }
 
   function drawRulers() {
@@ -2471,312 +978,16 @@
     ctx.restore();
   }
 
-  function drawStairArrow(w: number, d: number, direction: 'up' | 'down', selected: boolean) {
-    ctx.fillStyle = selected ? '#3b82f6' : '#555';
-    ctx.strokeStyle = selected ? '#3b82f6' : '#555';
-    ctx.lineWidth = 1.5;
-    const arrowY = direction === 'up' ? -d / 2 + d * 0.15 : d / 2 - d * 0.15;
-    const arrowDir = direction === 'up' ? -1 : 1;
-    ctx.beginPath();
-    ctx.moveTo(0, arrowY + arrowDir * d * 0.3);
-    ctx.lineTo(0, arrowY);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(0, arrowY);
-    ctx.lineTo(-w * 0.1, arrowY + arrowDir * d * 0.08);
-    ctx.lineTo(w * 0.1, arrowY + arrowDir * d * 0.08);
-    ctx.closePath();
-    ctx.fill();
-  }
 
-  function drawStairLabel(w: number, d: number, stair: Stair, selected: boolean) {
-    ctx.fillStyle = '#374151';
-    ctx.font = `${Math.max(8, 10 * zoom)}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const sType = stair.stairType || 'straight';
-    const typeLabel = sType === 'straight' ? '' : ` (${sType})`;
-    ctx.fillText((stair.direction === 'up' ? 'UP' : 'DN') + typeLabel, 0, 0);
-  }
-
-  function drawStair(stair: Stair, selected: boolean) {
-    const s = worldToScreen(stair.position.x, stair.position.y);
-    const w = stair.width * zoom;
-    const d = stair.depth * zoom;
-    const angle = (stair.rotation * Math.PI) / 180;
-    const type = stair.stairType || 'straight';
-
-    ctx.save();
-    ctx.translate(s.x, s.y);
-    ctx.rotate(angle);
-
-    const fillCol = selected ? '#bfdbfe80' : '#e5e7eb80';
-    const strokeCol = selected ? '#3b82f6' : '#555';
-    const treadCol = selected ? '#3b82f6' : '#888';
-
-    if (type === 'straight') {
-      // Outline
-      ctx.fillStyle = fillCol;
-      ctx.strokeStyle = strokeCol;
-      ctx.lineWidth = selected ? 2 : 1;
-      ctx.fillRect(-w / 2, -d / 2, w, d);
-      ctx.strokeRect(-w / 2, -d / 2, w, d);
-      // Tread lines
-      const treadSpacing = d / stair.riserCount;
-      ctx.strokeStyle = treadCol;
-      ctx.lineWidth = 0.5;
-      for (let i = 1; i < stair.riserCount; i++) {
-        const y = -d / 2 + i * treadSpacing;
-        ctx.beginPath();
-        ctx.moveTo(-w / 2, y);
-        ctx.lineTo(w / 2, y);
-        ctx.stroke();
-      }
-      drawStairArrow(w, d, stair.direction, selected);
-      drawStairLabel(w, d, stair, selected);
-
-    } else if (type === 'l-shaped') {
-      // L-shaped: first run goes up half the depth, then turns right for second run
-      const halfRisers = Math.floor(stair.riserCount / 2);
-      const run1D = d / 2;
-      const run2W = d / 2;
-      // First run (bottom half)
-      ctx.fillStyle = fillCol;
-      ctx.strokeStyle = strokeCol;
-      ctx.lineWidth = selected ? 2 : 1;
-      ctx.fillRect(-w / 2, 0, w, run1D);
-      ctx.strokeRect(-w / 2, 0, w, run1D);
-      // Tread lines for first run
-      ctx.strokeStyle = treadCol;
-      ctx.lineWidth = 0.5;
-      const t1 = run1D / halfRisers;
-      for (let i = 1; i < halfRisers; i++) {
-        const y = i * t1;
-        ctx.beginPath();
-        ctx.moveTo(-w / 2, y);
-        ctx.lineTo(w / 2, y);
-        ctx.stroke();
-      }
-      // Landing square
-      ctx.fillStyle = fillCol;
-      ctx.strokeStyle = strokeCol;
-      ctx.lineWidth = selected ? 2 : 1;
-      ctx.fillRect(-w / 2, -w / 2, w, w / 2);
-      ctx.strokeRect(-w / 2, -w / 2, w, w / 2);
-      // Second run (turns right)
-      const run2Risers = stair.riserCount - halfRisers;
-      ctx.fillRect(w / 2, -w / 2, run2W, w);
-      ctx.strokeRect(w / 2, -w / 2, run2W, w);
-      // Tread lines for second run (vertical)
-      ctx.strokeStyle = treadCol;
-      ctx.lineWidth = 0.5;
-      const t2 = run2W / run2Risers;
-      for (let i = 1; i < run2Risers; i++) {
-        const x = w / 2 + i * t2;
-        ctx.beginPath();
-        ctx.moveTo(x, -w / 2);
-        ctx.lineTo(x, w / 2);
-        ctx.stroke();
-      }
-      // Arrow in first run
-      ctx.fillStyle = selected ? '#3b82f6' : '#555';
-      ctx.strokeStyle = selected ? '#3b82f6' : '#555';
-      ctx.lineWidth = 1.5;
-      const ay = run1D * 0.7;
-      ctx.beginPath(); ctx.moveTo(0, ay); ctx.lineTo(0, ay - run1D * 0.3); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0, ay - run1D * 0.3); ctx.lineTo(-w * 0.08, ay - run1D * 0.22); ctx.lineTo(w * 0.08, ay - run1D * 0.22); ctx.closePath(); ctx.fill();
-      // Label
-      drawStairLabel(w, d, stair, selected);
-
-    } else if (type === 'u-shaped') {
-      // U-shaped: two parallel runs connected by a landing
-      const halfRisers = Math.floor(stair.riserCount / 2);
-      const runW = (w - w * 0.15) / 2; // each run width, with gap
-      const gap = w * 0.15;
-      // Left run (going up)
-      ctx.fillStyle = fillCol;
-      ctx.strokeStyle = strokeCol;
-      ctx.lineWidth = selected ? 2 : 1;
-      ctx.fillRect(-w / 2, -d / 2, runW, d);
-      ctx.strokeRect(-w / 2, -d / 2, runW, d);
-      // Tread lines left run
-      ctx.strokeStyle = treadCol;
-      ctx.lineWidth = 0.5;
-      const tU = d / halfRisers;
-      for (let i = 1; i < halfRisers; i++) {
-        const y = -d / 2 + i * tU;
-        ctx.beginPath();
-        ctx.moveTo(-w / 2, y);
-        ctx.lineTo(-w / 2 + runW, y);
-        ctx.stroke();
-      }
-      // Right run (coming back)
-      const run2Risers = stair.riserCount - halfRisers;
-      ctx.fillStyle = fillCol;
-      ctx.strokeStyle = strokeCol;
-      ctx.lineWidth = selected ? 2 : 1;
-      ctx.fillRect(w / 2 - runW, -d / 2, runW, d);
-      ctx.strokeRect(w / 2 - runW, -d / 2, runW, d);
-      // Tread lines right run
-      ctx.strokeStyle = treadCol;
-      ctx.lineWidth = 0.5;
-      const tU2 = d / run2Risers;
-      for (let i = 1; i < run2Risers; i++) {
-        const y = -d / 2 + i * tU2;
-        ctx.beginPath();
-        ctx.moveTo(w / 2 - runW, y);
-        ctx.lineTo(w / 2, y);
-        ctx.stroke();
-      }
-      // Landing at top connecting both runs
-      ctx.fillStyle = fillCol;
-      ctx.strokeStyle = strokeCol;
-      ctx.lineWidth = selected ? 2 : 1;
-      ctx.fillRect(-w / 2, -d / 2 - w * 0.1, w, w * 0.1);
-      ctx.strokeRect(-w / 2, -d / 2 - w * 0.1, w, w * 0.1);
-      // Arrows
-      ctx.fillStyle = selected ? '#3b82f6' : '#555';
-      ctx.strokeStyle = selected ? '#3b82f6' : '#555';
-      ctx.lineWidth = 1.5;
-      // Up arrow in left run
-      const lx = -w / 2 + runW / 2;
-      ctx.beginPath(); ctx.moveTo(lx, 0); ctx.lineTo(lx, -d * 0.2); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(lx, -d * 0.2); ctx.lineTo(lx - runW * 0.15, -d * 0.14); ctx.lineTo(lx + runW * 0.15, -d * 0.14); ctx.closePath(); ctx.fill();
-      // Down arrow in right run
-      const rx = w / 2 - runW / 2;
-      ctx.beginPath(); ctx.moveTo(rx, 0); ctx.lineTo(rx, d * 0.2); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(rx, d * 0.2); ctx.lineTo(rx - runW * 0.15, d * 0.14); ctx.lineTo(rx + runW * 0.15, d * 0.14); ctx.closePath(); ctx.fill();
-      drawStairLabel(w, d, stair, selected);
-
-    } else if (type === 'spiral') {
-      // Spiral: circle with radiating tread lines
-      const r = Math.min(w, d) / 2;
-      ctx.fillStyle = fillCol;
-      ctx.strokeStyle = strokeCol;
-      ctx.lineWidth = selected ? 2 : 1;
-      ctx.beginPath();
-      ctx.arc(0, 0, r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      // Inner post
-      const postR = r * 0.12;
-      ctx.fillStyle = strokeCol;
-      ctx.beginPath();
-      ctx.arc(0, 0, postR, 0, Math.PI * 2);
-      ctx.fill();
-      // Tread lines radiating from center
-      ctx.strokeStyle = treadCol;
-      ctx.lineWidth = 0.5;
-      const totalAngle = Math.PI * 1.75; // 315 degrees of spiral
-      const startAngle = -Math.PI / 2;
-      for (let i = 0; i <= stair.riserCount; i++) {
-        const a = startAngle + (i / stair.riserCount) * totalAngle;
-        ctx.beginPath();
-        ctx.moveTo(postR * Math.cos(a), postR * Math.sin(a));
-        ctx.lineTo(r * Math.cos(a), r * Math.sin(a));
-        ctx.stroke();
-      }
-      // Spiral direction arrow (arc arrow)
-      ctx.strokeStyle = selected ? '#3b82f6' : '#555';
-      ctx.fillStyle = selected ? '#3b82f6' : '#555';
-      ctx.lineWidth = 1.5;
-      const arrowR = r * 0.7;
-      const aEnd = startAngle + totalAngle * 0.85;
-      const aDir = stair.direction === 'up' ? 1 : -1;
-      ctx.beginPath();
-      ctx.arc(0, 0, arrowR, startAngle + totalAngle * 0.15, aEnd, false);
-      ctx.stroke();
-      // Arrowhead at end of arc
-      const ax = arrowR * Math.cos(aEnd);
-      const ay = arrowR * Math.sin(aEnd);
-      const tangent = aEnd + Math.PI / 2;
-      ctx.beginPath();
-      ctx.moveTo(ax, ay);
-      ctx.lineTo(ax + 6 * Math.cos(tangent + 0.4), ay + 6 * Math.sin(tangent + 0.4));
-      ctx.lineTo(ax + 6 * Math.cos(tangent - 0.4), ay + 6 * Math.sin(tangent - 0.4));
-      ctx.closePath();
-      ctx.fill();
-      // Label
-      ctx.fillStyle = '#374151';
-      ctx.font = `${Math.max(8, 10 * zoom)}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(stair.direction === 'up' ? 'UP' : 'DN', 0, r + 12 * zoom);
-    }
-
-    if (selected) {
-      ctx.strokeStyle = '#3b82f6';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 3]);
-      const bw = type === 'spiral' ? Math.min(w, d) : w;
-      const bd = type === 'spiral' ? Math.min(w, d) : d;
-      ctx.strokeRect(-bw / 2 - 2, -bd / 2 - 2, bw + 4, bd + 4);
-      ctx.setLineDash([]);
-    }
-
-    ctx.restore();
-  }
-
-  function drawColumn(col: Column, selected: boolean) {
-    const s = worldToScreen(col.position.x, col.position.y);
-    const r = (col.diameter / 2) * zoom;
-
-    ctx.save();
-    ctx.translate(s.x, s.y);
-
-    if (col.shape === 'round') {
-      ctx.beginPath();
-      ctx.arc(0, 0, r, 0, Math.PI * 2);
-      ctx.fillStyle = selected ? '#bfdbfe' : col.color;
-      ctx.fill();
-      ctx.strokeStyle = selected ? '#3b82f6' : '#555';
-      ctx.lineWidth = selected ? 2 : 1;
-      ctx.stroke();
-      // Cross lines for architectural convention
-      ctx.strokeStyle = selected ? '#3b82f680' : '#88888880';
-      ctx.lineWidth = 0.5;
-      ctx.beginPath();
-      ctx.moveTo(-r, -r); ctx.lineTo(r, r);
-      ctx.moveTo(-r, r); ctx.lineTo(r, -r);
-      ctx.stroke();
-    } else {
-      const angle = (col.rotation * Math.PI) / 180;
-      ctx.rotate(angle);
-      const side = col.diameter * zoom;
-      ctx.fillStyle = selected ? '#bfdbfe' : col.color;
-      ctx.fillRect(-side / 2, -side / 2, side, side);
-      ctx.strokeStyle = selected ? '#3b82f6' : '#555';
-      ctx.lineWidth = selected ? 2 : 1;
-      ctx.strokeRect(-side / 2, -side / 2, side, side);
-      // Cross lines
-      ctx.strokeStyle = selected ? '#3b82f680' : '#88888880';
-      ctx.lineWidth = 0.5;
-      ctx.beginPath();
-      ctx.moveTo(-side / 2, -side / 2); ctx.lineTo(side / 2, side / 2);
-      ctx.moveTo(-side / 2, side / 2); ctx.lineTo(side / 2, -side / 2);
-      ctx.stroke();
-    }
-
-    if (selected) {
-      ctx.strokeStyle = '#3b82f6';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 3]);
-      if (col.shape === 'round') {
-        ctx.beginPath();
-        ctx.arc(0, 0, r + 4, 0, Math.PI * 2);
-        ctx.stroke();
-      } else {
-        const side = col.diameter * zoom;
-        ctx.strokeRect(-side / 2 - 4, -side / 2 - 4, side + 8, side + 8);
-      }
-      ctx.setLineDash([]);
-    }
-
-    ctx.restore();
+  function scheduleDraw() {
+    markDirty();
+    requestAnimationFrame(draw);
   }
 
   function draw() {
     if (!ctx) return;
+    if (!canvasDirty) { requestAnimationFrame(draw); return; }
+    canvasDirty = false;
     ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = '#f8f9fa';
     ctx.fillRect(0, 0, width, height);
@@ -2786,6 +997,14 @@
 
     const floor = currentFloor;
     if (!floor) { requestAnimationFrame(draw); return; }
+    // Mark dirty whenever active interactions are happening (wall drawing, dragging, etc.)
+    if (wallStart || draggingFurnitureId || draggingDoorId || draggingWindowId || draggingStairId ||
+        draggingColumnId || draggingWallEndpoint || draggingWallParallel || draggingCurveHandle ||
+        draggingHandle || draggingMultiSelect || draggingRoomId || draggingRoomLabelId ||
+        draggingTextAnnotationId || draggingGuideId || measuring || annotating ||
+        currentPlacingId || isPlacingStair || isPlacingColumn || marqueeStart || isPanning) {
+      canvasDirty = true;
+    }
 
     updateDetectedRooms();
     const selId = currentSelectedId;
@@ -3324,27 +1543,28 @@
     resizeObs.observe(canvas.parentElement!);
     requestAnimationFrame(draw);
 
-    const unsub1 = activeFloor.subscribe((f) => { currentFloor = f; });
-    const unsub2 = selectedElementId.subscribe((id) => { currentSelectedId = id; });
-    const unsub3 = selectedRoomId.subscribe((id) => { currentSelectedRoomId = id; });
-    const unsub4 = placingFurnitureId.subscribe((id) => { currentPlacingId = id; });
-    const unsub5 = placingRotation.subscribe((r) => { currentPlacingRotation = r; });
+    const unsub1 = activeFloor.subscribe((f) => { currentFloor = f; markDirty(); });
+    const unsub2 = selectedElementId.subscribe((id) => { currentSelectedId = id; markDirty(); });
+    const unsub3 = selectedRoomId.subscribe((id) => { currentSelectedRoomId = id; markDirty(); });
+    const unsub4 = placingFurnitureId.subscribe((id) => { currentPlacingId = id; markDirty(); });
+    const unsub5 = placingRotation.subscribe((r) => { currentPlacingRotation = r; markDirty(); });
     const unsub6 = selectedTool.subscribe((t) => {
       currentTool = t;
       textAnnotationMode = t === 'text';
       if (t !== 'text') { editingTextAnnotationId = null; }
+      markDirty();
     });
-    const unsub7 = detectedRoomsStore.subscribe((rooms) => { if (rooms.length > 0) detectedRooms = rooms; });
-    const unsub8 = placingDoorType.subscribe((t) => { currentDoorType = t; });
-    const unsub9 = placingWindowType.subscribe((t) => { currentWindowType = t; });
-    const unsub10 = snapEnabled.subscribe((v) => { currentSnapEnabled = v; });
-    const unsub_snapgrid = projectSettings.subscribe((s) => { currentSnapToGrid = s.snapToGrid; currentGridSize = s.gridSize; });
-    const unsub11 = placingStair.subscribe((v) => { isPlacingStair = v; });
-    const unsub_col = placingColumn.subscribe((v) => { isPlacingColumn = v; });
-    const unsub_cols = placingColumnShape.subscribe((v) => { placingColShape = v; });
-    const unsub12 = calibrationMode.subscribe((v) => { isCalibrating = v; });
-    const unsub13 = calibrationPoints.subscribe((pts) => { calPoints = pts; });
-    const unsub_multi = selectedElementIds.subscribe((ids) => { currentSelectedIds = ids; });
+    const unsub7 = detectedRoomsStore.subscribe((rooms) => { if (rooms.length > 0) detectedRooms = rooms; markDirty(); });
+    const unsub8 = placingDoorType.subscribe((t) => { currentDoorType = t; markDirty(); });
+    const unsub9 = placingWindowType.subscribe((t) => { currentWindowType = t; markDirty(); });
+    const unsub10 = snapEnabled.subscribe((v) => { currentSnapEnabled = v; markDirty(); });
+    const unsub_snapgrid = projectSettings.subscribe((s) => { currentSnapToGrid = s.snapToGrid; currentGridSize = s.gridSize; markDirty(); });
+    const unsub11 = placingStair.subscribe((v) => { isPlacingStair = v; markDirty(); });
+    const unsub_col = placingColumn.subscribe((v) => { isPlacingColumn = v; markDirty(); });
+    const unsub_cols = placingColumnShape.subscribe((v) => { placingColShape = v; markDirty(); });
+    const unsub12 = calibrationMode.subscribe((v) => { isCalibrating = v; markDirty(); });
+    const unsub13 = calibrationPoints.subscribe((pts) => { calPoints = pts; markDirty(); });
+    const unsub_multi = selectedElementIds.subscribe((ids) => { currentSelectedIds = ids; markDirty(); });
     const unsub14 = activeFloor.subscribe((f) => {
       if (f?.backgroundImage?.dataUrl && (!bgImage || bgImage.src !== f.backgroundImage.dataUrl)) {
         const img = new Image();
@@ -3375,76 +1595,7 @@
 
   function drawMinimap() {
     if (!showMinimap || !minimapCanvas || !currentFloor) return;
-    const mctx = minimapCanvas.getContext('2d');
-    if (!mctx) return;
-    const mw = minimapCanvas.width;
-    const mh = minimapCanvas.height;
-    mctx.clearRect(0, 0, mw, mh);
-
-    const bbox = getWorldBBox();
-    if (!bbox) return;
-
-    // Background
-    mctx.fillStyle = '#f0f1f3';
-    mctx.fillRect(0, 0, mw, mh);
-
-    const bw = bbox.maxX - bbox.minX;
-    const bh = bbox.maxY - bbox.minY;
-    if (bw < 1 || bh < 1) return;
-    const scale = Math.min((mw - 8) / bw, (mh - 8) / bh);
-    const ox = (mw - bw * scale) / 2;
-    const oy = (mh - bh * scale) / 2;
-
-    function toMini(wx: number, wy: number) {
-      return { x: ox + (wx - bbox!.minX) * scale, y: oy + (wy - bbox!.minY) * scale };
-    }
-
-    // Draw walls as thin lines
-    mctx.strokeStyle = '#555';
-    mctx.lineWidth = Math.max(1, 2 * scale);
-    for (const w of currentFloor!.walls) {
-      const s = toMini(w.start.x, w.start.y);
-      const e = toMini(w.end.x, w.end.y);
-      mctx.beginPath();
-      if (w.curvePoint) {
-        const cp = toMini(w.curvePoint.x, w.curvePoint.y);
-        mctx.moveTo(s.x, s.y);
-        mctx.quadraticCurveTo(cp.x, cp.y, e.x, e.y);
-      } else {
-        mctx.moveTo(s.x, s.y);
-        mctx.lineTo(e.x, e.y);
-      }
-      mctx.stroke();
-    }
-
-    // Draw furniture as small colored rectangles
-    for (const fi of currentFloor!.furniture) {
-      const cat = getCatalogItem(fi.catalogId);
-      if (!cat) continue;
-      const p = toMini(fi.position.x, fi.position.y);
-      const fw = Math.max(2, (fi.width ?? cat.width) * scale);
-      const fd = Math.max(2, (fi.depth ?? cat.depth) * scale);
-      mctx.fillStyle = (fi.color ?? cat.color) + 'aa';
-      mctx.fillRect(p.x - fw / 2, p.y - fd / 2, fw, fd);
-    }
-
-    // Draw viewport rectangle
-    const vpTopLeft = screenToWorld(0, 0);
-    const vpBottomRight = screenToWorld(width, height);
-    const vtl = toMini(vpTopLeft.x, vpTopLeft.y);
-    const vbr = toMini(vpBottomRight.x, vpBottomRight.y);
-    mctx.strokeStyle = '#3b82f6';
-    mctx.lineWidth = 1.5;
-    mctx.fillStyle = 'rgba(59, 130, 246, 0.1)';
-    const vw = vbr.x - vtl.x;
-    const vh = vbr.y - vtl.y;
-    mctx.fillRect(vtl.x, vtl.y, vw, vh);
-    mctx.strokeRect(vtl.x, vtl.y, vw, vh);
-
-    // Border
-    mctx.strokeStyle = '#cbd5e1';
-    mctx.lineWidth = 1;
-    mctx.strokeRect(0, 0, mw, mh);
+    _drawMinimap(getCS(), minimapCanvas, currentFloor, getWorldBBox);
   }
 
   function onMinimapClick(e: MouseEvent) {
@@ -3529,118 +1680,41 @@
     zoom = Math.max(zoom, 0.1);
   }
 
+  // ── Hit-testing wrappers (delegating to hitTesting.ts) ──────────────
+
   function findWallAt(p: Point): Wall | null {
     if (!currentFloor) return null;
-    const threshold = 15 / zoom;
-    for (const w of currentFloor.walls) {
-      if (w.curvePoint) {
-        // Check distance to bezier curve by sampling
-        for (let i = 0; i <= 20; i++) {
-          const pt = wallPointAt(w, i / 20);
-          if (Math.hypot(p.x - pt.x, p.y - pt.y) < threshold + w.thickness / 2) return w;
-        }
-      } else {
-        if (pointToSegmentDist(p, w.start, w.end) < threshold) return w;
-      }
-    }
-    return null;
+    return _findWallAt(p, currentFloor.walls, zoom);
   }
 
   function findHandleAt(p: Point): HandleType | null {
-    if (!currentFloor || !currentSelectedId) return null;
-    const fi = currentFloor.furniture.find(f => f.id === currentSelectedId);
-    if (!fi) return null;
-    const cat = getCatalogItem(fi.catalogId);
-    if (!cat) return null;
-    const dx = p.x - fi.position.x;
-    const dy = p.y - fi.position.y;
-    const angle = -(fi.rotation * Math.PI) / 180;
-    const rx = dx * Math.cos(angle) - dy * Math.sin(angle);
-    const ry = dx * Math.sin(angle) + dy * Math.cos(angle);
-    const hw = cat.width * Math.abs(fi.scale?.x ?? 1) / 2;
-    const hd = cat.depth * Math.abs(fi.scale?.y ?? 1) / 2;
-    const ht = 8 / zoom; // handle tolerance in world coords
-
-    // Rotation handle (above the top)
-    const rotHandleDist = 18 / zoom;
-    if (Math.abs(rx) < ht && Math.abs(ry - (-hd - rotHandleDist)) < ht) return 'rotate';
-
-    // Corner resize handles
-    if (Math.abs(rx - (-hw)) < ht && Math.abs(ry - (-hd)) < ht) return 'resize-tl';
-    if (Math.abs(rx - hw) < ht && Math.abs(ry - (-hd)) < ht) return 'resize-tr';
-    if (Math.abs(rx - (-hw)) < ht && Math.abs(ry - hd) < ht) return 'resize-bl';
-    if (Math.abs(rx - hw) < ht && Math.abs(ry - hd) < ht) return 'resize-br';
-
-    return null;
+    if (!currentFloor) return null;
+    return _findHandleAt(p, currentSelectedId, currentFloor.furniture, zoom);
   }
 
   function findFurnitureAt(p: Point): FurnitureItem | null {
     if (!currentFloor) return null;
-    for (const fi of [...currentFloor.furniture].reverse()) {
-      const cat = getCatalogItem(fi.catalogId);
-      if (!cat) continue;
-      const dx = p.x - fi.position.x;
-      const dy = p.y - fi.position.y;
-      const angle = -(fi.rotation * Math.PI) / 180;
-      const rx = dx * Math.cos(angle) - dy * Math.sin(angle);
-      const ry = dx * Math.sin(angle) + dy * Math.cos(angle);
-      const hw = cat.width * Math.abs(fi.scale?.x ?? 1) / 2;
-      const hd = cat.depth * Math.abs(fi.scale?.y ?? 1) / 2;
-      if (Math.abs(rx) < hw && Math.abs(ry) < hd) return fi;
-    }
-    return null;
+    return _findFurnitureAt(p, currentFloor.furniture);
   }
 
   function findColumnAt(p: Point): Column | null {
-    if (!currentFloor?.columns) return null;
-    for (const col of [...currentFloor.columns].reverse()) {
-      const dx = p.x - col.position.x;
-      const dy = p.y - col.position.y;
-      if (col.shape === 'round') {
-        if (Math.hypot(dx, dy) < col.diameter / 2) return col;
-      } else {
-        const angle = -(col.rotation * Math.PI) / 180;
-        const rx = dx * Math.cos(angle) - dy * Math.sin(angle);
-        const ry = dx * Math.sin(angle) + dy * Math.cos(angle);
-        if (Math.abs(rx) < col.diameter / 2 && Math.abs(ry) < col.diameter / 2) return col;
-      }
-    }
-    return null;
+    if (!currentFloor) return null;
+    return _findColumnAt(p, currentFloor.columns);
   }
 
   function findStairAt(p: Point): Stair | null {
-    if (!currentFloor?.stairs) return null;
-    for (const stair of [...currentFloor.stairs].reverse()) {
-      const dx = p.x - stair.position.x;
-      const dy = p.y - stair.position.y;
-      const angle = -(stair.rotation * Math.PI) / 180;
-      const rx = dx * Math.cos(angle) - dy * Math.sin(angle);
-      const ry = dx * Math.sin(angle) + dy * Math.cos(angle);
-      if (Math.abs(rx) < stair.width / 2 && Math.abs(ry) < stair.depth / 2) return stair;
-    }
-    return null;
+    if (!currentFloor) return null;
+    return _findStairAt(p, currentFloor.stairs);
   }
 
   function findDoorAt(p: Point): Door | null {
     if (!currentFloor) return null;
-    for (const d of currentFloor.doors) {
-      const wall = currentFloor.walls.find(w => w.id === d.wallId);
-      if (!wall) continue;
-      const cp = wallPointAt(wall, d.position);
-      if (Math.hypot(p.x - cp.x, p.y - cp.y) < (d.width / 2 + 5) / zoom) return d;
-    }
-    return null;
+    return _findDoorAt(p, currentFloor.doors, currentFloor.walls, zoom);
   }
 
   function findWindowAt(p: Point): Win | null {
     if (!currentFloor) return null;
-    for (const w of currentFloor.windows) {
-      const wall = currentFloor.walls.find(wl => wl.id === w.wallId);
-      if (!wall) continue;
-      const cp = wallPointAt(wall, w.position);
-      if (Math.hypot(p.x - cp.x, p.y - cp.y) < (w.width / 2 + 5) / zoom) return w;
-    }
-    return null;
+    return _findWindowAt(p, currentFloor.windows, currentFloor.walls, zoom);
   }
 
   function findRoomLabelAt(p: Point): Room | null {
@@ -3673,52 +1747,13 @@
 
   function findRoomAt(p: Point): Room | null {
     if (!currentFloor) return null;
-    for (const room of detectedRooms) {
-      const poly = getRoomPolygon(room, currentFloor.walls);
-      if (pointInPolygon(p, poly)) return room;
-    }
-    return null;
+    return _findRoomAt(p, detectedRooms, currentFloor.walls);
   }
 
-  function pointInPolygonLocal(p: Point, poly: Point[]): boolean {
-    let inside = false;
-    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-      if ((poly[i].y > p.y) !== (poly[j].y > p.y) &&
-          p.x < (poly[j].x - poly[i].x) * (p.y - poly[i].y) / (poly[j].y - poly[i].y) + poly[i].x) {
-        inside = !inside;
-      }
-    }
-    return inside;
-  }
-
-  function pointToSegmentDist(p: Point, a: Point, b: Point): number {
-    const dx = b.x - a.x, dy = b.y - a.y;
-    const len2 = dx * dx + dy * dy;
-    if (len2 === 0) return Math.hypot(p.x - a.x, p.y - a.y);
-    let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
-    t = Math.max(0, Math.min(1, t));
-    return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
-  }
-
-  function positionOnWall(p: Point, w: Wall): number {
-    if (w.curvePoint) {
-      // Find closest t on bezier by sampling
-      let bestT = 0.5, bestDist = Infinity;
-      for (let i = 0; i <= 40; i++) {
-        const t = i / 40;
-        const pt = wallPointAt(w, t);
-        const d = Math.hypot(p.x - pt.x, p.y - pt.y);
-        if (d < bestDist) { bestDist = d; bestT = t; }
-      }
-      return Math.max(0.1, Math.min(0.9, bestT));
-    }
-    const dx = w.end.x - w.start.x, dy = w.end.y - w.start.y;
-    const len2 = dx * dx + dy * dy;
-    if (len2 === 0) return 0.5;
-    return Math.max(0.1, Math.min(0.9, ((p.x - w.start.x) * dx + (p.y - w.start.y) * dy) / len2));
-  }
+  // pointInPolygon, pointToSegmentDist, positionOnWall imported from hitTesting.ts
 
   function onMouseDown(e: MouseEvent) {
+    markDirty();
     if (e.button === 1 || (e.button === 0 && (spaceDown || $panMode || (e.shiftKey && currentTool === 'select')))) {
       isPanning = true;
       panStartX = e.clientX;
@@ -4191,6 +2226,7 @@
   }
 
   function onMouseMove(e: MouseEvent) {
+    markDirty();
     const rect = canvas.getBoundingClientRect();
     mousePos = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
 
@@ -4431,6 +2467,7 @@
   }
 
   function onMouseUp(e: MouseEvent) {
+    markDirty();
     isPanning = false;
     draggingGuideId = null;
 
@@ -4541,6 +2578,7 @@
   }
 
   function onWheel(e: WheelEvent) {
+    markDirty();
     e.preventDefault();
     if (currentPlacingId && !e.ctrlKey) {
       // Rotate furniture preview

@@ -23,6 +23,10 @@
   let scene: THREE.Scene;
   let camera: THREE.PerspectiveCamera;
   let controls: OrbitControls;
+
+  // Dirty flag — only render when scene changes or camera moves
+  let sceneDirty = true;
+  function markSceneDirty() { sceneDirty = true; }
   let pointerControls: PointerLockControls;
   let animId: number;
   let currentFloor: Floor | null = null;
@@ -108,10 +112,12 @@
       dist * Math.sin(elRad),
       dist * Math.cos(elRad) * Math.cos(azRad)
     );
+    markSceneDirty();
   }
 
   function updateAmbientIntensity() {
     if (ambientLight) ambientLight.intensity = ambientIntensity;
+    markSceneDirty();
   }
 
   function updateSkyGradient(topColor: string, midColor: string, horizonColor: string) {
@@ -227,6 +233,8 @@
     controls.dampingFactor = 0.08;
     controls.target.set(0, 100, 0);
     controls.maxPolarAngle = Math.PI / 2.05;
+    // Mark dirty when orbit controls move the camera
+    controls.addEventListener('change', markSceneDirty);
 
     // Click-to-select walls via raycasting
     let pointerDownPos = { x: 0, y: 0 };
@@ -351,8 +359,8 @@
     sunLight = new THREE.DirectionalLight(0xfff8e7, 1.0);
     sunLight.position.set(500, 1200, 800);
     sunLight.castShadow = true;
-    sunLight.shadow.mapSize.width = 2048;
-    sunLight.shadow.mapSize.height = 2048;
+    sunLight.shadow.mapSize.width = 1024;
+    sunLight.shadow.mapSize.height = 1024;
     sunLight.shadow.camera.left = -1500;
     sunLight.shadow.camera.right = 1500;
     sunLight.shadow.camera.top = 1500;
@@ -1254,6 +1262,7 @@
     } else if (currentFloor) {
       buildWalls(currentFloor);
     }
+    markSceneDirty();
   }
 
   interface WallSegment {
@@ -1370,6 +1379,7 @@
         child.material.needsUpdate = true;
       }
     });
+    markSceneDirty();
   }
 
   function viewTopDown() {
@@ -1462,16 +1472,15 @@
       
       direction.z = Number(moveForward) - Number(moveBackward);
       direction.x = Number(moveRight) - Number(moveLeft);
-      direction.normalize(); // Ensures consistent movement regardless of diagonal movement
+      direction.normalize();
       
       if (moveForward || moveBackward) velocity.z -= direction.z * speed * delta;
       if (moveLeft || moveRight) velocity.x -= direction.x * speed * delta;
       
       pointerControls.moveRight(-velocity.x * delta);
       pointerControls.moveForward(-velocity.z * delta);
-      camera.position.y = eyeHeight; // Keep at eye height
+      camera.position.y = eyeHeight;
 
-      // WASD look rotation
       if (lookLeft || lookRight) {
         const yaw = ((lookLeft ? 1 : 0) - (lookRight ? 1 : 0)) * LOOK_SPEED * delta;
         camera.rotation.y += yaw;
@@ -1480,11 +1489,16 @@
         const pitch = ((lookUp ? 1 : 0) - (lookDown ? 1 : 0)) * LOOK_SPEED * delta;
         camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x + pitch));
       }
+      // Always render in walkthrough mode (camera constantly moving)
+      renderer.render(scene, camera);
     } else {
+      // controls.update() may fire 'change' event (which sets sceneDirty)
       controls.update();
+      if (sceneDirty) {
+        sceneDirty = false;
+        renderer.render(scene, camera);
+      }
     }
-    
-    renderer.render(scene, camera);
   }
 
   function onResize() {
@@ -1494,6 +1508,7 @@
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     renderer.setSize(w, h);
+    markSceneDirty();
   }
 
   function takeScreenshot() {
