@@ -35,6 +35,8 @@
 
   // 3D Edit mode — enables click-to-select
   let editMode = $state(false);
+  // Wall transparency toggle
+  let wallsTransparent = $state(false);
 
   // Walkthrough mode
   let walkthroughMode = $state(false);
@@ -913,6 +915,30 @@
     }
   }
   
+  function toggleWallTransparency() {
+    wallsTransparent = !wallsTransparent;
+    wallGroup.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
+        child.material.transparent = wallsTransparent;
+        child.material.opacity = wallsTransparent ? 0.3 : 1.0;
+        child.material.needsUpdate = true;
+      }
+    });
+  }
+
+  function viewTopDown() {
+    // Calculate center of the plan
+    const box = new THREE.Box3().setFromObject(wallGroup);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.z, 500);
+    
+    // Animate camera to top-down position
+    camera.position.set(center.x, maxDim * 1.5, center.z);
+    controls.target.set(center.x, 0, center.z);
+    controls.update();
+  }
+
   function toggleWalkthroughMode() {
     if (walkthroughMode) {
       exitWalkthroughMode();
@@ -1107,6 +1133,34 @@
 </script>
 
 <div bind:this={container} class="w-full h-full relative">
+  <!-- Top-Down View Button -->
+  <button
+    onclick={viewTopDown}
+    class="absolute top-4 right-52 z-50 bg-black/70 text-white p-2 rounded-lg hover:bg-black/80 transition-colors"
+    title="Top-Down View"
+  >
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="12" y1="2" x2="12" y2="6"/>
+      <line x1="12" y1="18" x2="12" y2="22"/>
+      <line x1="2" y1="12" x2="6" y2="12"/>
+      <line x1="18" y1="12" x2="22" y2="12"/>
+    </svg>
+  </button>
+
+  <!-- Wall Transparency Toggle -->
+  <button
+    onclick={toggleWallTransparency}
+    class="absolute top-4 right-40 z-50 p-2 rounded-lg transition-colors {wallsTransparent ? 'bg-blue-600 text-white ring-2 ring-blue-300' : 'bg-black/70 text-white hover:bg-black/80'}"
+    title={wallsTransparent ? 'Show Solid Walls' : 'Make Walls Transparent'}
+  >
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="3" y="3" width="18" height="18" rx="2" opacity={wallsTransparent ? 0.3 : 1}/>
+      <line x1="3" y1="12" x2="21" y2="12"/>
+      <line x1="12" y1="3" x2="12" y2="21"/>
+    </svg>
+  </button>
+
   <!-- Edit Mode Toggle -->
   <button
     onclick={() => { editMode = !editMode; if (editMode && walkthroughMode) { exitWalkthroughMode(); } if (!editMode) selectedElementId.set(null); }}
