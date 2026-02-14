@@ -103,6 +103,115 @@
   let cameraPitch = $state(0); // degrees, negative = look down, positive = look up
   let cameraBaseDir = { x: 1, z: 0 }; // normalized direction from position to lookAt
   let cameraPreviewDirty = $state(false);
+  let previewDragStart: { x: number; y: number; yaw: number; pitch: number } | null = null;
+  let aiRenderOpen = $state(false);
+  let aiRendering = $state(false);
+  let aiRenderResult = $state<string | null>(null);
+  let aiRenderStyle = $state('photorealistic');
+  let aiRenderLighting = $state('natural daylight');
+  let aiRenderMood = $state('warm and inviting');
+  let aiRenderExtra = $state('');
+  const STYLE_OPTIONS = ['photorealistic', 'architectural visualization', 'interior design magazine', 'minimalist', 'scandinavian', 'industrial', 'mid-century modern', 'luxury'];
+  const LIGHTING_OPTIONS = ['natural daylight', 'warm afternoon', 'golden hour', 'soft ambient', 'dramatic shadows', 'bright and airy', 'moody evening', 'studio lighting'];
+  const MOOD_OPTIONS = ['warm and inviting', 'clean and modern', 'cozy', 'elegant', 'rustic charm', 'sophisticated', 'relaxed', 'vibrant'];
+
+  function buildAIPrompt(): string {
+    let prompt = `Transform this interior 3D floor plan render into a ${aiRenderStyle} image. `;
+    prompt += `Lighting: ${aiRenderLighting}. Mood: ${aiRenderMood}. `;
+    prompt += `Keep the exact same room geometry, furniture placement, and camera angle. `;
+    prompt += `Add realistic materials, textures, shadows, and reflections. `;
+    prompt += `Make walls, floors, and furniture look like real materials (wood, fabric, metal, etc). `;
+    if (aiRenderExtra.trim()) prompt += aiRenderExtra.trim() + ' ';
+    prompt += `Do NOT change the room layout, furniture positions, or camera perspective.`;
+    return prompt;
+  }
+
+  async function runAIRender() {
+    const geminiKey = localStorage.getItem('o3d_gemini_key');
+    if (!geminiKey) {
+      alert('Please add your Gemini API key in Settings > AI tab first.');
+      return;
+    }
+    if (!scene || !interiorCamera) return;
+    
+    aiRendering = true;
+    aiRenderResult = null;
+    
+    try {
+      // Capture the current preview as base64
+      updateInteriorCamera();
+      const width = 1024;
+      const height = 576;
+      const offRenderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+      offRenderer.setSize(width, height);
+      offRenderer.shadowMap.enabled = true;
+      offRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      offRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+      if (cameraHelper) cameraHelper.visible = false;
+      offRenderer.render(scene, interiorCamera);
+      if (cameraHelper) cameraHelper.visible = true;
+      const imageDataUrl = offRenderer.domElement.toDataURL('image/png');
+      offRenderer.dispose();
+      
+      const base64Image = imageDataUrl.split(',')[1];
+      const prompt = buildAIPrompt();
+      
+      // Call Gemini API with image
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { inlineData: { mimeType: 'image/png', data: base64Image } },
+              { text: prompt }
+            ]
+          }],
+          generationConfig: {
+            responseModalities: ['IMAGE', 'TEXT'],
+            temperature: 1.0,
+          }
+        })
+      });
+      
+      if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`Gemini API error: ${response.status} — ${err}`);
+      }
+      
+      const data = await response.json();
+      // Extract generated image from response
+      const parts = data.candidates?.[0]?.content?.parts ?? [];
+      const imagePart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
+      if (imagePart) {
+        aiRenderResult = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+      } else {
+        throw new Error('No image returned from Gemini. The model may not support image generation with this prompt.');
+      }
+    } catch (e: any) {
+      alert(`AI Render failed: ${e.message}`);
+    } finally {
+      aiRendering = false;
+    }
+  }
+
+  function downloadAIRender() {
+    if (!aiRenderResult) return;
+    const link = document.createElement('a');
+    const projectName = get(currentProject)?.name ?? 'floorplan';
+    link.download = `${projectName}-ai-render.png`;
+    link.href = aiRenderResult;
+    link.click();
+  }
+
+  function moveCameraBy(dx: number, dz: number) {
+    cameraPosition = { ...cameraPosition, x: cameraPosition.x + dx, z: cameraPosition.z + dz };
+    createCameraMarker(
+      new THREE.Vector3(cameraPosition.x, 0, cameraPosition.z),
+      new THREE.Vector3(cameraPosition.x + cameraBaseDir.x * 200, 0, cameraPosition.z + cameraBaseDir.z * 200)
+    );
+    cameraPreviewDirty = true;
+  }
 
   function createCameraMarker(pos: THREE.Vector3, lookAt: THREE.Vector3) {
     if (cameraHelper) wallGroup.remove(cameraHelper);
@@ -2016,29 +2125,39 @@
 
   <!-- Camera Preview Panel -->
   {#if cameraPreviewOpen && cameraPlaced}
-    <div class="absolute bottom-4 right-4 z-50 bg-gray-900/95 rounded-xl shadow-2xl backdrop-blur-sm overflow-hidden" style="width: 400px;">
+    <div class="absolute bottom-4 right-4 z-50 bg-gray-900/95 rounded-xl shadow-2xl backdrop-blur-sm overflow-hidden" style="width: 420px;">
       <div class="flex items-center justify-between px-3 py-2 border-b border-gray-700">
         <span class="text-white text-sm font-medium">📷 Interior Camera</span>
-        <button class="text-gray-400 hover:text-white text-lg" onclick={() => { cameraPreviewOpen = false; if (cameraHelper) { wallGroup.remove(cameraHelper); cameraHelper = null; } cameraPlaced = false; }} aria-label="Close camera">✕</button>
+        <div class="flex gap-2">
+          <button class="text-xs text-blue-400 hover:text-blue-300" onclick={() => { aiRenderOpen = !aiRenderOpen; }}>
+            {aiRenderOpen ? 'Hide AI' : '✨ AI Render'}
+          </button>
+          <button class="text-gray-400 hover:text-white text-lg leading-none" onclick={() => { cameraPreviewOpen = false; if (cameraHelper) { wallGroup.remove(cameraHelper); cameraHelper = null; } cameraPlaced = false; aiRenderOpen = false; aiRenderResult = null; }} aria-label="Close camera">✕</button>
+        </div>
       </div>
-      <canvas bind:this={cameraPreviewCanvas} width="384" height="216" class="w-full"></canvas>
-      <div class="px-3 py-2 space-y-2">
-        <label class="flex items-center justify-between text-xs text-gray-300">
-          <span>Rotate L/R</span>
-          <div class="flex items-center gap-2">
-            <input type="range" min="-180" max="180" bind:value={cameraYaw} class="w-28 h-1 accent-blue-400"
-              oninput={() => { cameraPreviewDirty = true; }} />
-            <span class="w-10 text-right">{cameraYaw}°</span>
-          </div>
-        </label>
-        <label class="flex items-center justify-between text-xs text-gray-300">
-          <span>Tilt U/D</span>
-          <div class="flex items-center gap-2">
-            <input type="range" min="-45" max="45" bind:value={cameraPitch} class="w-28 h-1 accent-blue-400"
-              oninput={() => { cameraPreviewDirty = true; }} />
-            <span class="w-10 text-right">{cameraPitch}°</span>
-          </div>
-        </label>
+      <!-- Preview canvas with drag-to-rotate -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="relative cursor-grab active:cursor-grabbing"
+        onpointerdown={(e) => { previewDragStart = { x: e.clientX, y: e.clientY, yaw: cameraYaw, pitch: cameraPitch }; (e.target as HTMLElement).setPointerCapture(e.pointerId); }}
+        onpointermove={(e) => { if (!previewDragStart) return; const dx = e.clientX - previewDragStart.x; const dy = e.clientY - previewDragStart.y; cameraYaw = previewDragStart.yaw + dx * 0.5; cameraPitch = Math.max(-45, Math.min(45, previewDragStart.pitch - dy * 0.3)); cameraPreviewDirty = true; }}
+        onpointerup={() => { previewDragStart = null; }}
+      >
+        <canvas bind:this={cameraPreviewCanvas} width="384" height="216" class="w-full pointer-events-none"></canvas>
+        <div class="absolute bottom-1 left-1 text-[10px] text-white/50 pointer-events-none">Drag to look around</div>
+      </div>
+
+      <!-- Movement arrows -->
+      <div class="flex items-center justify-center gap-1 py-1.5 border-b border-gray-800">
+        <span class="text-[10px] text-gray-500 mr-2">Move:</span>
+        <button class="w-7 h-7 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs flex items-center justify-center" onclick={() => moveCameraBy(-cameraBaseDir.z * 50, cameraBaseDir.x * 50)} title="Move left">←</button>
+        <div class="flex flex-col gap-0.5">
+          <button class="w-7 h-7 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs flex items-center justify-center" onclick={() => moveCameraBy(cameraBaseDir.x * 50, cameraBaseDir.z * 50)} title="Move forward">↑</button>
+          <button class="w-7 h-7 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs flex items-center justify-center" onclick={() => moveCameraBy(-cameraBaseDir.x * 50, -cameraBaseDir.z * 50)} title="Move backward">↓</button>
+        </div>
+        <button class="w-7 h-7 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs flex items-center justify-center" onclick={() => moveCameraBy(cameraBaseDir.z * 50, -cameraBaseDir.x * 50)} title="Move right">→</button>
+      </div>
+
+      <div class="px-3 py-2 space-y-1.5">
         <label class="flex items-center justify-between text-xs text-gray-300">
           <span>FOV</span>
           <div class="flex items-center gap-2">
@@ -2070,6 +2189,69 @@
           </button>
         </div>
       </div>
+
+      <!-- AI Render Section -->
+      {#if aiRenderOpen}
+        <div class="border-t border-gray-700 px-3 py-3 space-y-2">
+          <div class="text-xs font-medium text-white">✨ AI Photorealistic Render</div>
+          
+          <div class="grid grid-cols-3 gap-2">
+            <label class="block">
+              <span class="text-[10px] text-gray-400 block mb-1">Style</span>
+              <select bind:value={aiRenderStyle} class="w-full bg-gray-800 text-gray-200 text-xs rounded px-1.5 py-1 border border-gray-700">
+                {#each STYLE_OPTIONS as opt}<option value={opt}>{opt}</option>{/each}
+              </select>
+            </label>
+            <label class="block">
+              <span class="text-[10px] text-gray-400 block mb-1">Lighting</span>
+              <select bind:value={aiRenderLighting} class="w-full bg-gray-800 text-gray-200 text-xs rounded px-1.5 py-1 border border-gray-700">
+                {#each LIGHTING_OPTIONS as opt}<option value={opt}>{opt}</option>{/each}
+              </select>
+            </label>
+            <label class="block">
+              <span class="text-[10px] text-gray-400 block mb-1">Mood</span>
+              <select bind:value={aiRenderMood} class="w-full bg-gray-800 text-gray-200 text-xs rounded px-1.5 py-1 border border-gray-700">
+                {#each MOOD_OPTIONS as opt}<option value={opt}>{opt}</option>{/each}
+              </select>
+            </label>
+          </div>
+
+          <label class="block">
+            <span class="text-[10px] text-gray-400 block mb-1">Extra instructions (optional)</span>
+            <input type="text" bind:value={aiRenderExtra} placeholder="e.g. hardwood floors, white marble counters..."
+              class="w-full bg-gray-800 text-gray-200 text-xs rounded px-2 py-1.5 border border-gray-700 placeholder:text-gray-600" />
+          </label>
+
+          <details class="text-[10px] text-gray-500">
+            <summary class="cursor-pointer hover:text-gray-400">View full prompt</summary>
+            <p class="mt-1 p-2 bg-gray-800 rounded text-gray-400 leading-relaxed">{buildAIPrompt()}</p>
+          </details>
+
+          <button
+            class="w-full px-3 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            onclick={runAIRender}
+            disabled={aiRendering}
+          >
+            {#if aiRendering}
+              <span class="animate-spin">⏳</span> Rendering...
+            {:else}
+              ✨ Generate Photorealistic Render
+            {/if}
+          </button>
+
+          {#if aiRenderResult}
+            <div class="space-y-2">
+              <img src={aiRenderResult} alt="AI Render" class="w-full rounded-lg" />
+              <button
+                class="w-full px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-500 transition-colors"
+                onclick={downloadAIRender}
+              >
+                💾 Download Render
+              </button>
+            </div>
+          {/if}
+        </div>
+      {/if}
     </div>
   {/if}
 
