@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { selectedTool, placingFurnitureId, placingDoorType, placingWindowType, placingStair, addStair, placingColumn, placingColumnShape, activeFloor, setBackgroundImage } from '$lib/stores/project';
+  import { selectedTool, placingFurnitureId, placingDoorType, placingWindowType, placingStair, addStair, placingColumn, placingColumnShape, activeFloor, setBackgroundImage, canvasCamX, canvasCamY } from '$lib/stores/project';
   import type { Tool } from '$lib/stores/project';
   import type { Door, Window as Win } from '$lib/models/types';
   import { roomPresets, placePreset } from '$lib/utils/roomPresets';
@@ -46,7 +46,11 @@
   function onPresetClick(presetId: string) {
     const preset = roomPresets.find(p => p.id === presetId);
     if (preset) {
-      placePreset(preset, { x: -200, y: -150 });
+      // Place at viewport center (camera position = world center of view)
+      let cx = 0, cy = 0;
+      canvasCamX.subscribe(v => { cx = v; })();
+      canvasCamY.subscribe(v => { cy = v; })();
+      placePreset(preset, { x: cx, y: cy });
     }
   }
 
