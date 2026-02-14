@@ -169,6 +169,7 @@ export const furnitureCatalog: FurnitureDef[] = [
   { id: 'shed', name: 'Garden Shed', category: 'Structures', icon: '🏠', color: '#78716c', width: 200, depth: 250, height: 230 },
   { id: 'gazebo', name: 'Gazebo', category: 'Structures', icon: '🏗️', color: '#e5e7eb', width: 300, depth: 300, height: 280 },
   { id: 'planter_box', name: 'Planter Box', category: 'Structures', icon: '🌱', color: '#92400e', width: 80, depth: 30, height: 30 },
+  { id: 'raised_bed', name: 'Raised Bed', category: 'Structures', icon: '🌱', color: '#7B5B3A', width: 180, depth: 90, height: 40 },
 ];
 
 export function getCatalogItem(id: string): FurnitureDef | undefined {

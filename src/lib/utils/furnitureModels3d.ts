@@ -182,6 +182,53 @@ export function createFurnitureModel(catalogId: string, def: FurnitureDef): THRE
     case 'pendant_light':
       createPendantLight(group, w, d, h, color);
       break;
+    // Outdoor furniture
+    case 'bench_outdoor':
+      createBenchOutdoor(group, w, d, h, color);
+      break;
+    case 'picnic_table':
+      createPicnicTable(group, w, d, h, color);
+      break;
+    case 'patio_table':
+      createPatioTable(group, w, d, h, color);
+      break;
+    case 'patio_chair':
+      createPatioChair(group, w, d, h, color);
+      break;
+    case 'umbrella':
+      createUmbrella(group, w, d, h, color);
+      break;
+    case 'bbq_grill':
+      createBBQGrill(group, w, d, h, color);
+      break;
+    case 'pergola':
+      createPergola(group, w, d, h, color);
+      break;
+    case 'gazebo':
+      createGazebo(group, w, d, h, color);
+      break;
+    case 'picket_fence':
+      createPicketFence(group, w, d, h, color);
+      break;
+    case 'metal_fence':
+      createMetalFence(group, w, d, h, color);
+      break;
+    case 'lounger':
+      createLounger(group, w, d, h, color);
+      break;
+    case 'shed':
+    case 'garden_shed':
+      createGardenShed(group, w, d, h, color);
+      break;
+    case 'planter_box':
+      createPlanterBox(group, w, d, h, color);
+      break;
+    case 'raised_bed':
+      createRaisedBed(group, w, d, h, color);
+      break;
+    case 'deck_patio':
+      createDeckPatio(group, w, d, h, color);
+      break;
     default:
       // Fallback to simple box
       const geometry = new THREE.BoxGeometry(w, h, d);
@@ -1215,4 +1262,296 @@ function createPendantLight(group: THREE.Group, w: number, d: number, h: number,
   light.position.y = 260 - 60 - h;
   light.castShadow = true;
   group.add(light);
+}
+
+// ============ Outdoor Furniture ============
+
+const WOOD_BROWN = '#8B6914';
+const WOOD_DARK = '#5C4033';
+const METAL_GRAY = '#707070';
+const METAL_DARK = '#404040';
+const FABRIC_RED = '#C0392B';
+const PLANTER_BROWN = '#6B4226';
+
+function createBenchOutdoor(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const wood = createMaterial(color || WOOD_BROWN, 0.8, 0.05);
+  const seatH = 3; const seatY = h * 0.45;
+  // Seat
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(w, seatH, d * 0.6), wood);
+  seat.position.set(0, seatY, -d * 0.1);
+  group.add(seat);
+  // Back rest
+  const back = new THREE.Mesh(new THREE.BoxGeometry(w, h * 0.45, 2), wood);
+  back.position.set(0, seatY + h * 0.25, -d * 0.35);
+  group.add(back);
+  // Two side supports
+  const supportMat = createMaterial(WOOD_DARK, 0.8, 0.05);
+  for (const side of [-1, 1]) {
+    const support = new THREE.Mesh(new THREE.BoxGeometry(3, seatY, d * 0.7), supportMat);
+    support.position.set(side * (w / 2 - 3), seatY / 2, -d * 0.05);
+    group.add(support);
+  }
+}
+
+function createPicnicTable(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const wood = createMaterial(color || WOOD_BROWN, 0.8, 0.05);
+  const tableTop = new THREE.Mesh(new THREE.BoxGeometry(w, 3, d * 0.4), wood);
+  tableTop.position.set(0, h, 0);
+  group.add(tableTop);
+  // Bench seats
+  for (const side of [-1, 1]) {
+    const bench = new THREE.Mesh(new THREE.BoxGeometry(w, 2, d * 0.2), wood);
+    bench.position.set(0, h * 0.55, side * d * 0.35);
+    group.add(bench);
+  }
+  // A-frame legs
+  const legMat = createMaterial(WOOD_DARK, 0.8, 0.05);
+  for (const xSide of [-1, 1]) {
+    for (const zSide of [-1, 1]) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(3, h * 1.1, 3), legMat);
+      leg.position.set(xSide * (w * 0.35), h * 0.5, zSide * d * 0.25);
+      leg.rotation.z = xSide * zSide * 0.15;
+      group.add(leg);
+    }
+  }
+}
+
+function createPatioTable(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const mat = createMaterial(color || METAL_GRAY, 0.4, 0.6);
+  const r = Math.min(w, d) / 2;
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 3, 16), mat);
+  top.position.y = h;
+  group.add(top);
+  const leg = new THREE.Mesh(new THREE.CylinderGeometry(3, 4, h, 8), mat);
+  leg.position.y = h / 2;
+  group.add(leg);
+}
+
+function createPatioChair(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const mat = createMaterial(color || METAL_GRAY, 0.4, 0.5);
+  const seatY = h * 0.45; const seatH = 2;
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(w * 0.9, seatH, d * 0.8), mat);
+  seat.position.set(0, seatY, d * 0.05);
+  group.add(seat);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(w * 0.9, h * 0.5, 2), mat);
+  back.position.set(0, seatY + h * 0.28, -d * 0.35);
+  group.add(back);
+  const legR = 1.5;
+  for (const x of [-1, 1]) {
+    for (const z of [-1, 1]) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(legR, legR, seatY, 6), mat);
+      leg.position.set(x * (w * 0.35), seatY / 2, z * (d * 0.3));
+      group.add(leg);
+    }
+  }
+}
+
+function createUmbrella(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const poleMat = createMaterial(METAL_GRAY, 0.3, 0.7);
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, h, 8), poleMat);
+  pole.position.y = h / 2;
+  group.add(pole);
+  const canopyMat = createMaterial(color || FABRIC_RED, 0.9, 0.0);
+  const r = Math.min(w, d) / 2;
+  const canopy = new THREE.Mesh(new THREE.ConeGeometry(r, h * 0.2, 8, 1, true), canopyMat);
+  canopy.position.y = h * 0.92;
+  group.add(canopy);
+}
+
+function createBBQGrill(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const bodyMat = createMaterial(color || METAL_DARK, 0.4, 0.6);
+  const bodyH = h * 0.4;
+  const bodyY = h * 0.55;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(w * 0.85, bodyH, d * 0.7), bodyMat);
+  body.position.set(0, bodyY, 0);
+  group.add(body);
+  // Lid
+  const lid = new THREE.Mesh(new THREE.BoxGeometry(w * 0.85, 3, d * 0.7), bodyMat);
+  lid.position.set(0, bodyY + bodyH / 2 + 1.5, 0);
+  group.add(lid);
+  // 4 legs
+  const legMat = createMaterial(METAL_GRAY, 0.3, 0.7);
+  for (const x of [-1, 1]) {
+    for (const z of [-1, 1]) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, bodyY - bodyH / 2, 6), legMat);
+      leg.position.set(x * (w * 0.35), (bodyY - bodyH / 2) / 2, z * (d * 0.25));
+      group.add(leg);
+    }
+  }
+}
+
+function createPergola(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const wood = createMaterial(color || WOOD_BROWN, 0.8, 0.05);
+  const postW = Math.max(5, w * 0.04);
+  // 4 posts
+  for (const x of [-1, 1]) {
+    for (const z of [-1, 1]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(postW, h, postW), wood);
+      post.position.set(x * (w / 2 - postW), h / 2, z * (d / 2 - postW));
+      group.add(post);
+    }
+  }
+  // Cross beams along width
+  const beamH = Math.max(3, h * 0.05);
+  const numBeams = Math.max(3, Math.round(d / 30));
+  for (let i = 0; i < numBeams; i++) {
+    const zPos = -d / 2 + postW + (i / (numBeams - 1)) * (d - 2 * postW);
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(w, beamH, postW * 0.6), wood);
+    beam.position.set(0, h - beamH / 2, zPos);
+    group.add(beam);
+  }
+  // Side beams
+  for (const x of [-1, 1]) {
+    const sideBeam = new THREE.Mesh(new THREE.BoxGeometry(postW * 0.6, beamH, d), wood);
+    sideBeam.position.set(x * (w / 2 - postW), h - beamH / 2, 0);
+    group.add(sideBeam);
+  }
+}
+
+function createGazebo(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const wood = createMaterial(color || WOOD_BROWN, 0.8, 0.05);
+  const r = Math.min(w, d) / 2;
+  const postW = Math.max(4, r * 0.08);
+  const numPosts = 6;
+  // Posts in circle
+  for (let i = 0; i < numPosts; i++) {
+    const angle = (i / numPosts) * Math.PI * 2;
+    const post = new THREE.Mesh(new THREE.BoxGeometry(postW, h * 0.8, postW), wood);
+    post.position.set(Math.cos(angle) * (r - postW), h * 0.4, Math.sin(angle) * (r - postW));
+    group.add(post);
+  }
+  // Cone roof
+  const roofMat = createMaterial('#8B4513', 0.8, 0.05);
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(r * 1.1, h * 0.3, numPosts), roofMat);
+  roof.position.y = h * 0.8 + h * 0.15;
+  group.add(roof);
+}
+
+function createPicketFence(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const wood = createMaterial(color || '#F5F5DC', 0.8, 0.05);
+  const picketW = 3; const picketGap = 5; const railH = 3;
+  // Rails
+  for (const yFrac of [0.3, 0.75]) {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(w, railH, d), wood);
+    rail.position.set(0, h * yFrac, 0);
+    group.add(rail);
+  }
+  // Pickets
+  const numPickets = Math.max(2, Math.floor(w / (picketW + picketGap)));
+  const totalSpan = (numPickets - 1) * (picketW + picketGap);
+  for (let i = 0; i < numPickets; i++) {
+    const xPos = -totalSpan / 2 + i * (picketW + picketGap);
+    const picket = new THREE.Mesh(new THREE.BoxGeometry(picketW, h, d), wood);
+    picket.position.set(xPos, h / 2, 0);
+    group.add(picket);
+  }
+}
+
+function createMetalFence(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const metal = createMaterial(color || METAL_DARK, 0.3, 0.7);
+  const barR = 1; const barGap = 8;
+  // Top and bottom rails
+  for (const yFrac of [0.05, 0.95]) {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(w, 2, d), metal);
+    rail.position.set(0, h * yFrac, 0);
+    group.add(rail);
+  }
+  // Vertical bars
+  const numBars = Math.max(2, Math.floor(w / barGap));
+  const totalSpan = (numBars - 1) * barGap;
+  for (let i = 0; i < numBars; i++) {
+    const xPos = -totalSpan / 2 + i * barGap;
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(barR, barR, h, 6), metal);
+    bar.position.set(xPos, h / 2, 0);
+    group.add(bar);
+  }
+}
+
+function createLounger(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const mat = createMaterial(color || WOOD_BROWN, 0.6, 0.2);
+  // Flat seat
+  const seatLen = d * 0.65;
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(w, 3, seatLen), mat);
+  seat.position.set(0, h * 0.35, d * 0.1);
+  group.add(seat);
+  // Angled back
+  const backLen = d * 0.35;
+  const back = new THREE.Mesh(new THREE.BoxGeometry(w, 3, backLen), mat);
+  back.position.set(0, h * 0.55, -d * 0.3);
+  back.rotation.x = -0.5;
+  group.add(back);
+  // Frame legs
+  const legMat = createMaterial(METAL_GRAY, 0.3, 0.7);
+  for (const x of [-1, 1]) {
+    for (const z of [-0.3, 0.35]) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, h * 0.35, 6), legMat);
+      leg.position.set(x * (w * 0.4), h * 0.175, z * d);
+      group.add(leg);
+    }
+  }
+}
+
+function createGardenShed(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const wallMat = createMaterial(color || '#A0522D', 0.8, 0.05);
+  const wallH = h * 0.7;
+  const walls = new THREE.Mesh(new THREE.BoxGeometry(w, wallH, d), wallMat);
+  walls.position.y = wallH / 2;
+  group.add(walls);
+  // Triangular roof using a prism (extruded triangle)
+  const roofMat = createMaterial('#654321', 0.8, 0.05);
+  const roofH = h * 0.3;
+  const shape = new THREE.Shape();
+  shape.moveTo(-w / 2, 0);
+  shape.lineTo(w / 2, 0);
+  shape.lineTo(0, roofH);
+  shape.closePath();
+  const extrudeSettings = { depth: d, bevelEnabled: false };
+  const roofGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+  const roof = new THREE.Mesh(roofGeo, roofMat);
+  roof.position.set(0, wallH, -d / 2);
+  group.add(roof);
+}
+
+function createPlanterBox(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const mat = createMaterial(color || PLANTER_BROWN, 0.85, 0.05);
+  const thick = 2;
+  // 4 walls, no top
+  const front = new THREE.Mesh(new THREE.BoxGeometry(w, h, thick), mat);
+  front.position.set(0, h / 2, d / 2);
+  group.add(front);
+  const backW = new THREE.Mesh(new THREE.BoxGeometry(w, h, thick), mat);
+  backW.position.set(0, h / 2, -d / 2);
+  group.add(backW);
+  const left = new THREE.Mesh(new THREE.BoxGeometry(thick, h, d), mat);
+  left.position.set(-w / 2, h / 2, 0);
+  group.add(left);
+  const right = new THREE.Mesh(new THREE.BoxGeometry(thick, h, d), mat);
+  right.position.set(w / 2, h / 2, 0);
+  group.add(right);
+  // Bottom
+  const bottom = new THREE.Mesh(new THREE.BoxGeometry(w, thick, d), mat);
+  bottom.position.set(0, thick / 2, 0);
+  group.add(bottom);
+  // Soil fill
+  const soil = new THREE.Mesh(new THREE.BoxGeometry(w - 2 * thick, h * 0.6, d - 2 * thick), createMaterial('#3E2723', 0.95, 0.0));
+  soil.position.set(0, h * 0.3, 0);
+  group.add(soil);
+}
+
+function createRaisedBed(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  // Same as planter but uses the provided (wider/lower) dimensions
+  createPlanterBox(group, w, d, h, color || '#7B5B3A');
+}
+
+function createDeckPatio(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const mat = createMaterial(color || WOOD_BROWN, 0.8, 0.05);
+  const plankW = 8; const gap = 1;
+  const numPlanks = Math.max(1, Math.floor(w / (plankW + gap)));
+  const totalW = numPlanks * plankW + (numPlanks - 1) * gap;
+  for (let i = 0; i < numPlanks; i++) {
+    const xPos = -totalW / 2 + plankW / 2 + i * (plankW + gap);
+    const plank = new THREE.Mesh(new THREE.BoxGeometry(plankW, h, d), mat);
+    plank.position.set(xPos, h / 2, 0);
+    group.add(plank);
+  }
 }

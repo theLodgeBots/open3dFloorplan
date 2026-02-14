@@ -1,6 +1,7 @@
 import { writable, derived, get } from 'svelte/store';
 import type { Project, Floor, Wall, Door, Window as Win, FurnitureItem, Point, Stair, Column, BackgroundImage } from '$lib/models/types';
 
+
 function uid(): string {
   return Math.random().toString(36).slice(2, 10);
 }
@@ -582,3 +583,4 @@ export function duplicateWall(id: string): string | null {
 
 // Zoom store for 2D canvas — shared between FloorPlanCanvas and TopBar
 export const canvasZoom = writable<number>(1);
+
