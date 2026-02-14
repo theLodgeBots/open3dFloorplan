@@ -96,7 +96,6 @@
           <div class="text-gray-600">Select tool</div><div class="font-mono text-slate-800">V</div>
           <div class="text-gray-600">Wall tool</div><div class="font-mono text-slate-800">W</div>
           <div class="text-gray-600">Door tool</div><div class="font-mono text-slate-800">D</div>
-          <div class="text-gray-600">Door tool</div><div class="font-mono text-slate-800">D</div>
           <div class="text-gray-600">Pan mode</div><div class="font-mono text-slate-800">H</div>
           <div class="text-gray-600">Delete selected</div><div class="font-mono text-slate-800">Del / Backspace</div>
 
