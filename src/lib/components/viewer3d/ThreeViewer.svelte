@@ -234,23 +234,28 @@
     
     try {
       const imageDataUrl = captureSceneBase64(1024, 576);
+      const base64Image = imageDataUrl.split(',')[1];
       const prompt = buildAIPrompt();
 
-      // Convert data URL to blob for multipart upload
-      const blob = await (await fetch(imageDataUrl)).blob();
-      const file = new File([blob], 'scene.png', { type: 'image/png' });
-
-      const formData = new FormData();
-      formData.append('model', openaiModel);
-      formData.append('prompt', prompt);
-      formData.append('image[]', file);
-      formData.append('size', '1536x1024');
-      formData.append('quality', 'high');
+      // Use OpenAI Responses API with image_generation tool
+      const requestBody = {
+        model: openaiModel,
+        input: [
+          { role: 'user', content: [
+            { type: 'input_image', image_url: `data:image/png;base64,${base64Image}` },
+            { type: 'input_text', text: prompt }
+          ]}
+        ],
+        tools: [{ type: 'image_generation', quality: 'high', size: '1536x1024' }]
+      };
       
-      const response = await fetch('https://api.openai.com/v1/images/edits', {
+      const response = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${openaiKey}` },
-        body: formData
+        headers: {
+          'Authorization': `Bearer ${openaiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
       });
       
       if (!response.ok) {
@@ -259,14 +264,13 @@
       }
       
       const data = await response.json();
-      const imageUrl = data.data?.[0]?.url;
-      const b64 = data.data?.[0]?.b64_json;
-      if (b64) {
-        aiRenderResult = `data:image/png;base64,${b64}`;
-      } else if (imageUrl) {
-        aiRenderResult = imageUrl;
+      const imageOutput = data.output?.find((o: any) => o.type === 'image_generation_call');
+      if (imageOutput?.result) {
+        aiRenderResult = `data:image/png;base64,${imageOutput.result}`;
       } else {
-        throw new Error('No image returned from OpenAI.');
+        const textOutput = data.output?.find((o: any) => o.type === 'message');
+        const msg = textOutput?.content?.[0]?.text || JSON.stringify(data.output);
+        throw new Error(`No image returned. Response: ${msg}`);
       }
     } catch (e: any) {
       aiRenderError = e.message;
