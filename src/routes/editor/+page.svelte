@@ -14,7 +14,7 @@
   import CommandPalette from '$lib/components/editor/CommandPalette.svelte';
   import PrintLayout from '$lib/components/editor/PrintLayout.svelte';
   import OnboardingTooltip from '$lib/components/OnboardingTooltip.svelte';
-  import { triggerTip } from '$lib/stores/onboarding';
+  import { triggerTip } from '$lib/stores/onboarding.svelte';
 
   let commandPaletteOpen = $state(false);
   let printOpen = $state(false);

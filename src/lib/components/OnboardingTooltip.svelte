@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getActiveTip, dismissTip, TIP_MESSAGES } from '$lib/stores/onboarding';
+  import { getActiveTip, dismissTip, TIP_MESSAGES } from '$lib/stores/onboarding.svelte';
 
   // Reactive binding
   let tip = $derived(getActiveTip());

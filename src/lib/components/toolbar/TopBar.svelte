@@ -21,7 +21,7 @@
   let activeFloorId = $state('');
   let editingName = $state(false);
   let exportOpen = $state(false);
-  import { triggerTip } from '$lib/stores/onboarding';
+  import { triggerTip } from '$lib/stores/onboarding.svelte';
   let snapOn = $state(true);
   let exportRef: HTMLDivElement;
 

@@ -251,6 +251,41 @@
     importJsonData = null;
   }
 
+  // --- Hover Preview Tooltip ---
+  let hoveredItem = $state<FurnitureDef | null>(null);
+  let hoverTimeout = $state<ReturnType<typeof setTimeout> | null>(null);
+  let hoverPos = $state<{ x: number; y: number }>({ x: 0, y: 0 });
+  let showPreview = $state(false);
+
+  function onItemMouseEnter(e: MouseEvent, item: FurnitureDef) {
+    if (hoverTimeout) clearTimeout(hoverTimeout);
+    hoveredItem = item;
+    updateHoverPos(e);
+    hoverTimeout = setTimeout(() => { showPreview = true; }, 300);
+  }
+
+  function onItemMouseMove(e: MouseEvent) {
+    updateHoverPos(e);
+  }
+
+  function onItemMouseLeave() {
+    if (hoverTimeout) clearTimeout(hoverTimeout);
+    hoverTimeout = null;
+    showPreview = false;
+    hoveredItem = null;
+  }
+
+  function updateHoverPos(e: MouseEvent) {
+    const sidebarRight = 256; // w-64 = 16rem = 256px
+    const viewportW = window.innerWidth;
+    const tooltipW = 220;
+    // Position to the right of sidebar, or left if no space
+    const x = (sidebarRight + tooltipW + 8) < viewportW ? sidebarRight + 8 : -tooltipW - 8;
+    // Vertically align near the mouse, clamped to viewport
+    const y = Math.min(Math.max(e.clientY - 40, 8), window.innerHeight - 200);
+    hoverPos = { x, y };
+  }
+
   const categoryColors: Record<string, string> = {
     'Living Room': '#a78bfa',
     'Bedroom': '#60a5fa',
@@ -544,6 +579,9 @@
                   onclick={() => onFurnitureClick(item)}
                   draggable="true"
                   ondragstart={(e) => { e.dataTransfer?.setData('application/o3d-type', 'furniture'); e.dataTransfer?.setData('application/o3d-id', item.id); }}
+                  onmouseenter={(e) => onItemMouseEnter(e, item)}
+                  onmousemove={onItemMouseMove}
+                  onmouseleave={onItemMouseLeave}
                 >
                   <!-- svelte-ignore node_invalid_placement -->
                   <span
@@ -578,6 +616,9 @@
               onclick={() => onFurnitureClick(item)}
               draggable="true"
               ondragstart={(e) => { e.dataTransfer?.setData('application/o3d-type', 'furniture'); e.dataTransfer?.setData('application/o3d-id', item.id); }}
+              onmouseenter={(e) => onItemMouseEnter(e, item)}
+              onmousemove={onItemMouseMove}
+              onmouseleave={onItemMouseLeave}
             >
               <!-- svelte-ignore node_invalid_placement -->
               <span
@@ -611,6 +652,39 @@
     {/if}
   </div>
 </div>
+
+<!-- Furniture Hover Preview Tooltip -->
+{#if showPreview && hoveredItem}
+  {@const item = hoveredItem}
+  <div
+    class="fixed z-50 pointer-events-none"
+    style="left: {hoverPos.x}px; top: {hoverPos.y}px;"
+  >
+    <div class="bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden" style="width: 220px;">
+      <div class="w-full h-[120px] bg-gray-50 flex items-center justify-center p-3">
+        {#if thumbsReady >= 0 && getModelFile(item.id) && getThumbnail(getModelFile(item.id)!)}
+          <img src={getThumbnail(getModelFile(item.id)!)} alt={item.name} class="max-w-full max-h-full object-contain" style="image-rendering: auto;" />
+        {:else}
+          <div class="w-16 h-16 rounded-xl flex items-center justify-center" style="background-color: {item.color}20">
+            <div class="w-10 h-10 rounded-md" style="background-color: {item.color}; opacity: 0.7"></div>
+          </div>
+        {/if}
+      </div>
+      <div class="p-3 space-y-1.5">
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-semibold text-gray-800">{item.name}</span>
+          <span
+            class="px-1.5 py-0.5 rounded-full text-[9px] font-semibold text-white"
+            style="background-color: {categoryColors[item.category] ?? '#6b7280'}"
+          >{item.category}</span>
+        </div>
+        <div class="text-xs text-gray-500">
+          {item.width} × {item.depth} × {item.height} cm
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <!-- RoomPlan Import Options Dialog -->
 {#if showImportDialog}
