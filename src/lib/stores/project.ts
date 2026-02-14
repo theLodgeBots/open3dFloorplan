@@ -51,12 +51,18 @@ function snapshot() {
   redoStack.length = 0;
 }
 
+function reviveDates(p: Project): Project {
+  if (p.createdAt && !(p.createdAt instanceof Date)) p.createdAt = new Date(p.createdAt as any);
+  if (p.updatedAt && !(p.updatedAt instanceof Date)) p.updatedAt = new Date(p.updatedAt as any);
+  return p;
+}
+
 export function undo() {
   const prev = undoStack.pop();
   if (!prev) return;
   const cur = get(currentProject);
   if (cur) redoStack.push(JSON.stringify(cur));
-  currentProject.set(JSON.parse(prev));
+  currentProject.set(reviveDates(JSON.parse(prev)));
 }
 
 export function redo() {
@@ -64,7 +70,7 @@ export function redo() {
   if (!next) return;
   const cur = get(currentProject);
   if (cur) undoStack.push(JSON.stringify(cur));
-  currentProject.set(JSON.parse(next));
+  currentProject.set(reviveDates(JSON.parse(next)));
 }
 
 function mutate(fn: (floor: Floor) => void) {
@@ -135,8 +141,13 @@ export function addFurniture(catalogId: string, position: Point): string {
   return id;
 }
 
+/** Snapshot the current state before a drag begins (call once at drag start) */
+export function beginDrag() {
+  snapshot();
+}
+
 /** Move furniture without creating an undo snapshot on every call (used during drag).
- *  Call `commitFurnitureMove()` when the drag ends to snapshot. */
+ *  Call `beginDrag()` when the drag starts to snapshot the pre-drag state. */
 export function moveFurniture(id: string, position: Point) {
   const p = get(currentProject);
   if (!p) return;
@@ -150,7 +161,8 @@ export function moveFurniture(id: string, position: Point) {
   }
 }
 
-/** Snapshot the current state after a furniture drag ends */
+/** Snapshot the current state before a drag begins (call once at drag start).
+ *  Alias for beginDrag() for backward compatibility. */
 export function commitFurnitureMove() {
   snapshot();
 }
@@ -286,7 +298,14 @@ export const calibrationPoints = writable<Point[]>([]);
 
 export function removeElement(id: string) {
   mutate((f) => {
+    // Check if the element being removed is a wall — if so, also remove associated doors/windows
+    const isWall = f.walls.some((w) => w.id === id);
     f.walls = f.walls.filter((w) => w.id !== id);
+    if (isWall) {
+      // Cascade delete: remove doors and windows attached to this wall
+      f.doors = f.doors.filter((d) => d.wallId !== id);
+      f.windows = f.windows.filter((w) => w.wallId !== id);
+    }
     f.doors = f.doors.filter((d) => d.id !== id);
     f.windows = f.windows.filter((w) => w.id !== id);
     f.furniture = f.furniture.filter((fi) => fi.id !== id);

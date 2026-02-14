@@ -2729,6 +2729,7 @@
         if (!e.shiftKey) {
           draggingColumnId = col.id;
           columnDragOffset = { x: wp.x - col.position.x, y: wp.y - col.position.y };
+          commitFurnitureMove(); // snapshot before drag for undo
         }
         return;
       }
@@ -2739,6 +2740,7 @@
         if (!e.shiftKey) {
           draggingStairId = stair.id;
           stairDragOffset = { x: wp.x - stair.position.x, y: wp.y - stair.position.y };
+          commitFurnitureMove(); // snapshot before drag for undo
         }
         return;
       }
@@ -3094,6 +3096,8 @@
     if (draggingCurveHandle) commitFurnitureMove();
     if (draggingMultiSelect) commitFurnitureMove();
     if (draggingRoomId) commitFurnitureMove();
+    if (draggingStairId) commitFurnitureMove();
+    if (draggingColumnId) commitFurnitureMove();
     draggingRoomId = null;
     roomDragStartPositions.clear();
     draggingMultiSelect = null;
