@@ -108,6 +108,7 @@
   let aiRenderOpen = $state(false);
   let aiRendering = $state(false);
   let aiRenderResult = $state<string | null>(null);
+  let aiRenderError = $state<string | null>(null);
   let aiRenderStyle = $state('photorealistic');
   let aiRenderLighting = $state('natural daylight');
   let aiRenderMood = $state('warm and inviting');
@@ -174,7 +175,7 @@
     }
     
     aiRendering = true;
-    aiRenderResult = null;
+    aiRenderResult = null; aiRenderError = null;
     
     try {
       const imageDataUrl = captureSceneBase64(1024, 576);
@@ -215,7 +216,7 @@
         throw new Error(textPart?.text || 'No image returned. Try a different model or prompt.');
       }
     } catch (e: any) {
-      alert(`AI Render failed: ${e.message}`);
+      aiRenderError = e.message;
     } finally {
       aiRendering = false;
     }
@@ -229,7 +230,7 @@
     }
     
     aiRendering = true;
-    aiRenderResult = null;
+    aiRenderResult = null; aiRenderError = null;
     
     try {
       const imageDataUrl = captureSceneBase64(1024, 576);
@@ -268,7 +269,7 @@
         throw new Error('No image returned from OpenAI.');
       }
     } catch (e: any) {
-      alert(`AI Render failed: ${e.message}`);
+      aiRenderError = e.message;
     } finally {
       aiRendering = false;
     }
@@ -2284,7 +2285,7 @@
           <button class="text-xs text-blue-400 hover:text-blue-300" onclick={() => { aiRenderOpen = !aiRenderOpen; }}>
             {aiRenderOpen ? 'Hide AI' : '✨ AI Render'}
           </button>
-          <button class="text-gray-400 hover:text-white text-lg leading-none" onclick={() => { cameraPreviewOpen = false; if (cameraHelper) { wallGroup.remove(cameraHelper); cameraHelper = null; } cameraPlaced = false; aiRenderOpen = false; aiRenderResult = null; }} aria-label="Close camera">✕</button>
+          <button class="text-gray-400 hover:text-white text-lg leading-none" onclick={() => { cameraPreviewOpen = false; if (cameraHelper) { wallGroup.remove(cameraHelper); cameraHelper = null; } cameraPlaced = false; aiRenderOpen = false; aiRenderResult = null; aiRenderError = null; }} aria-label="Close camera">✕</button>
         </div>
       </div>
       <!-- Preview canvas with drag-to-rotate -->
@@ -2419,6 +2420,17 @@
               ✨ Generate Photorealistic Render
             {/if}
           </button>
+
+          {#if aiRenderError}
+            <div class="bg-red-900/30 border border-red-700 rounded-lg p-3 space-y-2">
+              <div class="text-xs font-medium text-red-400">❌ AI Render Failed</div>
+              <pre class="text-[10px] text-red-300 whitespace-pre-wrap break-all max-h-32 overflow-y-auto select-all cursor-text font-mono bg-red-950/40 rounded p-2">{aiRenderError}</pre>
+              <button
+                class="text-[10px] text-red-400 hover:text-red-300 underline"
+                onclick={() => { navigator.clipboard.writeText(aiRenderError ?? ''); }}
+              >📋 Copy error</button>
+            </div>
+          {/if}
 
           {#if aiRenderResult}
             <div class="space-y-2">
