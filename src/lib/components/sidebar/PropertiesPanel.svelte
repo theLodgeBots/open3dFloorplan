@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { activeFloor, selectedElementId, selectedRoomId, updateWall, updateDoor, updateWindow, updateRoom, updateFurniture, detectedRoomsStore, updateStair, updateColumn, updateBackgroundImage, setBackgroundImage, calibrationMode, calibrationPoints, updateTextAnnotation } from '$lib/stores/project';
+  import { activeFloor, selectedElementId, selectedRoomId, updateWall, updateDoor, updateWindow, updateRoom, updateFurniture, detectedRoomsStore, updateStair, updateColumn, updateBackgroundImage, setBackgroundImage, calibrationMode, calibrationPoints, updateTextAnnotation, toggleFurnitureLock } from '$lib/stores/project';
   import { floorMaterials, wallColors } from '$lib/utils/materials';
   import { getCatalogItem } from '$lib/utils/furnitureCatalog';
   import { projectSettings, formatLength, formatArea } from '$lib/stores/settings';
@@ -508,6 +508,11 @@
         {getCatalogItem(selectedFurniture.catalogId)?.icon ?? '🪑'}
       </span>
       {getCatalogItem(selectedFurniture.catalogId)?.name ?? 'Furniture'} Properties
+      <button
+        onclick={() => { if (selectedFurniture) toggleFurnitureLock(selectedFurniture.id); }}
+        class="ml-auto px-1.5 py-0.5 rounded text-xs border transition-colors {selectedFurniture.locked ? 'bg-amber-100 border-amber-400 text-amber-700' : 'border-gray-200 hover:bg-gray-50 text-gray-500'}"
+        title={selectedFurniture.locked ? 'Unlock (Ctrl+L)' : 'Lock (Ctrl+L)'}
+      >{selectedFurniture.locked ? '🔒 Locked' : '🔓'}</button>
     </h3>
     <div class="space-y-3">
       <!-- Color -->

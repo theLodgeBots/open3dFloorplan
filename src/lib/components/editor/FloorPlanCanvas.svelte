@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { activeFloor, selectedTool, selectedElementId, selectedElementIds, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall, moveWallParallel, splitWall, snapEnabled, placingStair, addStair, moveStair, updateStair, placingColumn, placingColumnShape, addColumn, moveColumn, updateColumn, calibrationMode, calibrationPoints, updateBackgroundImage, canvasZoom, canvasCamX, canvasCamY, panMode, showFurnitureStore, addGuide, moveGuide, removeGuide, beginUndoGroup, endUndoGroup, layerVisibility, updateRoom, addMeasurement, removeMeasurement, addAnnotation, removeAnnotation, updateAnnotation, addTextAnnotation, removeTextAnnotation, updateTextAnnotation, moveTextAnnotation } from '$lib/stores/project';
+  import { activeFloor, selectedTool, selectedElementId, selectedElementIds, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall, moveWallParallel, splitWall, snapEnabled, placingStair, addStair, moveStair, updateStair, placingColumn, placingColumnShape, addColumn, moveColumn, updateColumn, calibrationMode, calibrationPoints, updateBackgroundImage, canvasZoom, canvasCamX, canvasCamY, panMode, showFurnitureStore, addGuide, moveGuide, removeGuide, beginUndoGroup, endUndoGroup, layerVisibility, updateRoom, addMeasurement, removeMeasurement, addAnnotation, removeAnnotation, updateAnnotation, addTextAnnotation, removeTextAnnotation, updateTextAnnotation, moveTextAnnotation, toggleFurnitureLock, createGroup, ungroupElements, findGroupForElement } from '$lib/stores/project';
   import type { Point, Wall, Door, Window as Win, FurnitureItem, Stair, Column, GuideLine, Measurement, Annotation, TextAnnotation } from '$lib/models/types';
   import type { Floor, Room } from '$lib/models/types';
   import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
@@ -138,6 +138,11 @@
   let isCalibrating: boolean = $state(false);
   let calPoints: Point[] = $state([]);
   let bgImage: HTMLImageElement | null = $state(null);
+
+  // Room label drag state
+  let draggingRoomLabelId: string | null = $state(null);
+  let roomLabelDragStart: Point = { x: 0, y: 0 };
+  let roomLabelOrigOffset: Point = { x: 0, y: 0 };
 
   // Room drag state
   let draggingRoomId: string | null = $state(null);
@@ -1307,6 +1312,26 @@
       ctx.fillText(cat.name, 0, d / 2 + fontSize * 0.8);
     }
 
+    // Lock icon for locked items
+    if (item.locked) {
+      const lockSize = Math.max(10, Math.min(16, Math.min(w, d) * 0.25));
+      const lx = w / 2 - lockSize - 2;
+      const ly = -d / 2 + 2;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.beginPath();
+      ctx.roundRect(lx, ly + lockSize * 0.4, lockSize, lockSize * 0.6, 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(lx + lockSize / 2, ly + lockSize * 0.4, lockSize * 0.25, Math.PI, 0);
+      ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(lx + lockSize / 2, ly + lockSize * 0.65, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     // Selection handles when selected
     if (selected) {
       // Dashed selection border
@@ -2148,32 +2173,57 @@
       }
 
       const centroid = roomCentroid(poly);
-      const sc = worldToScreen(centroid.x, centroid.y);
-      const fontSize = Math.max(11, 13 * zoom);
+      // Apply custom label offset if set
+      const labelX = centroid.x + (room.labelOffset?.x ?? 0);
+      const labelY = centroid.y + (room.labelOffset?.y ?? 0);
+      const sc = worldToScreen(labelX, labelY);
+
+      // Calculate bounding box for dimensions
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (const pt of poly) {
+        if (pt.x < minX) minX = pt.x;
+        if (pt.x > maxX) maxX = pt.x;
+        if (pt.y < minY) minY = pt.y;
+        if (pt.y > maxY) maxY = pt.y;
+      }
+      const roomW = maxX - minX;
+      const roomD = maxY - minY;
+
       if (showRoomLabels) {
-        ctx.fillStyle = '#9ca3af';
-        ctx.font = `${fontSize}px sans-serif`;
+        const nameFontSize = Math.max(12, 14 * zoom);
+        const areaFontSize = Math.max(10, 11 * zoom);
+        const dimFontSize = Math.max(9, 10 * zoom);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`${room.name} (${formatArea(room.area, dimSettings.units)})`, sc.x, sc.y);
-      }
 
-      // Room dimensions (width × depth from oriented bounding box)
-      if (showDimensions && dimSettings.showInternalDimensions && poly.length >= 3) {
-        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-        for (const pt of poly) {
-          if (pt.x < minX) minX = pt.x;
-          if (pt.x > maxX) maxX = pt.x;
-          if (pt.y < minY) minY = pt.y;
-          if (pt.y > maxY) maxY = pt.y;
-        }
-        const roomW = (maxX - minX) / 100;
-        const roomD = (maxY - minY) / 100;
-        if (roomW > 0.1 && roomD > 0.1) {
-          const dimFontSize = Math.max(9, 10 * zoom);
+        // Room name (bold, larger)
+        ctx.fillStyle = '#64748b';
+        ctx.font = `bold ${nameFontSize}px sans-serif`;
+        let currentY = sc.y;
+        ctx.fillText(room.name, sc.x, currentY);
+
+        // Area (regular, smaller)
+        currentY += nameFontSize * 0.85;
+        ctx.fillStyle = '#9ca3af';
+        ctx.font = `${areaFontSize}px sans-serif`;
+        ctx.fillText(formatArea(room.area, dimSettings.units), sc.x, currentY);
+
+        // Width × Depth dimensions (lighter color)
+        if (roomW > 10 && roomD > 10) {
+          currentY += areaFontSize * 0.85;
           ctx.fillStyle = '#b0b8c4';
           ctx.font = `${dimFontSize}px sans-serif`;
-          ctx.fillText(`${formatLength(roomW * 100, dimSettings.units)} × ${formatLength(roomD * 100, dimSettings.units)}`, sc.x, sc.y + fontSize + 2);
+          ctx.fillText(`${formatLength(roomW, dimSettings.units)} × ${formatLength(roomD, dimSettings.units)}`, sc.x, currentY);
+        }
+
+        // Draw reset icon if label has custom offset
+        if (room.labelOffset && (room.labelOffset.x !== 0 || room.labelOffset.y !== 0)) {
+          const resetSize = Math.max(8, 9 * zoom);
+          const resetX = sc.x + ctx.measureText(room.name).width / 2 + resetSize;
+          const resetY = sc.y - nameFontSize * 0.3;
+          ctx.fillStyle = '#94a3b8';
+          ctx.font = `${resetSize}px sans-serif`;
+          ctx.fillText('↺', resetX, resetY);
         }
       }
     }
@@ -2213,6 +2263,7 @@
         nr.id = existing.id;
         nr.name = existing.name;
         nr.floorTexture = existing.floorTexture;
+        if (existing.labelOffset) nr.labelOffset = existing.labelOffset;
       } else {
         // Check persisted rooms (for data that survives page reload)
         const saved = savedRooms.find(sr => {
@@ -2223,6 +2274,7 @@
           nr.id = saved.id;
           nr.name = saved.name;
           if (saved.floorTexture) nr.floorTexture = saved.floorTexture;
+          if (saved.labelOffset) nr.labelOffset = saved.labelOffset;
         }
       }
     }
@@ -3591,6 +3643,34 @@
     return null;
   }
 
+  function findRoomLabelAt(p: Point): Room | null {
+    if (!currentFloor || !showRoomLabels) return null;
+    for (const room of detectedRooms) {
+      const poly = getRoomPolygon(room, currentFloor.walls);
+      if (poly.length < 3) continue;
+      const centroid = roomCentroid(poly);
+      const lx = centroid.x + (room.labelOffset?.x ?? 0);
+      const ly = centroid.y + (room.labelOffset?.y ?? 0);
+      // Check if click is within label area (approx 80x40 world units)
+      const hitW = 80 / zoom;
+      const hitH = 40 / zoom;
+      if (Math.abs(p.x - lx) < hitW && Math.abs(p.y - ly) < hitH) {
+        // Check if clicking the reset icon
+        if (room.labelOffset && (room.labelOffset.x !== 0 || room.labelOffset.y !== 0)) {
+          const resetOffX = 50 / zoom; // approximate reset icon position
+          if (p.x > lx + resetOffX * 0.5 && Math.abs(p.y - ly) < 15 / zoom) {
+            // Reset label position
+            updateRoom(room.id, { labelOffset: undefined });
+            detectedRoomsStore.update(rooms => rooms.map(r => r.id === room.id ? { ...r, labelOffset: undefined } : r));
+            return null; // consumed click
+          }
+        }
+        return room;
+      }
+    }
+    return null;
+  }
+
   function findRoomAt(p: Point): Room | null {
     if (!currentFloor) return null;
     for (const room of detectedRooms) {
@@ -3908,7 +3988,7 @@
         }
       }
       // Helper: select an element (shift = add to multi-select)
-      function selectElement(id: string, isShift: boolean) {
+      function selectElement(id: string, isShift: boolean, isCtrl: boolean = false) {
         if (isShift) {
           selectedElementIds.update(ids => {
             const next = new Set(ids);
@@ -3919,8 +3999,15 @@
           });
           selectedElementId.set(id);
         } else {
-          selectedElementId.set(id);
-          selectedElementIds.set(new Set());
+          // Group selection: if element is in a group and not ctrl-clicking, select all group members
+          const group = currentFloor ? findGroupForElement(currentFloor, id) : undefined;
+          if (group && !isCtrl) {
+            selectedElementId.set(id);
+            selectedElementIds.set(new Set(group.elementIds));
+          } else {
+            selectedElementId.set(id);
+            selectedElementIds.set(new Set());
+          }
         }
         selectedRoomId.set(null);
       }
@@ -3963,8 +4050,8 @@
       // Check furniture
       const fi = findFurnitureAt(wp);
       if (fi) {
-        selectElement(fi.id, e.shiftKey);
-        if (!e.shiftKey) {
+        selectElement(fi.id, e.shiftKey, e.ctrlKey || e.metaKey);
+        if (!e.shiftKey && !fi.locked) {
           draggingFurnitureId = fi.id;
           commitFurnitureMove(); // snapshot before drag for undo
           dragOffset = { x: wp.x - fi.position.x, y: wp.y - fi.position.y };
@@ -3975,6 +4062,17 @@
       if (wall) {
         selectElement(wall.id, e.shiftKey);
       } else {
+        // Check if clicking on a room label (for dragging)
+        const labelRoom = findRoomLabelAt(wp);
+        if (labelRoom) {
+          draggingRoomLabelId = labelRoom.id;
+          roomLabelDragStart = { x: wp.x, y: wp.y };
+          roomLabelOrigOffset = { x: labelRoom.labelOffset?.x ?? 0, y: labelRoom.labelOffset?.y ?? 0 };
+          selectedRoomId.set(labelRoom.id);
+          selectedElementId.set(null);
+          selectedElementIds.set(new Set());
+          return;
+        }
         const room = findRoomAt(wp);
         if (room) {
           selectedRoomId.set(room.id);
@@ -4095,6 +4193,15 @@
   function onMouseMove(e: MouseEvent) {
     const rect = canvas.getBoundingClientRect();
     mousePos = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+
+    // Drag room label
+    if (draggingRoomLabelId) {
+      const dx = mousePos.x - roomLabelDragStart.x;
+      const dy = mousePos.y - roomLabelDragStart.y;
+      const newOffset = { x: roomLabelOrigOffset.x + dx, y: roomLabelOrigOffset.y + dy };
+      detectedRoomsStore.update(rooms => rooms.map(r => r.id === draggingRoomLabelId ? { ...r, labelOffset: newOffset } : r));
+      return;
+    }
 
     // Drag guide line
     if (draggingGuideId && currentFloor?.guides) {
@@ -4327,6 +4434,16 @@
     isPanning = false;
     draggingGuideId = null;
 
+    // Finalize room label drag
+    if (draggingRoomLabelId) {
+      const dx = mousePos.x - roomLabelDragStart.x;
+      const dy = mousePos.y - roomLabelDragStart.y;
+      const newOffset = { x: roomLabelOrigOffset.x + dx, y: roomLabelOrigOffset.y + dy };
+      updateRoom(draggingRoomLabelId, { labelOffset: newOffset });
+      detectedRoomsStore.update(rooms => rooms.map(r => r.id === draggingRoomLabelId ? { ...r, labelOffset: newOffset } : r));
+      draggingRoomLabelId = null;
+    }
+
     // Finalize marquee selection
     if (marqueeStart && marqueeEnd && currentFloor) {
       const minX = Math.min(marqueeStart.x, marqueeEnd.x);
@@ -4539,6 +4656,38 @@
       e.preventDefault();
       selectedElementIds.set(new Set());
       selectedElementId.set(null);
+      return;
+    }
+
+    // Toggle Lock (Ctrl+L / Cmd+L)
+    if ((e.ctrlKey || e.metaKey) && e.key === 'l' && !e.shiftKey) {
+      e.preventDefault();
+      if (currentFloor) {
+        const idsToLock = currentSelectedIds.size > 0 ? currentSelectedIds : (currentSelectedId ? new Set([currentSelectedId]) : new Set<string>());
+        for (const id of idsToLock) {
+          const fi = currentFloor.furniture.find(f => f.id === id);
+          if (fi) toggleFurnitureLock(id);
+        }
+      }
+      return;
+    }
+
+    // Group (Ctrl+G / Cmd+G)
+    if ((e.ctrlKey || e.metaKey) && e.key === 'g' && !e.shiftKey) {
+      e.preventDefault();
+      if (currentFloor && currentSelectedIds.size >= 2) {
+        createGroup([...currentSelectedIds]);
+      }
+      return;
+    }
+
+    // Ungroup (Ctrl+Shift+G / Cmd+Shift+G)
+    if ((e.ctrlKey || e.metaKey) && e.key === 'G' && e.shiftKey) {
+      e.preventDefault();
+      if (currentFloor) {
+        const idsToUngroup = currentSelectedIds.size > 0 ? [...currentSelectedIds] : (currentSelectedId ? [currentSelectedId] : []);
+        if (idsToUngroup.length > 0) ungroupElements(idsToUngroup);
+      }
       return;
     }
 
@@ -4932,6 +5081,24 @@
         break;
       case 'zoom-to-fit':
         zoomToFit();
+        break;
+
+      // Lock/Unlock
+      case 'toggle-lock':
+        if (id) toggleFurnitureLock(id);
+        break;
+
+      // Group/Ungroup
+      case 'group':
+        if (currentFloor && currentSelectedIds.size >= 2) {
+          createGroup([...currentSelectedIds]);
+        }
+        break;
+      case 'ungroup':
+        if (currentFloor) {
+          const idsToUngroup = currentSelectedIds.size > 0 ? [...currentSelectedIds] : (id ? [id] : []);
+          if (idsToUngroup.length > 0) ungroupElements(idsToUngroup);
+        }
         break;
 
       // Shared actions

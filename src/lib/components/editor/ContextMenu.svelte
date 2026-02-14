@@ -94,6 +94,10 @@
         <span class="ctx-icon">⬇️</span> Send to Back
       </button>
       <div class="ctx-sep"></div>
+      <div class="ctx-sep"></div>
+      <button class="ctx-item" role="menuitem" onclick={() => clickItem('toggle-lock')}>
+        <span class="ctx-icon">{targetFurniture?.locked ? '🔓' : '🔒'}</span> {targetFurniture?.locked ? 'Unlock' : 'Lock'}
+      </button>
       <button class="ctx-item" role="menuitem" onclick={() => clickItem('properties')}>
         <span class="ctx-icon">⚙️</span> Properties
       </button>
@@ -148,6 +152,12 @@
       {/if}
       <button class="ctx-item" role="menuitem" onclick={() => clickItem('select-all')}>
         <span class="ctx-icon">⬜</span> Select All
+      </button>
+      <button class="ctx-item" role="menuitem" onclick={() => clickItem('group')}>
+        <span class="ctx-icon">📦</span> Group Selected (Ctrl+G)
+      </button>
+      <button class="ctx-item" role="menuitem" onclick={() => clickItem('ungroup')}>
+        <span class="ctx-icon">📤</span> Ungroup (Ctrl+Shift+G)
       </button>
       <button class="ctx-item" role="menuitem" onclick={() => clickItem('add-wall')}>
         <span class="ctx-icon">🧱</span> Add Wall

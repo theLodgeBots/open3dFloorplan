@@ -1,5 +1,5 @@
 import { writable, derived, get } from 'svelte/store';
-import type { Project, Floor, Wall, Door, Window as Win, FurnitureItem, Point, Stair, Column, BackgroundImage, GuideLine } from '$lib/models/types';
+import type { Project, Floor, Wall, Door, Window as Win, FurnitureItem, Point, Stair, Column, BackgroundImage, GuideLine, ElementGroup } from '$lib/models/types';
 
 
 function uid(): string {
@@ -8,7 +8,7 @@ function uid(): string {
 
 export function createDefaultFloor(level = 0): Floor {
   const id = uid();
-  return { id, name: level === 0 ? 'Ground Floor' : `Floor ${level}`, level, walls: [], rooms: [], doors: [], windows: [], furniture: [], stairs: [], columns: [], guides: [], measurements: [], annotations: [], textAnnotations: [] };
+  return { id, name: level === 0 ? 'Ground Floor' : `Floor ${level}`, level, walls: [], rooms: [], doors: [], windows: [], furniture: [], stairs: [], columns: [], guides: [], measurements: [], annotations: [], textAnnotations: [], groups: [] };
 }
 
 export function createDefaultProject(name = 'Untitled Project'): Project {
@@ -385,7 +385,7 @@ export function updateFurniture(id: string, updates: Partial<FurnitureItem>) {
   });
 }
 
-export function updateRoom(id: string, updates: Partial<{ name: string; floorTexture: string; color: string; roomType: import('$lib/models/types').RoomCategory }>) {
+export function updateRoom(id: string, updates: Partial<{ name: string; floorTexture: string; color: string; roomType: import('$lib/models/types').RoomCategory; labelOffset: import('$lib/models/types').Point | undefined }>) {
   mutate((f) => {
     let r = f.rooms.find((r) => r.id === id);
     if (r) {
@@ -406,7 +406,7 @@ export function addFloor(name?: string, copyCurrentLayout = false) {
   if (!p) return;
   snapshot();
   const level = p.floors.length;
-  const floor: Floor = { id: uid(), name: name ?? `Floor ${level}`, level, walls: [], rooms: [], doors: [], windows: [], furniture: [], stairs: [], columns: [] };
+  const floor: Floor = { id: uid(), name: name ?? `Floor ${level}`, level, walls: [], rooms: [], doors: [], windows: [], furniture: [], stairs: [], columns: [], guides: [], measurements: [], annotations: [], textAnnotations: [], groups: [] };
   if (copyCurrentLayout) {
     const cur = p.floors.find(f => f.id === p.activeFloorId);
     if (cur) {
@@ -720,6 +720,56 @@ export function moveTextAnnotation(id: string, position: { x: number; y: number 
 export const layerVisibility = writable<{ walls: boolean; doors: boolean; windows: boolean; furniture: boolean; stairs: boolean; columns: boolean; guides: boolean; measurements: boolean; annotations: boolean }>({
   walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true,
 });
+
+// --- Lock ---
+export function toggleFurnitureLock(id: string) {
+  mutate((f) => {
+    const fi = f.furniture.find((fi) => fi.id === id);
+    if (fi) fi.locked = !fi.locked;
+  });
+}
+
+export function setFurnitureLocked(id: string, locked: boolean) {
+  mutate((f) => {
+    const fi = f.furniture.find((fi) => fi.id === id);
+    if (fi) fi.locked = locked;
+  });
+}
+
+// --- Element Groups ---
+export function createGroup(elementIds: string[]): string | null {
+  if (elementIds.length < 2) return null;
+  const id = uid();
+  mutate((f) => {
+    if (!f.groups) f.groups = [];
+    // Remove any existing group membership for these elements
+    f.groups = f.groups.map(g => ({
+      ...g,
+      elementIds: g.elementIds.filter(eid => !elementIds.includes(eid))
+    })).filter(g => g.elementIds.length >= 2);
+    f.groups.push({ id, elementIds: [...elementIds] });
+  });
+  return id;
+}
+
+export function ungroup(groupId: string) {
+  mutate((f) => {
+    if (!f.groups) return;
+    f.groups = f.groups.filter(g => g.id !== groupId);
+  });
+}
+
+export function ungroupElements(elementIds: string[]) {
+  mutate((f) => {
+    if (!f.groups) return;
+    f.groups = f.groups.filter(g => !g.elementIds.some(eid => elementIds.includes(eid)));
+  });
+}
+
+export function findGroupForElement(floor: Floor, elementId: string): ElementGroup | undefined {
+  if (!floor.groups) return undefined;
+  return floor.groups.find(g => g.elementIds.includes(elementId));
+}
 
 // Zoom store for 2D canvas — shared between FloorPlanCanvas and TopBar
 export const canvasZoom = writable<number>(1);

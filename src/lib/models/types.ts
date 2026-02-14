@@ -28,6 +28,8 @@ export interface Room {
   area: number;
   color?: string;
   roomType?: RoomCategory;
+  /** Custom label position offset from centroid (in world units) */
+  labelOffset?: Point;
 }
 
 export interface Door {
@@ -63,6 +65,12 @@ export interface FurnitureItem {
   depth?: number;   // cm
   height?: number;  // cm
   material?: string; // material name/id
+  locked?: boolean;
+}
+
+export interface ElementGroup {
+  id: string;
+  elementIds: string[];
 }
 
 export type StairType = 'straight' | 'l-shaped' | 'u-shaped' | 'spiral';
@@ -147,6 +155,7 @@ export interface Floor {
   measurements: Measurement[];
   annotations: Annotation[];
   textAnnotations: TextAnnotation[];
+  groups: ElementGroup[];
 }
 
 export interface Project {
