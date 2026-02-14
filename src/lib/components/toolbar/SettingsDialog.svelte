@@ -28,7 +28,36 @@
       return p;
     });
   }
-  let activeTab = $state<'project' | 'dimensions' | 'appearance'>('project');
+  let activeTab = $state<'project' | 'dimensions' | 'appearance' | 'ai'>('project');
+  let geminiKey = $state('');
+  let geminiKeyVisible = $state(false);
+  let geminiKeySaved = $state(false);
+  
+  // Load Gemini key from localStorage
+  if (typeof window !== 'undefined') {
+    geminiKey = localStorage.getItem('o3d_gemini_key') ?? '';
+  }
+  
+  function saveGeminiKey() {
+    if (typeof window !== 'undefined') {
+      if (geminiKey.trim()) {
+        localStorage.setItem('o3d_gemini_key', geminiKey.trim());
+      } else {
+        localStorage.removeItem('o3d_gemini_key');
+      }
+      geminiKeySaved = true;
+      setTimeout(() => { geminiKeySaved = false; }, 2000);
+    }
+  }
+  
+  function clearGeminiKey() {
+    geminiKey = '';
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('o3d_gemini_key');
+    }
+    geminiKeySaved = true;
+    setTimeout(() => { geminiKeySaved = false; }, 2000);
+  }
   let currentTheme = $state<ThemePreference>('system');
   themePreference.subscribe((t) => { currentTheme = t; });
   let settings = $state<ProjectSettings>({
@@ -87,6 +116,13 @@
         >
           Appearance
           {#if activeTab === 'appearance'}<div class="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-700 dark:bg-slate-300 rounded-t"></div>{/if}
+        </button>
+        <button
+          class="px-4 py-2 text-sm font-medium transition-colors relative {activeTab === 'ai' ? 'text-slate-800 dark:text-slate-200' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}"
+          onclick={() => activeTab = 'ai'}
+        >
+          AI
+          {#if activeTab === 'ai'}<div class="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-700 dark:bg-slate-300 rounded-t"></div>{/if}
         </button>
       </div>
 
@@ -218,6 +254,55 @@
                   </button>
                 {/each}
               </div>
+            </div>
+          </div>
+        {:else if activeTab === 'ai'}
+          <div class="space-y-4">
+            <div>
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">Gemini API Key</span>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Required for AI-powered photorealistic rendering. Your key is stored locally in your browser only — never sent to our servers.</p>
+              <div class="flex gap-2">
+                <div class="relative flex-1">
+                  <input
+                    type={geminiKeyVisible ? 'text' : 'password'}
+                    value={geminiKey}
+                    oninput={(e) => { geminiKey = (e.target as HTMLInputElement).value; }}
+                    class="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-mono focus:ring-2 focus:ring-slate-500 focus:border-slate-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-100"
+                    placeholder="AIza..."
+                  />
+                  <button
+                    class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-sm"
+                    onclick={() => geminiKeyVisible = !geminiKeyVisible}
+                    aria-label={geminiKeyVisible ? 'Hide key' : 'Show key'}
+                  >
+                    {geminiKeyVisible ? '🙈' : '👁️'}
+                  </button>
+                </div>
+              </div>
+              <div class="flex gap-2 mt-3">
+                <button
+                  class="px-4 py-2 text-sm font-medium bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors"
+                  onclick={saveGeminiKey}
+                >
+                  {geminiKeySaved ? '✓ Saved' : 'Save Key'}
+                </button>
+                {#if geminiKey}
+                  <button
+                    class="px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    onclick={clearGeminiKey}
+                  >
+                    Remove
+                  </button>
+                {/if}
+              </div>
+            </div>
+            <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">How to get a key</span>
+              <ol class="text-xs text-gray-500 dark:text-gray-400 space-y-1 list-decimal list-inside">
+                <li>Go to <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" class="text-blue-500 hover:underline">Google AI Studio</a></li>
+                <li>Click "Create API Key"</li>
+                <li>Copy and paste it above</li>
+              </ol>
             </div>
           </div>
         {/if}
