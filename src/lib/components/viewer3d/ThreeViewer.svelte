@@ -2284,7 +2284,7 @@
 
   <!-- Camera Preview Panel -->
   {#if cameraPreviewOpen && cameraPlaced}
-    <div class="absolute bottom-4 right-4 z-50 bg-gray-900/95 rounded-xl shadow-2xl backdrop-blur-sm overflow-hidden" style="width: 420px;">
+    <div class="absolute bottom-4 right-4 z-50 bg-gray-900/95 rounded-xl shadow-2xl backdrop-blur-sm overflow-y-auto" style="width: 420px; max-height: calc(100vh - 8rem);">
       <div class="flex items-center justify-between px-3 py-2 border-b border-gray-700">
         <span class="text-white text-sm font-medium">📷 Interior Camera</span>
         <div class="flex gap-2">
