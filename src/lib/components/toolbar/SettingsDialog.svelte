@@ -36,6 +36,8 @@
     showExtensionLines: true,
     showObjectDistance: true,
     dimensionLineColor: '#1e293b',
+    snapToGrid: true,
+    gridSize: 25,
   });
 
   projectSettings.subscribe((s) => { settings = { ...s }; });

@@ -312,8 +312,8 @@ ${paths}</svg>`;
   download(blob, `${project.name || 'floorplan'}.svg`);
 }
 
-export function exportAs3DPNG(renderer: THREE.WebGLRenderer) {
-  renderer.domElement.toBlob((blob) => {
+export function exportAs3DPNG(renderer: { domElement: HTMLCanvasElement }) {
+  renderer.domElement.toBlob((blob: Blob | null) => {
     if (blob) download(blob, 'floorplan-3d.png');
   });
 }

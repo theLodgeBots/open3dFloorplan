@@ -160,7 +160,7 @@
       ctx.fillText(room.name, c.x + ox, c.y + oy - 8);
       ctx.font = '11px system-ui';
       ctx.fillStyle = '#6b7280';
-      ctx.fillText(formatArea(room.area), c.x + ox, c.y + oy + 10);
+      ctx.fillText(formatArea(room.area, 'metric'), c.x + ox, c.y + oy + 10);
       ctx.fillStyle = '#374151';
     }
 
@@ -203,7 +203,7 @@
     if (!project) return [];
     const floor = getActiveFloor(project);
     if (!floor) return [];
-    return floor.rooms.map(r => ({ name: r.name, area: formatArea(r.area) }));
+    return floor.rooms.map(r => ({ name: r.name, area: formatArea(r.area, 'metric') }));
   }
 
   function getProjectName(): string {

@@ -84,14 +84,14 @@
         updates.interiorTexture = wc.id;
       }
       previewInteriorColor = wc.color;
-      previewInteriorTexture = wc.texture ? wc.id : (previewInteriorTexture ?? wall.interiorTexture);
+      previewInteriorTexture = wc.texture ? wc.id : (previewInteriorTexture ?? wall.interiorTexture ?? null);
     } else {
       updates.exteriorColor = wc.color;
       if (wc.texture) {
         updates.exteriorTexture = wc.id;
       }
       previewExteriorColor = wc.color;
-      previewExteriorTexture = wc.texture ? wc.id : (previewExteriorTexture ?? wall.exteriorTexture);
+      previewExteriorTexture = wc.texture ? wc.id : (previewExteriorTexture ?? wall.exteriorTexture ?? null);
     }
     updateWall(wall.id, updates);
   }

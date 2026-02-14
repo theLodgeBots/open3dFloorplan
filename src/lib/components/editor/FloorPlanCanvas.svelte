@@ -13,6 +13,9 @@
   import { getWallTextureCanvas, getFloorTextureCanvas, setTextureLoadCallback } from '$lib/utils/textureGenerator';
   import { projectSettings, formatLength, formatArea } from '$lib/stores/settings';
   import type { ProjectSettings } from '$lib/stores/settings';
+  import type { CanvasState } from '$lib/utils/canvasInteraction';
+  import { drawWall as _drawWall, drawDoorOnWall as _drawDoorOnWall, drawWindowOnWall as _drawWindowOnWall, drawDoorDistanceDimensions as _drawDoorDistanceDimensions, drawWindowDistanceDimensions as _drawWindowDistanceDimensions, drawFurnitureItem, drawStair as _drawStair, drawColumn as _drawColumn, drawGuides as _drawGuides, drawPersistedMeasurements as _drawPersistedMeasurements, drawTextAnnotations as _drawTextAnnotations, drawAnnotation as _drawAnnotation, drawAnnotations as _drawAnnotations, drawRooms as _drawRooms, drawWallJoints as _drawWallJoints, drawSnapPoints as _drawSnapPoints, drawMinimap as _drawMinimap } from '$lib/utils/canvasRenderer';
+  import { pointInPolygon, positionOnWall, findWallAt as _findWallAt, findHandleAt as _findHandleAt, findFurnitureAt as _findFurnitureAt, findColumnAt as _findColumnAt, findStairAt as _findStairAt, findDoorAt as _findDoorAt, findWindowAt as _findWindowAt, findRoomAt as _findRoomAt, hitTestMeasurement as _hitTestMeasurement, hitTestAnnotation as _hitTestAnnotation, hitTestTextAnnotation as _hitTestTextAnnotation } from '$lib/utils/hitTesting';
 
   let canvas: HTMLCanvasElement;
   let ctx: CanvasRenderingContext2D;
@@ -27,6 +30,7 @@
   // Dirty flag for render optimization — only redraw when something changes
   let canvasDirty = true;
   function markDirty() { canvasDirty = true; }
+  function getCS(): CanvasState { return { ctx, width, height, zoom, camX, camY }; }
   // Sync zoom with shared store
   canvasZoom.subscribe(v => { zoom = v; });
   $effect(() => { canvasZoom.set(zoom); });
@@ -100,6 +104,7 @@
     units: 'metric', showDimensions: true, showExternalDimensions: true,
     showInternalDimensions: false, showExtensionLines: true,
     showObjectDistance: true, dimensionLineColor: '#1e293b',
+    snapToGrid: true, gridSize: 25,
   });
   projectSettings.subscribe((s) => {
     dimSettings = s;
@@ -160,7 +165,7 @@
 
   // Resize/rotate handle drag state
   type HandleType = 'resize-tl' | 'resize-tr' | 'resize-bl' | 'resize-br' | 'resize-t' | 'resize-b' | 'resize-l' | 'resize-r' | 'rotate';
-  let draggingHandle: HandleType | null = $state(null);
+  let draggingHandle = $state<HandleType | null>(null);
   let handleDragStart: Point = { x: 0, y: 0 };
   let handleOrigScale: { x: number; y: number } = { x: 1, y: 1 };
   let handleOrigRotation: number = 0;
@@ -501,7 +506,7 @@
   }
 
   function drawFurniture(item: FurnitureItem, selected: boolean) {
-    _drawFurniture(getCS(), item, selected);
+    drawFurnitureItem(getCS(), item, selected);
   }
 
   // Track wall snap during placement preview
@@ -1332,7 +1337,7 @@
     if (isPlacingStair) {
       ctx.save();
       ctx.globalAlpha = 0.5;
-      const preview: Stair = { id: 'preview', position: mousePos, rotation: 0, width: 100, depth: 300, riserCount: 14, direction: 'up' };
+      const preview: Stair = { id: 'preview', position: mousePos, rotation: 0, width: 100, depth: 300, riserCount: 14, direction: 'up', stairType: 'straight' };
       drawStair(preview, false);
       ctx.restore();
     }
@@ -1658,7 +1663,16 @@
     resizeObs.observe(canvas.parentElement!);
     requestAnimationFrame(draw);
 
-    const unsub1 = activeFloor.subscribe((f) => { currentFloor = f; markDirty(); });
+    let initialFitDone = false;
+    const unsub1 = activeFloor.subscribe((f) => {
+      currentFloor = f;
+      markDirty();
+      if (!initialFitDone && f && f.walls.length > 0) {
+        initialFitDone = true;
+        // Delay slightly to ensure canvas is sized
+        requestAnimationFrame(() => { zoomToFit(); });
+      }
+    });
     const unsub2 = selectedElementId.subscribe((id) => { currentSelectedId = id; markDirty(); });
     const unsub3 = selectedRoomId.subscribe((id) => { currentSelectedRoomId = id; markDirty(); });
     const unsub4 = placingFurnitureId.subscribe((id) => { currentPlacingId = id; markDirty(); });
@@ -1819,6 +1833,7 @@
     camY = (minY + maxY) / 2;
     zoom = Math.min(width / contentW, height / contentH, 3);
     zoom = Math.max(zoom, 0.1);
+    markDirty();
   }
 
   // ── Hit-testing wrappers (delegating to hitTesting.ts) ──────────────
@@ -2429,7 +2444,7 @@
       }
     }
     if (draggingWallParallel && currentFloor) {
-      const wall = currentFloor.walls.find(w => w.id === draggingWallParallel.wallId);
+      const wall = currentFloor.walls.find(w => w.id === draggingWallParallel!.wallId);
       if (wall) {
         // Free movement in all directions
         {
@@ -3508,7 +3523,7 @@
       <div class="font-semibold text-gray-700 mb-2">Layers</div>
       {#each [['walls','Walls'],['doors','Doors'],['windows','Windows'],['furniture','Furniture'],['stairs','Stairs'],['columns','Columns'],['guides','Guides'],['measurements','Measurements']] as [key, label]}
         <label class="flex items-center gap-2 py-0.5 cursor-pointer hover:bg-gray-50 rounded px-1">
-          <input type="checkbox" checked={layerVis[key]} onchange={() => layerVisibility.update(v => ({ ...v, [key]: !v[key] }))} class="accent-blue-500" />
+          <input type="checkbox" checked={(layerVis as Record<string, boolean>)[key]} onchange={() => layerVisibility.update(v => ({ ...v, [key]: !(v as Record<string, boolean>)[key] }))} class="accent-blue-500" />
           <span>{label}</span>
         </label>
       {/each}

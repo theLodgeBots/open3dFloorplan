@@ -39,28 +39,28 @@
     }
   });
 
-  onMount(async () => {
-    const url = new URL(window.location.href);
-    const id = url.searchParams.get('id');
-    if (id) {
-      const project = await localStore.load(id);
-      if (project) {
-        currentProject.set(project);
+  onMount(() => {
+    (async () => {
+      const url = new URL(window.location.href);
+      const id = url.searchParams.get('id');
+      if (id) {
+        const project = await localStore.load(id);
+        if (project) {
+          currentProject.set(project);
+        } else {
+          const p = createDefaultProject();
+          currentProject.set(p);
+          await localStore.save(p);
+          history.replaceState(null, '', `/editor?id=${p.id}`);
+        }
       } else {
-        // ID not found — create new and update URL
         const p = createDefaultProject();
         currentProject.set(p);
         await localStore.save(p);
         history.replaceState(null, '', `/editor?id=${p.id}`);
       }
-    } else {
-      // No ID param — create new and update URL
-      const p = createDefaultProject();
-      currentProject.set(p);
-      await localStore.save(p);
-      history.replaceState(null, '', `/editor?id=${p.id}`);
-    }
-    ready = true;
+      ready = true;
+    })();
 
     // Auto-save on every project change (debounced)
     let saveTimeout: ReturnType<typeof setTimeout>;

@@ -5,7 +5,7 @@
   import { projectSettings, formatLength, formatArea } from '$lib/stores/settings';
   import type { Floor, Wall, Door, Window as Win, Room, FurnitureItem, Stair, Column, RoomCategory, TextAnnotation } from '$lib/models/types';
 
-  let floor: Floor | null = $state(null);
+  let floor = $state<Floor | null>(null);
   let selId: string | null = $state(null);
   let selRoomId: string | null = $state(null);
   let detectedRooms: Room[] = $state([]);
@@ -30,19 +30,19 @@
 
   let { is3D = false }: { is3D?: boolean } = $props();
   let wallSideTab = $state<'interior' | 'exterior'>('interior');
-  let selectedWall = $derived(floor?.walls.find(w => w.id === selId) ?? null);
-  let selectedDoor = $derived(floor?.doors.find(d => d.id === selId) ?? null);
-  let selectedWindow = $derived(floor?.windows.find(w => w.id === selId) ?? null);
-  let selectedFurniture = $derived(floor?.furniture.find(f => f.id === selId) ?? null);
+  let selectedWall = $derived(floor?.walls?.find(w => w.id === selId) ?? null);
+  let selectedDoor = $derived(floor?.doors?.find(d => d.id === selId) ?? null);
+  let selectedWindow = $derived(floor?.windows?.find(w => w.id === selId) ?? null);
+  let selectedFurniture = $derived(floor?.furniture?.find(f => f.id === selId) ?? null);
   let selectedStair = $derived(floor?.stairs?.find(s => s.id === selId) ?? null);
   let selectedColumn = $derived(floor?.columns?.find(c => c.id === selId) ?? null);
   let selectedTextAnnotation = $derived(floor?.textAnnotations?.find(t => t.id === selId) ?? null);
   let hasBgImage = $derived(!!floor?.backgroundImage);
-  let selectedRoom = $derived(floor?.rooms.find(r => r.id === selRoomId) ?? detectedRooms.find(r => r.id === selRoomId) ?? null);
+  let selectedRoom = $derived(floor?.rooms?.find(r => r.id === selRoomId) ?? detectedRooms.find(r => r.id === selRoomId) ?? null);
 
   // Helper to get the parent wall for selected door/window
-  let selectedDoorWall = $derived((selectedDoor && floor?.walls.find(w => w.id === selectedDoor.wallId)) ?? null);
-  let selectedWindowWall = $derived((selectedWindow && floor?.walls.find(w => w.id === selectedWindow.wallId)) ?? null);
+  let selectedDoorWall = $derived((selectedDoor && floor?.walls?.find(w => w.id === selectedDoor.wallId)) ?? null);
+  let selectedWindowWall = $derived((selectedWindow && floor?.walls?.find(w => w.id === selectedWindow.wallId)) ?? null);
 
   // Helper function to calculate wall length
   function calcWallLength(wall: Wall): number {

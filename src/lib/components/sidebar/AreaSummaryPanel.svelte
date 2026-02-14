@@ -3,7 +3,7 @@
   import { projectSettings, formatArea, formatLength } from '$lib/stores/settings';
   import type { Floor, Room, Wall, RoomCategory } from '$lib/models/types';
 
-  let floor: Floor | null = $state(null);
+  let floor = $state<Floor | null>(null);
   let detectedRooms: Room[] = $state([]);
   let settings = $state($projectSettings);
 
@@ -12,31 +12,31 @@
   projectSettings.subscribe((s) => { settings = s; });
 
   // Merge floor rooms + detected rooms (detected take precedence for dynamic data)
-  let allRooms = $derived(() => {
+  let allRooms = $derived.by(() => {
     const floorRooms = floor?.rooms ?? [];
     const floorRoomIds = new Set(floorRooms.map(r => r.id));
     const extra = detectedRooms.filter(r => !floorRoomIds.has(r.id));
     return [...floorRooms, ...extra];
   });
 
-  let totalArea = $derived(() => allRooms().reduce((sum, r) => sum + r.area, 0));
+  let totalArea = $derived(allRooms.reduce((sum: number, r: Room) => sum + r.area, 0));
 
-  let roomsByCategory = $derived(() => {
+  let roomsByCategory = $derived.by(() => {
     const cats: Record<RoomCategory, Room[]> = { indoor: [], outdoor: [], garage: [], utility: [] };
-    for (const r of allRooms()) {
+    for (const r of allRooms) {
       const cat = r.roomType ?? 'indoor';
       cats[cat].push(r);
     }
     return cats;
   });
 
-  let categoryTotals = $derived(() => {
-    const cats = roomsByCategory();
+  let categoryTotals = $derived.by(() => {
+    const cats = roomsByCategory;
     const result: { category: RoomCategory; label: string; area: number; count: number }[] = [];
     const labels: Record<RoomCategory, string> = { indoor: '🏠 Indoor', outdoor: '🌳 Outdoor', garage: '🚗 Garage', utility: '🔧 Utility' };
     for (const [cat, rooms] of Object.entries(cats) as [RoomCategory, Room[]][]) {
       if (rooms.length > 0) {
-        result.push({ category: cat, label: labels[cat], area: rooms.reduce((s, r) => s + r.area, 0), count: rooms.length });
+        result.push({ category: cat, label: labels[cat], area: rooms.reduce((s: number, r: Room) => s + r.area, 0), count: rooms.length });
       }
     }
     return result;
@@ -62,18 +62,18 @@
     return Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
   }
 
-  let totalWallLength = $derived(() => (floor?.walls ?? []).reduce((s, w) => s + calcWallLength(w), 0));
+  let totalWallLength = $derived((floor?.walls ?? []).reduce((s: number, w: Wall) => s + calcWallLength(w), 0));
 </script>
 
 <div class="space-y-3">
   <!-- Quick Stats -->
   <div class="grid grid-cols-2 gap-2">
     <div class="bg-blue-50 rounded-lg p-2 text-center">
-      <div class="text-lg font-bold text-blue-700">{allRooms().length}</div>
+      <div class="text-lg font-bold text-blue-700">{allRooms.length}</div>
       <div class="text-[10px] text-blue-500">Rooms</div>
     </div>
     <div class="bg-green-50 rounded-lg p-2 text-center">
-      <div class="text-lg font-bold text-green-700">{formatArea(totalArea(), settings.units)}</div>
+      <div class="text-lg font-bold text-green-700">{formatArea(totalArea, settings.units)}</div>
       <div class="text-[10px] text-green-500">Total Area</div>
     </div>
     <div class="bg-amber-50 rounded-lg p-2 text-center">
@@ -81,17 +81,17 @@
       <div class="text-[10px] text-amber-500">Doors / Windows</div>
     </div>
     <div class="bg-purple-50 rounded-lg p-2 text-center">
-      <div class="text-sm font-bold text-purple-700">{formatLength(totalWallLength(), settings.units)}</div>
+      <div class="text-sm font-bold text-purple-700">{formatLength(totalWallLength, settings.units)}</div>
       <div class="text-[10px] text-purple-500">Wall Length</div>
     </div>
   </div>
 
   <!-- Category Breakdown -->
-  {#if categoryTotals().length > 0}
+  {#if categoryTotals.length > 0}
     <div>
       <h4 class="text-xs font-semibold text-gray-500 uppercase mb-1.5">By Category</h4>
       <div class="space-y-1">
-        {#each categoryTotals() as cat}
+        {#each categoryTotals as cat}
           <div class="flex items-center justify-between text-xs bg-gray-50 rounded px-2 py-1.5">
             <span class="text-gray-700">{cat.label} <span class="text-gray-400">({cat.count})</span></span>
             <span class="font-medium text-gray-800">{formatArea(cat.area, settings.units)}</span>
@@ -102,12 +102,12 @@
   {/if}
 
   <!-- Per-Room Breakdown -->
-  {#if allRooms().length > 0}
+  {#if allRooms.length > 0}
     <div>
       <h4 class="text-xs font-semibold text-gray-500 uppercase mb-1.5">Room Breakdown</h4>
       <div class="space-y-0.5">
-        {#each allRooms() as room}
-          {@const pct = totalArea() > 0 ? (room.area / totalArea() * 100) : 0}
+        {#each allRooms as room}
+          {@const pct = totalArea > 0 ? (room.area / totalArea * 100) : 0}
           <div class="flex items-center gap-1.5 text-xs px-1 py-1">
             <div class="flex-1 min-w-0">
               <div class="flex items-center justify-between">

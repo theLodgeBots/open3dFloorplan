@@ -687,6 +687,12 @@ export function importRoomPlan(jsonData: any, options: RoomPlanImportOptions = {
     windows,
     furniture,
     stairs: [],
+    columns: [],
+    guides: [],
+    measurements: [],
+    annotations: [],
+    textAnnotations: [],
+    groups: [],
   };
 }
 

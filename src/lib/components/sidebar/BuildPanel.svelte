@@ -491,7 +491,7 @@
         </div>
       </div>
 
-    {:else}
+    {:else if activeTab === 'objects'}
       <div class="space-y-2">
         <!-- Search with clear button and result count -->
         <div class="relative">
