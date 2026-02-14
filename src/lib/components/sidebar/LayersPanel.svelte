@@ -9,7 +9,7 @@
   let selId: string | null = $state(null);
   selectedElementId.subscribe(id => { selId = id; });
 
-  let vis = $state({ walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true });
+  let vis = $state({ walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true });
   layerVisibility.subscribe(v => { vis = v; });
 
   // Collapsed state per category
@@ -88,6 +88,17 @@
         items: floor.measurements.map((m, i) => {
           const dist = Math.round(Math.hypot(m.x2 - m.x1, m.y2 - m.y1));
           return { id: m.id, label: `Measurement ${i + 1} (${dist} cm)`, icon: '📐' };
+        }),
+      });
+    }
+
+    if (floor.annotations?.length) {
+      cats.push({
+        key: 'annotations', label: 'Annotations', icon: '📏',
+        items: floor.annotations.map((a, i) => {
+          const dist = Math.round(Math.hypot(a.x2 - a.x1, a.y2 - a.y1));
+          const label = a.label || `${dist} cm`;
+          return { id: a.id, label: `Annotation ${i + 1} (${label})`, icon: '📏' };
         }),
       });
     }

@@ -8,6 +8,8 @@ export interface FurnitureDef {
   width: number;
   depth: number;
   height: number;
+  /** If set, this is a 2D-only architectural symbol (not rendered in 3D) */
+  symbol?: boolean;
 }
 
 export const furnitureCatalog: FurnitureDef[] = [
@@ -170,6 +172,23 @@ export const furnitureCatalog: FurnitureDef[] = [
   { id: 'gazebo', name: 'Gazebo', category: 'Structures', icon: '🏗️', color: '#e5e7eb', width: 300, depth: 300, height: 280 },
   { id: 'planter_box', name: 'Planter Box', category: 'Structures', icon: '🌱', color: '#92400e', width: 80, depth: 30, height: 30 },
   { id: 'raised_bed', name: 'Raised Bed', category: 'Structures', icon: '🌱', color: '#7B5B3A', width: 180, depth: 90, height: 40 },
+
+  // Electrical Symbols (2D only)
+  { id: 'sym_outlet', name: 'Power Outlet', category: 'Electrical', icon: '🔌', color: '#2563eb', width: 15, depth: 15, height: 0, symbol: true },
+  { id: 'sym_switch', name: 'Light Switch', category: 'Electrical', icon: '🔘', color: '#2563eb', width: 15, depth: 15, height: 0, symbol: true },
+  { id: 'sym_ceiling_light', name: 'Ceiling Light', category: 'Electrical', icon: '💡', color: '#eab308', width: 20, depth: 20, height: 0, symbol: true },
+  { id: 'sym_recessed_light', name: 'Recessed Light', category: 'Electrical', icon: '🔆', color: '#eab308', width: 15, depth: 15, height: 0, symbol: true },
+  { id: 'sym_pendant', name: 'Pendant Light', category: 'Electrical', icon: '💡', color: '#eab308', width: 18, depth: 18, height: 0, symbol: true },
+  { id: 'sym_ceiling_fan', name: 'Ceiling Fan', category: 'Electrical', icon: '🌀', color: '#2563eb', width: 25, depth: 25, height: 0, symbol: true },
+  { id: 'sym_junction', name: 'Junction Box', category: 'Electrical', icon: '⬜', color: '#2563eb', width: 12, depth: 12, height: 0, symbol: true },
+  { id: 'sym_smoke', name: 'Smoke Detector', category: 'Electrical', icon: '🔔', color: '#dc2626', width: 15, depth: 15, height: 0, symbol: true },
+
+  // Plumbing Symbols (2D only)
+  { id: 'sym_water_supply', name: 'Water Supply', category: 'Plumbing', icon: '💧', color: '#0ea5e9', width: 15, depth: 15, height: 0, symbol: true },
+  { id: 'sym_drain', name: 'Drain Point', category: 'Plumbing', icon: '⬇️', color: '#0ea5e9', width: 15, depth: 15, height: 0, symbol: true },
+  { id: 'sym_water_heater', name: 'Water Heater', category: 'Plumbing', icon: '🔥', color: '#ef4444', width: 20, depth: 20, height: 0, symbol: true },
+  { id: 'sym_washer_hookup', name: 'Washer Hookup', category: 'Plumbing', icon: '🧺', color: '#0ea5e9', width: 15, depth: 15, height: 0, symbol: true },
+  { id: 'sym_gas_line', name: 'Gas Line', category: 'Plumbing', icon: '⛽', color: '#f59e0b', width: 15, depth: 15, height: 0, symbol: true },
 ];
 
 export function getCatalogItem(id: string): FurnitureDef | undefined {

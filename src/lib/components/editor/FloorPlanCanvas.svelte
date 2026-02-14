@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { activeFloor, selectedTool, selectedElementId, selectedElementIds, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall, moveWallParallel, splitWall, snapEnabled, placingStair, addStair, moveStair, updateStair, placingColumn, placingColumnShape, addColumn, moveColumn, updateColumn, calibrationMode, calibrationPoints, updateBackgroundImage, canvasZoom, canvasCamX, canvasCamY, panMode, showFurnitureStore, addGuide, moveGuide, removeGuide, beginUndoGroup, endUndoGroup, layerVisibility, updateRoom, addMeasurement, removeMeasurement } from '$lib/stores/project';
-  import type { Point, Wall, Door, Window as Win, FurnitureItem, Stair, Column, GuideLine, Measurement } from '$lib/models/types';
+  import { activeFloor, selectedTool, selectedElementId, selectedElementIds, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall, moveWallParallel, splitWall, snapEnabled, placingStair, addStair, moveStair, updateStair, placingColumn, placingColumnShape, addColumn, moveColumn, updateColumn, calibrationMode, calibrationPoints, updateBackgroundImage, canvasZoom, canvasCamX, canvasCamY, panMode, showFurnitureStore, addGuide, moveGuide, removeGuide, beginUndoGroup, endUndoGroup, layerVisibility, updateRoom, addMeasurement, removeMeasurement, addAnnotation, removeAnnotation, updateAnnotation } from '$lib/stores/project';
+  import type { Point, Wall, Door, Window as Win, FurnitureItem, Stair, Column, GuideLine, Measurement, Annotation } from '$lib/models/types';
   import type { Floor, Room } from '$lib/models/types';
   import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
   import { getMaterial } from '$lib/utils/materials';
@@ -62,6 +62,11 @@
   let measuring = $state(false);
   let selectedMeasurementId: string | null = $state(null);
 
+  // Annotation tool (dimension annotations)
+  let annotating = $state(false);
+  let annotationStart: Point | null = $state(null);
+  let selectedAnnotationId: string | null = $state(null);
+
   // Grid toggle
   let showGrid = $state(true);
 
@@ -69,7 +74,7 @@
   let showRulers = $state(true);
 
   // Layer visibility toggles
-  let layerVis = $state({ walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true });
+  let layerVis = $state({ walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true });
   layerVisibility.subscribe(v => { layerVis = v; });
   // Sync showFurnitureStore ↔ layerVisibility.furniture
   let showFurniture = $derived(layerVis.furniture);
@@ -1598,6 +1603,201 @@
     return null;
   }
 
+  /** Draw a single dimension annotation with architectural styling */
+  function drawAnnotation(a: Annotation, selected: boolean) {
+    const offset = a.offset || 40;
+    const dx = a.x2 - a.x1, dy = a.y2 - a.y1;
+    const len = Math.hypot(dx, dy);
+    if (len < 1) return;
+
+    // Unit vectors
+    const ux = dx / len, uy = dy / len;
+    // Perpendicular (pointing in offset direction)
+    const nx = -uy, ny = ux;
+
+    // Offset dimension line endpoints
+    const d1x = a.x1 + nx * offset, d1y = a.y1 + ny * offset;
+    const d2x = a.x2 + nx * offset, d2y = a.y2 + ny * offset;
+
+    const s1 = worldToScreen(a.x1, a.y1);
+    const s2 = worldToScreen(a.x2, a.y2);
+    const sd1 = worldToScreen(d1x, d1y);
+    const sd2 = worldToScreen(d2x, d2y);
+
+    const color = selected ? '#3b82f6' : '#6366f1';
+
+    // Leader lines (perpendicular from points to dimension line)
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 0.75;
+    const extBeyond = 4 * zoom; // extend slightly past dimension line
+    ctx.beginPath();
+    ctx.moveTo(s1.x, s1.y);
+    ctx.lineTo(sd1.x + nx * extBeyond * zoom, sd1.y + ny * extBeyond * zoom);
+    ctx.moveTo(s2.x, s2.y);
+    ctx.lineTo(sd2.x + nx * extBeyond * zoom, sd2.y + ny * extBeyond * zoom);
+    ctx.stroke();
+
+    // Dimension line
+    const dimMx = (sd1.x + sd2.x) / 2;
+    const dimMy = (sd1.y + sd2.y) / 2;
+
+    // Text
+    const dist = Math.hypot(a.x2 - a.x1, a.y2 - a.y1);
+    const label = a.label || formatLength(dist, dimSettings.units);
+    const fontSize = Math.max(10, 11 * zoom);
+    ctx.font = `${fontSize}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const textW = ctx.measureText(label).width;
+    const halfGap = textW / 2 + 4;
+
+    // Dimension line with gap for text
+    ctx.strokeStyle = color;
+    ctx.lineWidth = selected ? 1.5 : 1;
+    const sux = (sd2.x - sd1.x) / Math.hypot(sd2.x - sd1.x, sd2.y - sd1.y) || 0;
+    const suy = (sd2.y - sd1.y) / Math.hypot(sd2.x - sd1.x, sd2.y - sd1.y) || 0;
+    ctx.beginPath();
+    ctx.moveTo(sd1.x, sd1.y);
+    ctx.lineTo(dimMx - sux * halfGap, dimMy - suy * halfGap);
+    ctx.moveTo(dimMx + sux * halfGap, dimMy + suy * halfGap);
+    ctx.lineTo(sd2.x, sd2.y);
+    ctx.stroke();
+
+    // Arrowheads (filled triangles at each end)
+    const arrowLen = Math.max(6, 7 * zoom);
+    const arrowW = Math.max(2.5, 3 * zoom);
+    ctx.fillStyle = color;
+    for (const [px, py, dir] of [[sd1.x, sd1.y, 1], [sd2.x, sd2.y, -1]] as [number, number, number][]) {
+      const adx = sux * arrowLen * dir;
+      const ady = suy * arrowLen * dir;
+      const apx = -suy * arrowW;
+      const apy = sux * arrowW;
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(px + adx + apx, py + ady + apy);
+      ctx.lineTo(px + adx - apx, py + ady - apy);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Text label
+    ctx.fillStyle = color;
+    ctx.fillText(label, dimMx, dimMy);
+
+    // Selection highlight
+    if (selected) {
+      // Small circles at annotation points
+      for (const p of [s1, s2]) {
+        ctx.fillStyle = '#3b82f6';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  function drawAnnotations(floor: Floor) {
+    if (!floor.annotations) return;
+    for (const a of floor.annotations) {
+      drawAnnotation(a, a.id === selectedAnnotationId);
+    }
+  }
+
+  /** Draw annotation preview while placing */
+  function drawAnnotationPreview() {
+    if (!annotationStart) return;
+    const end = mousePos;
+    const offset = 40;
+    const dx = end.x - annotationStart.x, dy = end.y - annotationStart.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1) return;
+
+    const ux = dx / len, uy = dy / len;
+    const nx = -uy, ny = ux;
+
+    const d1x = annotationStart.x + nx * offset, d1y = annotationStart.y + ny * offset;
+    const d2x = end.x + nx * offset, d2y = end.y + ny * offset;
+
+    const s1 = worldToScreen(annotationStart.x, annotationStart.y);
+    const s2 = worldToScreen(end.x, end.y);
+    const sd1 = worldToScreen(d1x, d1y);
+    const sd2 = worldToScreen(d2x, d2y);
+
+    const color = '#6366f180';
+
+    // Leader lines
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 0.75;
+    ctx.beginPath();
+    ctx.moveTo(s1.x, s1.y);
+    ctx.lineTo(sd1.x, sd1.y);
+    ctx.moveTo(s2.x, s2.y);
+    ctx.lineTo(sd2.x, sd2.y);
+    ctx.stroke();
+
+    // Dimension line
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(sd1.x, sd1.y);
+    ctx.lineTo(sd2.x, sd2.y);
+    ctx.stroke();
+
+    // Distance text
+    const dist = Math.hypot(end.x - annotationStart.x, end.y - annotationStart.y);
+    const dimMx = (sd1.x + sd2.x) / 2;
+    const dimMy = (sd1.y + sd2.y) / 2;
+    ctx.fillStyle = '#6366f1';
+    const fontSize = Math.max(10, 11 * zoom);
+    ctx.font = `${fontSize}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(formatLength(dist, dimSettings.units), dimMx, dimMy - 8);
+
+    // Endpoint dots
+    for (const p of [s1, s2]) {
+      ctx.fillStyle = '#6366f1';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function hitTestAnnotation(wp: Point, floor: Floor): string | null {
+    if (!floor.annotations) return null;
+    const threshold = 10 / zoom;
+    for (const a of floor.annotations) {
+      const offset = a.offset || 40;
+      const dx = a.x2 - a.x1, dy = a.y2 - a.y1;
+      const len = Math.hypot(dx, dy);
+      if (len < 1) continue;
+      const ux = dx / len, uy = dy / len;
+      const nx = -uy, ny = ux;
+      // Test against the dimension line (offset from points)
+      const d1x = a.x1 + nx * offset, d1y = a.y1 + ny * offset;
+      const d2x = a.x2 + nx * offset, d2y = a.y2 + ny * offset;
+      const ddx = d2x - d1x, ddy = d2y - d1y;
+      const len2 = ddx * ddx + ddy * ddy;
+      if (len2 === 0) continue;
+      let t = ((wp.x - d1x) * ddx + (wp.y - d1y) * ddy) / len2;
+      t = Math.max(0, Math.min(1, t));
+      const px = d1x + t * ddx, py = d1y + t * ddy;
+      const dist = Math.hypot(wp.x - px, wp.y - py);
+      if (dist < threshold) return a.id;
+      // Also test leader lines
+      for (const [lx1, ly1, lx2, ly2] of [[a.x1, a.y1, d1x, d1y], [a.x2, a.y2, d2x, d2y]]) {
+        const ldx = lx2 - lx1, ldy = ly2 - ly1;
+        const llen2 = ldx * ldx + ldy * ldy;
+        if (llen2 === 0) continue;
+        let lt = ((wp.x - lx1) * ldx + (wp.y - ly1) * ldy) / llen2;
+        lt = Math.max(0, Math.min(1, lt));
+        const lpx = lx1 + lt * ldx, lpy = ly1 + lt * ldy;
+        if (Math.hypot(wp.x - lpx, wp.y - lpy) < threshold) return a.id;
+      }
+    }
+    return null;
+  }
+
   function drawWallJoints(floor: Floor, selId: string | null) {
     // Find endpoints shared by 2+ walls and draw filled circles to cover corner gaps
     const epMap = new Map<string, { x: number; y: number; thickness: number; selected: boolean }[]>();
@@ -2855,6 +3055,10 @@
     if (layerVis.measurements && floor) drawPersistedMeasurements(floor);
     // Active measurement
     if (measureStart && measuring) drawMeasurement();
+    // Annotations
+    if (layerVis.annotations && floor) drawAnnotations(floor);
+    // Annotation preview
+    if (annotating && annotationStart) drawAnnotationPreview();
 
     // Drag preview ghost
     if (dragPreview) {
@@ -3266,6 +3470,23 @@
     const wp = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
     const tool = currentTool;
 
+    // Annotation tool: click first point, then second point
+    if (annotating) {
+      const snapped = magneticSnap(wp);
+      if (!annotationStart) {
+        annotationStart = { x: snapped.x, y: snapped.y };
+      } else {
+        const id = addAnnotation(annotationStart.x, annotationStart.y, snapped.x, snapped.y, 40);
+        // Prompt for custom label
+        const customLabel = prompt('Annotation label (leave empty for auto dimension):');
+        if (customLabel) {
+          updateAnnotation(id, { label: customLabel });
+        }
+        annotationStart = null;
+      }
+      return;
+    }
+
     // Guide line click detection (select / start drag)
     if (tool === 'select' && currentFloor?.guides) {
       const GUIDE_HIT = 6 / zoom; // 6px tolerance in world units
@@ -3292,10 +3513,23 @@
       const hitId = hitTestMeasurement(wp, currentFloor);
       if (hitId) {
         selectedMeasurementId = hitId;
+        selectedAnnotationId = null;
         selectedElementId.set(null);
         return;
       }
       selectedMeasurementId = null;
+    }
+
+    // Annotation click detection (select)
+    if (tool === 'select' && currentFloor) {
+      const hitId = hitTestAnnotation(wp, currentFloor);
+      if (hitId) {
+        selectedAnnotationId = hitId;
+        selectedMeasurementId = null;
+        selectedElementId.set(null);
+        return;
+      }
+      selectedAnnotationId = null;
     }
 
     // Calibration mode click
@@ -3987,6 +4221,14 @@
       return;
     }
 
+    // Delete selected annotation
+    if ((e.key === 'Delete' || e.key === 'Backspace') && selectedAnnotationId) {
+      removeAnnotation(selectedAnnotationId);
+      selectedAnnotationId = null;
+      e.preventDefault();
+      return;
+    }
+
     // Canvas-specific Escape handling (before global shortcut eats it)
     if (e.code === 'Escape') {
       wallStart = null; wallSequenceFirst = null;
@@ -3995,6 +4237,8 @@
       measuring = false;
       measureStart = null;
       measureEnd = null;
+      annotating = false;
+      annotationStart = null;
       marqueeStart = null;
       marqueeEnd = null;
     }
@@ -4111,6 +4355,12 @@
     if (e.key === 'm' || e.key === 'M') {
       measuring = !measuring;
       if (!measuring) { measureStart = null; measureEnd = null; }
+      if (measuring) { annotating = false; annotationStart = null; }
+    }
+    if (e.key === 'n' || e.key === 'N') {
+      annotating = !annotating;
+      if (!annotating) { annotationStart = null; }
+      if (annotating) { measuring = false; measureStart = null; measureEnd = null; }
     }
     if (e.key === 'f' || e.key === 'F') {
       zoomToFit();
@@ -4684,6 +4934,11 @@
   {#if measuring}
     <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-red-600 text-white px-3 py-1 rounded-full text-xs shadow">
       Right-click two points to measure · M to exit · Esc to cancel
+    </div>
+  {/if}
+  {#if annotating}
+    <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-3 py-1 rounded-full text-xs shadow">
+      {annotationStart ? 'Click second point to create annotation' : 'Click first point'} · N to exit · Esc to cancel
     </div>
   {/if}
 

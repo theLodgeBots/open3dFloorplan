@@ -264,6 +264,8 @@
     'Landscaping': '#16a34a',
     'Fencing': '#a16207',
     'Structures': '#6b7280',
+    'Electrical': '#2563eb',
+    'Plumbing': '#0ea5e9',
   };
 </script>
 

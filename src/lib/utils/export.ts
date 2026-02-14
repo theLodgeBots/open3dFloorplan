@@ -260,6 +260,39 @@ export function exportAsSVG(project: Project) {
     }
   }
 
+  // Annotations (dimension callouts)
+  if (floor.annotations) {
+    for (const a of floor.annotations) {
+      const ax1 = a.x1 - minX + pad, ay1 = a.y1 - minY + pad;
+      const ax2 = a.x2 - minX + pad, ay2 = a.y2 - minY + pad;
+      const dx = ax2 - ax1, dy = ay2 - ay1;
+      const len = Math.hypot(dx, dy);
+      if (len < 1) continue;
+      const ux = dx / len, uy = dy / len;
+      const nx = -uy, ny = ux;
+      const offset = a.offset || 40;
+      const d1x = ax1 + nx * offset, d1y = ay1 + ny * offset;
+      const d2x = ax2 + nx * offset, d2y = ay2 + ny * offset;
+      // Leader lines
+      paths += `  <line x1="${ax1}" y1="${ay1}" x2="${d1x}" y2="${d1y}" stroke="#6366f1" stroke-width="0.75"/>\n`;
+      paths += `  <line x1="${ax2}" y1="${ay2}" x2="${d2x}" y2="${d2y}" stroke="#6366f1" stroke-width="0.75"/>\n`;
+      // Dimension line
+      paths += `  <line x1="${d1x}" y1="${d1y}" x2="${d2x}" y2="${d2y}" stroke="#6366f1" stroke-width="1"/>\n`;
+      // Arrowheads
+      const arrowLen = 7, arrowW = 3;
+      for (const [px, py, dir] of [[d1x, d1y, 1], [d2x, d2y, -1]] as [number, number, number][]) {
+        const adx = ux * arrowLen * dir, ady = uy * arrowLen * dir;
+        const apx = -uy * arrowW, apy = ux * arrowW;
+        paths += `  <polygon points="${px},${py} ${px + adx + apx},${py + ady + apy} ${px + adx - apx},${py + ady - apy}" fill="#6366f1"/>\n`;
+      }
+      // Label
+      const dist = Math.round(Math.hypot(a.x2 - a.x1, a.y2 - a.y1));
+      const label = a.label || `${dist} cm`;
+      const mx = (d1x + d2x) / 2, my = (d1y + d2y) / 2;
+      paths += `  <text x="${mx}" y="${my - 4}" text-anchor="middle" font-size="10" fill="#6366f1" font-family="sans-serif">${escapeXml(label)}</text>\n`;
+    }
+  }
+
   const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vw} ${vh}" width="${vw}" height="${vh}">
   <rect width="100%" height="100%" fill="white"/>

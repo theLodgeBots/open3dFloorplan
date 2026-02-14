@@ -96,6 +96,16 @@ export interface Measurement {
   y2: number;
 }
 
+export interface Annotation {
+  id: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  label?: string;
+  offset: number; // perpendicular offset for dimension line (default 40)
+}
+
 export interface GuideLine {
   id: string;
   orientation: 'horizontal' | 'vertical';
@@ -125,6 +135,7 @@ export interface Floor {
   backgroundImage?: BackgroundImage;
   guides: GuideLine[];
   measurements: Measurement[];
+  annotations: Annotation[];
 }
 
 export interface Project {

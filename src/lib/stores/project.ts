@@ -8,7 +8,7 @@ function uid(): string {
 
 export function createDefaultFloor(level = 0): Floor {
   const id = uid();
-  return { id, name: level === 0 ? 'Ground Floor' : `Floor ${level}`, level, walls: [], rooms: [], doors: [], windows: [], furniture: [], stairs: [], columns: [], guides: [], measurements: [] };
+  return { id, name: level === 0 ? 'Ground Floor' : `Floor ${level}`, level, walls: [], rooms: [], doors: [], windows: [], furniture: [], stairs: [], columns: [], guides: [], measurements: [], annotations: [] };
 }
 
 export function createDefaultProject(name = 'Untitled Project'): Project {
@@ -650,9 +650,35 @@ export function removeMeasurement(id: string) {
   });
 }
 
+// --- Annotations ---
+export function addAnnotation(x1: number, y1: number, x2: number, y2: number, offset = 40, label?: string): string {
+  const id = uid();
+  mutate(f => {
+    if (!f.annotations) f.annotations = [];
+    f.annotations.push({ id, x1, y1, x2, y2, offset, label });
+  });
+  return id;
+}
+
+export function removeAnnotation(id: string) {
+  mutate(f => {
+    if (!f.annotations) return;
+    f.annotations = f.annotations.filter(a => a.id !== id);
+  });
+}
+
+export function updateAnnotation(id: string, updates: Partial<{ x1: number; y1: number; x2: number; y2: number; offset: number; label: string }>) {
+  mutate(f => {
+    if (!f.annotations) return;
+    const a = f.annotations.find(a => a.id === id);
+    if (!a) return;
+    Object.assign(a, updates);
+  });
+}
+
 // Layer visibility store (used by LayersPanel and FloorPlanCanvas)
-export const layerVisibility = writable<{ walls: boolean; doors: boolean; windows: boolean; furniture: boolean; stairs: boolean; columns: boolean; guides: boolean; measurements: boolean }>({
-  walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true,
+export const layerVisibility = writable<{ walls: boolean; doors: boolean; windows: boolean; furniture: boolean; stairs: boolean; columns: boolean; guides: boolean; measurements: boolean; annotations: boolean }>({
+  walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true,
 });
 
 // Zoom store for 2D canvas — shared between FloorPlanCanvas and TopBar

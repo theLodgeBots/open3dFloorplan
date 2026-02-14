@@ -854,6 +854,8 @@
     for (const fi of floor.furniture) {
       const cat = getCatalogItem(fi.catalogId);
       if (!cat) continue;
+      // Skip 2D-only architectural symbols
+      if (cat.symbol) continue;
       // Create modified catalog definition with overrides
       const furnitureDef = {
         ...cat,

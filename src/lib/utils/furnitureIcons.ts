@@ -662,6 +662,244 @@ const drawGenericTable: DrawFn = (ctx, w, d) => {
   ctx.fill(); ctx.stroke();
 };
 
+// ─── Electrical Symbols ─────────────────────────────────────────────────
+
+const drawSymOutlet: DrawFn = (ctx, w, d, color) => {
+  const r = Math.min(w, d) * 0.45;
+  // Circle
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill(); ctx.stroke();
+  // Two vertical slots
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.3, -r * 0.35);
+  ctx.lineTo(-r * 0.3, r * 0.35);
+  ctx.moveTo(r * 0.3, -r * 0.35);
+  ctx.lineTo(r * 0.3, r * 0.35);
+  ctx.strokeStyle = color;
+  ctx.stroke();
+};
+
+const drawSymSwitch: DrawFn = (ctx, w, d, color) => {
+  const r = Math.min(w, d) * 0.45;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill(); ctx.stroke();
+  // "S" text
+  ctx.fillStyle = color;
+  ctx.font = `bold ${r * 1.2}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('S', 0, 0);
+};
+
+const drawSymCeilingLight: DrawFn = (ctx, w, d, color) => {
+  const r = Math.min(w, d) * 0.45;
+  // Circle with X
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fillStyle = '#fef9c3';
+  ctx.fill(); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.7, -r * 0.7);
+  ctx.lineTo(r * 0.7, r * 0.7);
+  ctx.moveTo(r * 0.7, -r * 0.7);
+  ctx.lineTo(-r * 0.7, r * 0.7);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+};
+
+const drawSymRecessedLight: DrawFn = (ctx, w, d, color) => {
+  const r = Math.min(w, d) * 0.45;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fillStyle = '#fef9c3';
+  ctx.fill(); ctx.stroke();
+  // Dot in center
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.2, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+};
+
+const drawSymPendant: DrawFn = (ctx, w, d, color) => {
+  const r = Math.min(w, d) * 0.45;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fillStyle = '#fef9c3';
+  ctx.fill(); ctx.stroke();
+  // Pendant line + small circle
+  ctx.beginPath();
+  ctx.moveTo(0, -r * 0.6);
+  ctx.lineTo(0, 0);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(0, r * 0.2, r * 0.3, 0, Math.PI * 2);
+  ctx.stroke();
+};
+
+const drawSymCeilingFan: DrawFn = (ctx, w, d, color) => {
+  const r = Math.min(w, d) * 0.45;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill(); ctx.stroke();
+  // 4 blades
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(Math.cos(a) * r * 0.85, Math.sin(a) * r * 0.85);
+    ctx.stroke();
+  }
+  // Center hub
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.15, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+};
+
+const drawSymJunction: DrawFn = (ctx, w, d, color) => {
+  const s = Math.min(w, d) * 0.8;
+  // Square box
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(-s / 2, -s / 2, s, s);
+  ctx.strokeRect(-s / 2, -s / 2, s, s);
+  // "J" label
+  ctx.fillStyle = color;
+  ctx.font = `bold ${s * 0.6}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('J', 0, 0);
+};
+
+const drawSymSmoke: DrawFn = (ctx, w, d, color) => {
+  const r = Math.min(w, d) * 0.45;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  ctx.strokeStyle = color;
+  ctx.stroke();
+  // "SD" text
+  ctx.fillStyle = color;
+  ctx.font = `bold ${r * 0.85}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('SD', 0, 0);
+};
+
+// ─── Plumbing Symbols ───────────────────────────────────────────────────
+
+const drawSymWaterSupply: DrawFn = (ctx, w, d, color) => {
+  const r = Math.min(w, d) * 0.45;
+  // Triangle pointing up (water supply)
+  ctx.beginPath();
+  ctx.moveTo(0, -r);
+  ctx.lineTo(r * 0.87, r * 0.5);
+  ctx.lineTo(-r * 0.87, r * 0.5);
+  ctx.closePath();
+  ctx.fillStyle = color + '40';
+  ctx.fill();
+  ctx.strokeStyle = color;
+  ctx.stroke();
+  // "W" label
+  ctx.fillStyle = color;
+  ctx.font = `bold ${r * 0.8}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('W', 0, r * 0.05);
+};
+
+const drawSymDrain: DrawFn = (ctx, w, d, color) => {
+  const r = Math.min(w, d) * 0.45;
+  // Circle with grid pattern (drain)
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  ctx.strokeStyle = color;
+  ctx.stroke();
+  // Cross-hatch
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.7, 0);
+  ctx.lineTo(r * 0.7, 0);
+  ctx.moveTo(0, -r * 0.7);
+  ctx.lineTo(0, r * 0.7);
+  ctx.moveTo(-r * 0.5, -r * 0.5);
+  ctx.lineTo(r * 0.5, r * 0.5);
+  ctx.moveTo(r * 0.5, -r * 0.5);
+  ctx.lineTo(-r * 0.5, r * 0.5);
+  ctx.strokeStyle = color;
+  ctx.stroke();
+};
+
+const drawSymWaterHeater: DrawFn = (ctx, w, d, color) => {
+  const r = Math.min(w, d) * 0.45;
+  // Circle
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  ctx.strokeStyle = color;
+  ctx.stroke();
+  // "WH" label
+  ctx.fillStyle = color;
+  ctx.font = `bold ${r * 0.75}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('WH', 0, 0);
+};
+
+const drawSymWasherHookup: DrawFn = (ctx, w, d, color) => {
+  const r = Math.min(w, d) * 0.45;
+  // Square with valve symbol
+  const s = r * 1.4;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(-s / 2, -s / 2, s, s);
+  ctx.strokeStyle = color;
+  ctx.strokeRect(-s / 2, -s / 2, s, s);
+  // Two circles (hot/cold)
+  ctx.beginPath();
+  ctx.arc(-s * 0.2, 0, s * 0.15, 0, Math.PI * 2);
+  ctx.strokeStyle = '#dc2626';
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(s * 0.2, 0, s * 0.15, 0, Math.PI * 2);
+  ctx.strokeStyle = color;
+  ctx.stroke();
+};
+
+const drawSymGasLine: DrawFn = (ctx, w, d, color) => {
+  const r = Math.min(w, d) * 0.45;
+  // Diamond shape
+  ctx.beginPath();
+  ctx.moveTo(0, -r);
+  ctx.lineTo(r, 0);
+  ctx.lineTo(0, r);
+  ctx.lineTo(-r, 0);
+  ctx.closePath();
+  ctx.fillStyle = color + '30';
+  ctx.fill();
+  ctx.strokeStyle = color;
+  ctx.stroke();
+  // "G" label
+  ctx.fillStyle = color;
+  ctx.font = `bold ${r * 0.9}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('G', 0, 0);
+};
+
 /** Registry mapping catalogId → custom draw function */
 const iconDrawers: Record<string, DrawFn> = {
   sofa: drawSofa,
@@ -715,6 +953,21 @@ const iconDrawers: Record<string, DrawFn> = {
   table_lamp: drawTableLamp,
   wall_sconce: drawWallSconce,
   pendant_light: drawPendantLight,
+  // Electrical symbols
+  sym_outlet: drawSymOutlet,
+  sym_switch: drawSymSwitch,
+  sym_ceiling_light: drawSymCeilingLight,
+  sym_recessed_light: drawSymRecessedLight,
+  sym_pendant: drawSymPendant,
+  sym_ceiling_fan: drawSymCeilingFan,
+  sym_junction: drawSymJunction,
+  sym_smoke: drawSymSmoke,
+  // Plumbing symbols
+  sym_water_supply: drawSymWaterSupply,
+  sym_drain: drawSymDrain,
+  sym_water_heater: drawSymWaterHeater,
+  sym_washer_hookup: drawSymWasherHookup,
+  sym_gas_line: drawSymGasLine,
 };
 
 /**
