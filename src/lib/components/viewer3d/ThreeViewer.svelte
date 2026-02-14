@@ -153,8 +153,10 @@
       offRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
       offRenderer.toneMapping = THREE.ACESFilmicToneMapping;
       if (cameraHelper) cameraHelper.visible = false;
+      setSpritesVisible(false);
       offRenderer.render(scene, interiorCamera);
       if (cameraHelper) cameraHelper.visible = true;
+      setSpritesVisible(true);
       const imageDataUrl = offRenderer.domElement.toDataURL('image/png');
       offRenderer.dispose();
       
@@ -316,6 +318,14 @@
     interiorCamera.updateProjectionMatrix();
   }
 
+  /** Hide/show all label sprites in the scene (room names, etc.) */
+  function setSpritesVisible(visible: boolean) {
+    if (!scene) return;
+    scene.traverse((obj) => {
+      if (obj instanceof THREE.Sprite) obj.visible = visible;
+    });
+  }
+
   function captureInteriorPhoto() {
     if (!scene || !interiorCamera) return;
     updateInteriorCamera();
@@ -331,12 +341,14 @@
     offRenderer.toneMapping = THREE.ACESFilmicToneMapping;
     offRenderer.toneMappingExposure = 1.0;
 
-    // Hide camera marker during capture
+    // Hide camera marker and room labels during capture
     if (cameraHelper) cameraHelper.visible = false;
+    setSpritesVisible(false);
 
     offRenderer.render(scene, interiorCamera);
 
     if (cameraHelper) cameraHelper.visible = true;
+    setSpritesVisible(true);
 
     const dataUrl = offRenderer.domElement.toDataURL('image/png');
     offRenderer.dispose();
@@ -365,8 +377,10 @@
     cameraPreviewRenderer.setPixelRatio(1);
 
     if (cameraHelper) cameraHelper.visible = false;
+    setSpritesVisible(false);
     cameraPreviewRenderer.render(scene, interiorCamera);
     if (cameraHelper) cameraHelper.visible = true;
+    setSpritesVisible(true);
     cameraPreviewDirty = false;
   }
 
