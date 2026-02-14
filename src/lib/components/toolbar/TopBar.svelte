@@ -167,8 +167,10 @@
         exportOpen = false;
       }
     }
-    function handleKeydown() {
+    function handleKeydown(e: KeyboardEvent) {
       if (exportOpen) exportOpen = false;
+      if (e.key === 'Escape' && versionHistoryOpen) versionHistoryOpen = false;
+      if (e.key === 'Escape' && areaOpen) areaOpen = false;
     }
     document.addEventListener('click', handleClickOutside, true);
     document.addEventListener('keydown', handleKeydown, true);
