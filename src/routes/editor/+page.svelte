@@ -107,6 +107,8 @@
           <div class="text-gray-600">Measure</div><div class="font-mono text-slate-800">M / Right-click</div>
 
           <div class="font-semibold text-gray-400 col-span-2 mt-3 mb-1 uppercase text-xs">Edit</div>
+          <div class="text-gray-600">Select all</div><div class="font-mono text-slate-800">Ctrl+A</div>
+          <div class="text-gray-600">Deselect all</div><div class="font-mono text-slate-800">Ctrl+D</div>
           <div class="text-gray-600">Undo</div><div class="font-mono text-slate-800">Ctrl+Z</div>
           <div class="text-gray-600">Redo</div><div class="font-mono text-slate-800">Ctrl+Y</div>
           <div class="text-gray-600">Rotate furniture</div><div class="font-mono text-slate-800">R / Scroll</div>

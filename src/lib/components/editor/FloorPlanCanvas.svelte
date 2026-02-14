@@ -95,6 +95,8 @@
   let currentDoorType: Door['type'] = $state('single');
   let currentWindowType: Win['type'] = $state('standard');
   let currentSnapEnabled: boolean = $state(true);
+  let currentSnapToGrid: boolean = $state(true);
+  let currentGridSize: number = $state(25);
   let isPlacingStair: boolean = $state(false);
   let draggingStairId: string | null = $state(null);
   let stairDragOffset: Point = { x: 0, y: 0 };
@@ -241,7 +243,8 @@
 
   function snap(v: number): number {
     if (!currentSnapEnabled) return v;
-    return Math.round(v / SNAP) * SNAP;
+    const step = currentSnapToGrid ? currentGridSize : SNAP;
+    return Math.round(v / step) * step;
   }
 
   function screenToWorld(sx: number, sy: number): Point {
@@ -316,7 +319,7 @@
 
   function drawGrid() {
     if (!ctx || !showGrid) return;
-    const step = GRID * zoom;
+    const step = (currentSnapToGrid ? currentGridSize : GRID) * zoom;
     if (step < 4) return;
 
     // Minor grid
@@ -2330,6 +2333,7 @@
     const unsub8 = placingDoorType.subscribe((t) => { currentDoorType = t; });
     const unsub9 = placingWindowType.subscribe((t) => { currentWindowType = t; });
     const unsub10 = snapEnabled.subscribe((v) => { currentSnapEnabled = v; });
+    const unsub_snapgrid = projectSettings.subscribe((s) => { currentSnapToGrid = s.snapToGrid; currentGridSize = s.gridSize; });
     const unsub11 = placingStair.subscribe((v) => { isPlacingStair = v; });
     const unsub_col = placingColumn.subscribe((v) => { isPlacingColumn = v; });
     const unsub_cols = placingColumnShape.subscribe((v) => { placingColShape = v; });
@@ -2346,7 +2350,7 @@
       }
     });
 
-    return () => { resizeObs.disconnect(); unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); unsub8(); unsub9(); unsub10(); unsub11(); unsub12(); unsub13(); unsub_multi(); unsub14(); unsub_col(); unsub_cols(); };
+    return () => { resizeObs.disconnect(); unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); unsub8(); unsub9(); unsub10(); unsub11(); unsub12(); unsub13(); unsub_multi(); unsub14(); unsub_col(); unsub_cols(); unsub_snapgrid(); };
   });
 
   function zoomToFit() {
@@ -2865,8 +2869,9 @@
           const mdx = mousePos.x - draggingWallParallel.startMousePos.x;
           const mdy = mousePos.y - draggingWallParallel.startMousePos.y;
           // Snap delta to grid
-          const dx = Math.round(mdx / SNAP) * SNAP;
-          const dy = Math.round(mdy / SNAP) * SNAP;
+          const snapStep = currentSnapToGrid ? currentGridSize : SNAP;
+          const dx = Math.round(mdx / snapStep) * snapStep;
+          const dy = Math.round(mdy / snapStep) * snapStep;
           // Set wall positions from original + offset
           const newStart = {
             x: draggingWallParallel.origStart.x + dx,
@@ -2889,8 +2894,9 @@
       }
     }
     if (draggingMultiSelect && currentFloor) {
-      const dx = Math.round((mousePos.x - draggingMultiSelect.startMousePos.x) / SNAP) * SNAP;
-      const dy = Math.round((mousePos.y - draggingMultiSelect.startMousePos.y) / SNAP) * SNAP;
+      const mSnapStep = currentSnapToGrid ? currentGridSize : SNAP;
+      const dx = Math.round((mousePos.x - draggingMultiSelect.startMousePos.x) / mSnapStep) * mSnapStep;
+      const dy = Math.round((mousePos.y - draggingMultiSelect.startMousePos.y) / mSnapStep) * mSnapStep;
       for (const [id, orig] of draggingMultiSelect.origPositions) {
         if (orig.start && orig.end) {
           // Wall — move both endpoints
@@ -2907,8 +2913,9 @@
       }
     }
     if (draggingRoomId && currentFloor && roomDragStartPositions.size > 0) {
-      const dx = Math.round((mousePos.x - roomDragStartMouse.x) / SNAP) * SNAP;
-      const dy = Math.round((mousePos.y - roomDragStartMouse.y) / SNAP) * SNAP;
+      const rSnapStep = currentSnapToGrid ? currentGridSize : SNAP;
+      const dx = Math.round((mousePos.x - roomDragStartMouse.x) / rSnapStep) * rSnapStep;
+      const dy = Math.round((mousePos.y - roomDragStartMouse.y) / rSnapStep) * rSnapStep;
       for (const [wid, orig] of roomDragStartPositions) {
         moveWallEndpoint(wid, 'start', { x: orig.start.x + dx, y: orig.start.y + dy });
         moveWallEndpoint(wid, 'end', { x: orig.end.x + dx, y: orig.end.y + dy });
@@ -3150,6 +3157,32 @@
       marqueeEnd = null;
     }
 
+    // Select All (Ctrl+A / Cmd+A)
+    if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey) {
+      e.preventDefault();
+      if (currentFloor) {
+        const allIds = new Set<string>();
+        for (const w of currentFloor.walls) allIds.add(w.id);
+        for (const f of currentFloor.furniture) allIds.add(f.id);
+        for (const d of currentFloor.doors) allIds.add(d.id);
+        for (const w of currentFloor.windows) allIds.add(w.id);
+        if (currentFloor.stairs) for (const s of currentFloor.stairs) allIds.add(s.id);
+        if (currentFloor.columns) for (const c of currentFloor.columns) allIds.add(c.id);
+        selectedElementIds.set(allIds);
+        const first = [...allIds][0] ?? null;
+        selectedElementId.set(first);
+      }
+      return;
+    }
+
+    // Deselect All (Ctrl+D / Cmd+D)
+    if ((e.ctrlKey || e.metaKey) && e.key === 'd' && !e.shiftKey) {
+      e.preventDefault();
+      selectedElementIds.set(new Set());
+      selectedElementId.set(null);
+      return;
+    }
+
     // Copy (Ctrl+C / Cmd+C)
     if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !e.shiftKey) {
       if (currentFloor) {
@@ -3225,6 +3258,9 @@
     });
     if (handled) return;
 
+    if (e.key === 's' || e.key === 'S') {
+      projectSettings.update(s => ({ ...s, snapToGrid: !s.snapToGrid }));
+    }
     if (e.key === 'g' || e.key === 'G') {
       showGrid = !showGrid;
     }
@@ -3424,6 +3460,9 @@
     <button class="hover:text-gray-700" onclick={() => zoomToFit()} title="Zoom to Fit (F)">⊞ Fit</button>
     <button class="hover:text-gray-700" onclick={() => showGrid = !showGrid} title="Toggle Grid (G)">
       {showGrid ? '▦' : '▢'} Grid
+    </button>
+    <button class="hover:text-gray-700" onclick={() => projectSettings.update(s => ({ ...s, snapToGrid: !s.snapToGrid }))} title="Toggle Snap to Grid (S)">
+      {currentSnapToGrid ? '🧲' : '↔'} Snap
     </button>
     <button class="hover:text-gray-700" onclick={() => showFurnitureStore.update(v => !v)} title="Toggle Furniture">
       {showFurniture ? '🪑' : '👻'} Furniture

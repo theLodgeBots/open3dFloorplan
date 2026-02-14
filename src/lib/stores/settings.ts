@@ -8,6 +8,8 @@ export interface ProjectSettings {
   showExtensionLines: boolean;           // perpendicular tick marks on dimension lines
   showObjectDistance: boolean;            // distance from objects to walls
   dimensionLineColor: string;            // color for dimension lines/text
+  snapToGrid: boolean;                   // snap elements to grid when dragging
+  gridSize: number;                      // grid snap size in cm (default 25)
 }
 
 const defaultSettings: ProjectSettings = {
@@ -18,6 +20,8 @@ const defaultSettings: ProjectSettings = {
   showExtensionLines: true,
   showObjectDistance: true,
   dimensionLineColor: '#1e293b',
+  snapToGrid: true,
+  gridSize: 25,
 };
 
 // Load from localStorage if available
