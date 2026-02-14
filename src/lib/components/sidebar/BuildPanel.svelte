@@ -12,8 +12,8 @@
   import { currentProject, loadProject, importFloorIntoCurrentProject, createDefaultProject } from '$lib/stores/project';
   import type { Project } from '$lib/models/types';
 
-  import AreaSummaryPanel from '$lib/components/sidebar/AreaSummaryPanel.svelte';
-  let activeTab = $state<'draw' | 'rooms' | 'objects' | 'area'>('draw');
+  // AreaSummaryPanel moved to top bar dialog
+  let activeTab = $state<'draw' | 'rooms' | 'objects'>('draw');
   let constructionOpen = $state(true);
   let selectedCategory = $state<string>('All');
   let thumbsReady = $state(0); // increment to trigger reactivity
@@ -319,10 +319,6 @@
       class="flex-1 py-2.5 text-xs font-semibold uppercase tracking-wide {activeTab === 'objects' ? 'text-slate-800 border-b-2 border-blue-500 bg-blue-50' : 'text-gray-500 hover:text-gray-700'}"
       onclick={() => activeTab = 'objects'}
     >Objects</button>
-    <button
-      class="flex-1 py-2.5 text-xs font-semibold uppercase tracking-wide {activeTab === 'area' ? 'text-slate-800 border-b-2 border-blue-500 bg-blue-50' : 'text-gray-500 hover:text-gray-700'}"
-      onclick={() => activeTab = 'area'}
-    >📐 Area</button>
   </div>
 
   <div class="flex-1 overflow-y-auto p-3">
@@ -647,8 +643,6 @@
           {/each}
         </div>
       </div>
-    {:else if activeTab === 'area'}
-      <AreaSummaryPanel />
     {/if}
   </div>
 </div>
