@@ -332,24 +332,35 @@
     interiorCamera.updateProjectionMatrix();
   }
 
-  /** Set wall meshes to transparent/opaque for x-ray preview */
+  /** Set wall/ceiling/door meshes to transparent for x-ray preview.
+   *  Saves original material state so it can be restored cleanly. */
+  const xrayOriginals = new Map<THREE.Mesh, { transparent: boolean; opacity: number; depthWrite: boolean }>();
   function setWallsXray(xray: boolean) {
     if (!wallGroup) return;
-    wallGroup.traverse((obj) => {
-      if (obj instanceof THREE.Mesh && wallMeshMap.has(obj)) {
-        const mat = obj.material as THREE.MeshStandardMaterial;
-        if (xray) {
+    if (xray) {
+      xrayOriginals.clear();
+      wallGroup.traverse((obj) => {
+        if (obj instanceof THREE.Mesh && !(obj instanceof THREE.Sprite)) {
+          const mat = obj.material as THREE.MeshStandardMaterial;
+          if (!mat) return;
+          xrayOriginals.set(obj, { transparent: mat.transparent, opacity: mat.opacity, depthWrite: mat.depthWrite });
           mat.transparent = true;
-          mat.opacity = 0.15;
+          mat.opacity = 0.12;
           mat.depthWrite = false;
-        } else {
-          mat.transparent = false;
-          mat.opacity = 1;
-          mat.depthWrite = true;
+          mat.needsUpdate = true;
         }
+      });
+    } else {
+      for (const [mesh, orig] of xrayOriginals) {
+        const mat = mesh.material as THREE.MeshStandardMaterial;
+        if (!mat) continue;
+        mat.transparent = orig.transparent;
+        mat.opacity = orig.opacity;
+        mat.depthWrite = orig.depthWrite;
         mat.needsUpdate = true;
       }
-    });
+      xrayOriginals.clear();
+    }
   }
 
   /** Hide/show all label sprites in the scene (room names, etc.) */
