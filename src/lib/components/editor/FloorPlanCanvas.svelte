@@ -8,6 +8,7 @@
   import { getCatalogItem } from '$lib/utils/furnitureCatalog';
   import { drawFurnitureIcon } from '$lib/utils/furnitureIcons';
   import { handleGlobalShortcut } from '$lib/utils/shortcuts';
+  import ContextMenu from './ContextMenu.svelte';
   import { roomPresets, placePreset } from '$lib/utils/roomPresets';
   import { getWallTextureCanvas, getFloorTextureCanvas, setTextureLoadCallback } from '$lib/utils/textureGenerator';
   import { projectSettings, formatLength, formatArea } from '$lib/stores/settings';
@@ -163,6 +164,16 @@
 
   // Clipboard for copy/paste (Ctrl+C / Ctrl+V)
   let clipboard: { items: Array<{ type: 'furniture' | 'door' | 'window'; data: any }> } | null = $state(null);
+
+  // Context menu state
+  let ctxMenuVisible = $state(false);
+  let ctxMenuX = $state(0);
+  let ctxMenuY = $state(0);
+  let ctxMenuTargetType: 'furniture' | 'wall' | 'door' | 'window' | 'room' | 'canvas' | null = $state(null);
+  let ctxMenuTargetId: string | null = $state(null);
+  let ctxMenuWall: Wall | null = $state(null);
+  let ctxMenuFurniture: FurnitureItem | null = $state(null);
+  let ctxMenuRoom: Room | null = $state(null);
 
   /**
    * Compute bounding box of all multi-selected elements.
@@ -2081,7 +2092,8 @@
     ctx.font = `${Math.max(8, 10 * zoom)}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const typeLabel = stair.stairType === 'straight' ? '' : ` (${stair.stairType})`;
+    const sType = stair.stairType || 'straight';
+    const typeLabel = sType === 'straight' ? '' : ` (${sType})`;
     ctx.fillText((stair.direction === 'up' ? 'UP' : 'DN') + typeLabel, 0, 0);
   }
 
@@ -4183,19 +4195,202 @@
 
   function onContextMenu(e: MouseEvent) {
     e.preventDefault();
-    // Right-click starts/ends measurement
+
+    // If in measurement mode, use old behaviour
+    if (measuring) {
+      const rect = canvas.getBoundingClientRect();
+      const wp = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+      if (!measureStart || measureEnd) {
+        measureStart = wp;
+        measureEnd = null;
+      } else {
+        measureEnd = wp;
+        addMeasurement(measureStart.x, measureStart.y, wp.x, wp.y);
+        measureStart = null;
+        measureEnd = null;
+      }
+      return;
+    }
+
+    // Show context menu
     const rect = canvas.getBoundingClientRect();
     const wp = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
-    if (!measureStart || measureEnd) {
-      measureStart = wp;
-      measureEnd = null;
-      measuring = true;
+
+    // Hit-test in priority order: furniture > door > window > wall > room > canvas
+    const fi = findFurnitureAt(wp);
+    if (fi) {
+      selectedElementId.set(fi.id);
+      ctxMenuTargetType = 'furniture';
+      ctxMenuTargetId = fi.id;
+      ctxMenuFurniture = fi;
+      ctxMenuWall = null;
+      ctxMenuRoom = null;
     } else {
-      measureEnd = wp;
-      // Persist the measurement
-      addMeasurement(measureStart.x, measureStart.y, wp.x, wp.y);
-      measureStart = null;
-      measureEnd = null;
+      const door = findDoorAt(wp);
+      if (door) {
+        selectedElementId.set(door.id);
+        ctxMenuTargetType = 'door';
+        ctxMenuTargetId = door.id;
+        ctxMenuFurniture = null;
+        ctxMenuWall = null;
+        ctxMenuRoom = null;
+      } else {
+        const win = findWindowAt(wp);
+        if (win) {
+          selectedElementId.set(win.id);
+          ctxMenuTargetType = 'window';
+          ctxMenuTargetId = win.id;
+          ctxMenuFurniture = null;
+          ctxMenuWall = null;
+          ctxMenuRoom = null;
+        } else {
+          const wall = findWallAt(wp);
+          if (wall) {
+            selectedElementId.set(wall.id);
+            ctxMenuTargetType = 'wall';
+            ctxMenuTargetId = wall.id;
+            ctxMenuWall = wall;
+            ctxMenuFurniture = null;
+            ctxMenuRoom = null;
+          } else {
+            const room = findRoomAt(wp);
+            if (room) {
+              selectedRoomId.set(room.id);
+              ctxMenuTargetType = 'room';
+              ctxMenuTargetId = room.id;
+              ctxMenuRoom = room;
+              ctxMenuWall = null;
+              ctxMenuFurniture = null;
+            } else {
+              ctxMenuTargetType = 'canvas';
+              ctxMenuTargetId = null;
+              ctxMenuWall = null;
+              ctxMenuFurniture = null;
+              ctxMenuRoom = null;
+            }
+          }
+        }
+      }
+    }
+
+    ctxMenuX = e.clientX;
+    ctxMenuY = e.clientY;
+    ctxMenuVisible = true;
+  }
+
+  function handleContextMenuAction(action: string, _data?: any) {
+    if (!currentFloor) return;
+    const id = ctxMenuTargetId;
+
+    switch (action) {
+      // Furniture actions
+      case 'duplicate-furniture':
+        if (id) { const newId = duplicateFurniture(id); if (newId) selectedElementId.set(newId); }
+        break;
+      case 'rotate-furniture-90':
+        if (id) rotateFurniture(id, 90);
+        break;
+      case 'flip-horizontal':
+        if (id) {
+          const fi = currentFloor.furniture.find(f => f.id === id);
+          if (fi) scaleFurniture(id, { x: -(fi.scale?.x ?? 1), y: fi.scale?.y ?? 1 });
+        }
+        break;
+      case 'bring-to-front':
+        if (id) {
+          const idx = currentFloor.furniture.findIndex(f => f.id === id);
+          if (idx >= 0) {
+            const [item] = currentFloor.furniture.splice(idx, 1);
+            currentFloor.furniture.push(item);
+          }
+        }
+        break;
+      case 'send-to-back':
+        if (id) {
+          const idx = currentFloor.furniture.findIndex(f => f.id === id);
+          if (idx >= 0) {
+            const [item] = currentFloor.furniture.splice(idx, 1);
+            currentFloor.furniture.unshift(item);
+          }
+        }
+        break;
+
+      // Wall actions
+      case 'split-wall':
+        if (id) { const newId = splitWall(id, 0.5); if (newId) selectedElementId.set(null); }
+        break;
+      case 'toggle-curve':
+        if (id && ctxMenuWall) {
+          if (ctxMenuWall.curvePoint) {
+            updateWall(id, { curvePoint: undefined } as any);
+          } else {
+            const mx = (ctxMenuWall.start.x + ctxMenuWall.end.x) / 2;
+            const my = (ctxMenuWall.start.y + ctxMenuWall.end.y) / 2;
+            const dx = ctxMenuWall.end.x - ctxMenuWall.start.x;
+            const dy = ctxMenuWall.end.y - ctxMenuWall.start.y;
+            const len = Math.hypot(dx, dy) || 1;
+            updateWall(id, { curvePoint: { x: mx + (-dy / len) * 50, y: my + (dx / len) * 50 } });
+          }
+        }
+        break;
+
+      // Room actions
+      case 'rename-room':
+        if (ctxMenuRoom) {
+          // Trigger inline rename via existing mechanism
+          const poly = getRoomPolygon(ctxMenuRoom, currentFloor.walls);
+          const centroid = roomCentroid(poly);
+          const sp = worldToScreen(centroid.x, centroid.y);
+          editingRoomId = ctxMenuRoom.id;
+          editingRoomName = ctxMenuRoom.name;
+          editingRoomPos = { x: sp.x, y: sp.y };
+        }
+        break;
+      case 'change-floor-texture':
+        // Select the room so PropertiesPanel shows it
+        if (ctxMenuRoom) selectedRoomId.set(ctxMenuRoom.id);
+        break;
+      case 'delete-room':
+        if (ctxMenuRoom) {
+          beginUndoGroup();
+          for (const wid of ctxMenuRoom.walls) removeElement(wid);
+          endUndoGroup();
+          selectedRoomId.set(null);
+        }
+        break;
+
+      // Canvas actions
+      case 'paste':
+        // Trigger paste via synthetic keyboard event
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', ctrlKey: true, metaKey: true }));
+        break;
+      case 'select-all':
+        if (currentFloor) {
+          const allIds = new Set<string>();
+          currentFloor.walls.forEach(w => allIds.add(w.id));
+          currentFloor.furniture.forEach(f => allIds.add(f.id));
+          currentFloor.doors.forEach(d => allIds.add(d.id));
+          currentFloor.windows.forEach(w => allIds.add(w.id));
+          if (currentFloor.stairs) currentFloor.stairs.forEach(s => allIds.add(s.id));
+          if (currentFloor.columns) currentFloor.columns.forEach(c => allIds.add(c.id));
+          selectedElementIds.set(allIds);
+        }
+        break;
+      case 'add-wall':
+        selectedTool.set('wall');
+        break;
+      case 'zoom-to-fit':
+        zoomToFit();
+        break;
+
+      // Shared actions
+      case 'delete':
+        if (id) { removeElement(id); selectedElementId.set(null); }
+        break;
+      case 'properties':
+        // Select element so PropertiesPanel shows it
+        if (id) selectedElementId.set(id);
+        break;
     }
   }
 
@@ -4463,4 +4658,19 @@
       Right-click two points to measure · M to exit · Esc to cancel
     </div>
   {/if}
+
+  <!-- Context Menu -->
+  <ContextMenu
+    x={ctxMenuX}
+    y={ctxMenuY}
+    visible={ctxMenuVisible}
+    targetType={ctxMenuTargetType}
+    targetId={ctxMenuTargetId}
+    targetWall={ctxMenuWall}
+    targetFurniture={ctxMenuFurniture}
+    targetRoom={ctxMenuRoom}
+    clipboard={clipboard}
+    onclose={() => { ctxMenuVisible = false; }}
+    onaction={handleContextMenuAction}
+  />
 </div>

@@ -3,11 +3,17 @@
   import { goto } from '$app/navigation';
   import { localStore } from '$lib/services/datastore';
   import { createDefaultProject, currentProject } from '$lib/stores/project';
+  import WelcomeScreen from '$lib/components/WelcomeScreen.svelte';
 
   let projects = $state<{ id: string; name: string; updatedAt: string }[]>([]);
+  let showWelcome = $state(false);
 
   onMount(async () => {
     projects = await localStore.list();
+    const seen = localStorage.getItem('hasSeenWelcome');
+    if (!seen && projects.length === 0) {
+      showWelcome = true;
+    }
   });
 
   async function newProject() {
@@ -34,6 +40,10 @@
     projects = await localStore.list();
   }
 </script>
+
+{#if showWelcome}
+  <WelcomeScreen onDismiss={() => { showWelcome = false; localStore.list().then(p => projects = p); }} />
+{/if}
 
 <div class="min-h-screen bg-gray-50 p-8">
   <div class="max-w-2xl mx-auto">
