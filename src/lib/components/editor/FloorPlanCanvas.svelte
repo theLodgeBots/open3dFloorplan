@@ -2036,6 +2036,24 @@
       return;
     }
 
+    // Column placement (before select-mode handlers to avoid interception)
+    if (isPlacingColumn) {
+      const pos = { x: snap(wp.x), y: snap(wp.y) };
+      const id = addColumn(pos, placingColShape);
+      selectedElementId.set(id);
+      placingColumn.set(false);
+      return;
+    }
+
+    // Stair placement (before select-mode handlers to avoid interception)
+    if (isPlacingStair) {
+      const pos = { x: snap(wp.x), y: snap(wp.y) };
+      const id = addStair(pos);
+      selectedElementId.set(id);
+      placingStair.set(false);
+      return;
+    }
+
     // Guide line click detection (select / start drag)
     if (tool === 'select' && currentFloor?.guides) {
       const GUIDE_HIT = 6 / zoom; // 6px tolerance in world units
@@ -2121,23 +2139,7 @@
       return;
     }
 
-    // Column placement
-    if (isPlacingColumn) {
-      const pos = { x: snap(wp.x), y: snap(wp.y) };
-      const id = addColumn(pos, placingColShape);
-      selectedElementId.set(id);
-      placingColumn.set(false);
-      return;
-    }
-
-    // Stair placement
-    if (isPlacingStair) {
-      const pos = { x: snap(wp.x), y: snap(wp.y) };
-      const id = addStair(pos);
-      selectedElementId.set(id);
-      placingStair.set(false);
-      return;
-    }
+    // Column and stair placement moved earlier (before select-mode handlers)
 
     if (tool === 'furniture' && currentPlacingId) {
       const wallSnap = snapFurnitureToWall(wp, currentPlacingId, currentPlacingRotation);
