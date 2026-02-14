@@ -62,6 +62,7 @@ export function handleGlobalShortcut(e: KeyboardEvent, ctx: ShortcutContext = {}
   if (e.key === 'd' || e.key === 'D') { selectedTool.set('door'); panMode.set(false); return true; }
   if (e.key === 'v' || e.key === 'V') { selectedTool.set('select'); panMode.set(false); return true; }
   if (e.key === 'h' || e.key === 'H') { panMode.set(true); return true; }
+  if (e.key === 't' || e.key === 'T') { selectedTool.set('text'); panMode.set(false); return true; }
   if (e.key === 'r' || e.key === 'R') {
     if (ctx.rotateFurniture) ctx.rotateFurniture();
     return true;

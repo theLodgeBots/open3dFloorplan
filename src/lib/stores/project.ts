@@ -8,7 +8,7 @@ function uid(): string {
 
 export function createDefaultFloor(level = 0): Floor {
   const id = uid();
-  return { id, name: level === 0 ? 'Ground Floor' : `Floor ${level}`, level, walls: [], rooms: [], doors: [], windows: [], furniture: [], stairs: [], columns: [], guides: [], measurements: [], annotations: [] };
+  return { id, name: level === 0 ? 'Ground Floor' : `Floor ${level}`, level, walls: [], rooms: [], doors: [], windows: [], furniture: [], stairs: [], columns: [], guides: [], measurements: [], annotations: [], textAnnotations: [] };
 }
 
 export function createDefaultProject(name = 'Untitled Project'): Project {
@@ -30,7 +30,7 @@ export const activeFloor = derived(currentProject, ($p) => {
   return $p.floors.find((f) => f.id === $p.activeFloorId) ?? $p.floors[0] ?? null;
 });
 
-export type Tool = 'select' | 'wall' | 'door' | 'window' | 'furniture';
+export type Tool = 'select' | 'wall' | 'door' | 'window' | 'furniture' | 'text';
 export const selectedTool = writable<Tool>('select');
 export const snapEnabled = writable<boolean>(true);
 /** When true, left-click drag pans the canvas instead of selecting */
@@ -339,6 +339,7 @@ export function removeElement(id: string) {
     f.furniture = f.furniture.filter((fi) => fi.id !== id);
     if (f.stairs) f.stairs = f.stairs.filter((s) => s.id !== id);
     if (f.columns) f.columns = f.columns.filter((c) => c.id !== id);
+    if (f.textAnnotations) f.textAnnotations = f.textAnnotations.filter((t) => t.id !== id);
   });
 }
 
@@ -674,6 +675,45 @@ export function updateAnnotation(id: string, updates: Partial<{ x1: number; y1: 
     if (!a) return;
     Object.assign(a, updates);
   });
+}
+
+// --- Text Annotations ---
+export function addTextAnnotation(x: number, y: number, text: string, fontSize = 16, color = '#1e293b', rotation = 0): string {
+  const id = uid();
+  mutate(f => {
+    if (!f.textAnnotations) f.textAnnotations = [];
+    f.textAnnotations.push({ id, x, y, text, fontSize, color, rotation });
+  });
+  return id;
+}
+
+export function removeTextAnnotation(id: string) {
+  mutate(f => {
+    if (!f.textAnnotations) return;
+    f.textAnnotations = f.textAnnotations.filter(t => t.id !== id);
+  });
+}
+
+export function updateTextAnnotation(id: string, updates: Partial<{ x: number; y: number; text: string; fontSize: number; color: string; rotation: number }>) {
+  mutate(f => {
+    if (!f.textAnnotations) return;
+    const t = f.textAnnotations.find(t => t.id === id);
+    if (!t) return;
+    Object.assign(t, updates);
+  });
+}
+
+export function moveTextAnnotation(id: string, position: { x: number; y: number }) {
+  const p = get(currentProject);
+  if (!p) return;
+  const floor = p.floors.find(f => f.id === p.activeFloorId);
+  if (!floor?.textAnnotations) return;
+  const t = floor.textAnnotations.find(t => t.id === id);
+  if (!t) return;
+  t.x = position.x;
+  t.y = position.y;
+  p.updatedAt = new Date();
+  currentProject.set({ ...p });
 }
 
 // Layer visibility store (used by LayersPanel and FloorPlanCanvas)

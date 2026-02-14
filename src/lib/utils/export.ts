@@ -293,6 +293,16 @@ export function exportAsSVG(project: Project) {
     }
   }
 
+  // Text annotations
+  if (floor.textAnnotations) {
+    for (const ta of floor.textAnnotations) {
+      const tx = ta.x - minX + pad;
+      const ty = ta.y - minY + pad;
+      const transform = ta.rotation ? ` transform="rotate(${ta.rotation} ${tx} ${ty})"` : '';
+      paths += `  <text x="${tx}" y="${ty}" text-anchor="middle" dominant-baseline="central" font-size="${ta.fontSize}" fill="${escapeXml(ta.color)}" font-family="sans-serif"${transform}>${escapeXml(ta.text)}</text>\n`;
+    }
+  }
+
   const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vw} ${vh}" width="${vw}" height="${vh}">
   <rect width="100%" height="100%" fill="white"/>

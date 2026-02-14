@@ -106,6 +106,16 @@ export interface Annotation {
   offset: number; // perpendicular offset for dimension line (default 40)
 }
 
+export interface TextAnnotation {
+  id: string;
+  x: number;
+  y: number;
+  text: string;
+  fontSize: number;
+  color: string;
+  rotation: number;
+}
+
 export interface GuideLine {
   id: string;
   orientation: 'horizontal' | 'vertical';
@@ -136,6 +146,7 @@ export interface Floor {
   guides: GuideLine[];
   measurements: Measurement[];
   annotations: Annotation[];
+  textAnnotations: TextAnnotation[];
 }
 
 export interface Project {

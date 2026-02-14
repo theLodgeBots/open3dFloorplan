@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { activeFloor, selectedTool, selectedElementId, selectedElementIds, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall, moveWallParallel, splitWall, snapEnabled, placingStair, addStair, moveStair, updateStair, placingColumn, placingColumnShape, addColumn, moveColumn, updateColumn, calibrationMode, calibrationPoints, updateBackgroundImage, canvasZoom, canvasCamX, canvasCamY, panMode, showFurnitureStore, addGuide, moveGuide, removeGuide, beginUndoGroup, endUndoGroup, layerVisibility, updateRoom, addMeasurement, removeMeasurement, addAnnotation, removeAnnotation, updateAnnotation } from '$lib/stores/project';
-  import type { Point, Wall, Door, Window as Win, FurnitureItem, Stair, Column, GuideLine, Measurement, Annotation } from '$lib/models/types';
+  import { activeFloor, selectedTool, selectedElementId, selectedElementIds, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall, moveWallParallel, splitWall, snapEnabled, placingStair, addStair, moveStair, updateStair, placingColumn, placingColumnShape, addColumn, moveColumn, updateColumn, calibrationMode, calibrationPoints, updateBackgroundImage, canvasZoom, canvasCamX, canvasCamY, panMode, showFurnitureStore, addGuide, moveGuide, removeGuide, beginUndoGroup, endUndoGroup, layerVisibility, updateRoom, addMeasurement, removeMeasurement, addAnnotation, removeAnnotation, updateAnnotation, addTextAnnotation, removeTextAnnotation, updateTextAnnotation, moveTextAnnotation } from '$lib/stores/project';
+  import type { Point, Wall, Door, Window as Win, FurnitureItem, Stair, Column, GuideLine, Measurement, Annotation, TextAnnotation } from '$lib/models/types';
   import type { Floor, Room } from '$lib/models/types';
   import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
   import { getMaterial } from '$lib/utils/materials';
@@ -66,6 +66,15 @@
   let annotating = $state(false);
   let annotationStart: Point | null = $state(null);
   let selectedAnnotationId: string | null = $state(null);
+
+  // Text annotation tool
+  let textAnnotationMode = $state(false);
+  let editingTextAnnotationId: string | null = $state(null);
+  let editingTextAnnotationPos: { x: number; y: number } = $state({ x: 0, y: 0 });
+  let editingTextAnnotationValue: string = $state('');
+  let selectedTextAnnotationId: string | null = $state(null);
+  let draggingTextAnnotationId: string | null = $state(null);
+  let textAnnotationDragOffset: Point = { x: 0, y: 0 };
 
   // Grid toggle
   let showGrid = $state(true);
@@ -1798,6 +1807,74 @@
     return null;
   }
 
+  function drawTextAnnotations(floor: Floor) {
+    if (!floor.textAnnotations) return;
+    for (const ta of floor.textAnnotations) {
+      const selected = ta.id === selectedTextAnnotationId || ta.id === currentSelectedId;
+      const s = worldToScreen(ta.x, ta.y);
+      const fontSize = Math.max(8, ta.fontSize * zoom);
+      ctx.save();
+      ctx.translate(s.x, s.y);
+      if (ta.rotation) ctx.rotate(ta.rotation * Math.PI / 180);
+      ctx.font = `${fontSize}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = ta.color || '#1e293b';
+      // Draw text (handle multiline)
+      const lines = ta.text.split('\n');
+      const lineHeight = fontSize * 1.2;
+      const totalHeight = lines.length * lineHeight;
+      for (let i = 0; i < lines.length; i++) {
+        ctx.fillText(lines[i], 0, -totalHeight / 2 + lineHeight / 2 + i * lineHeight);
+      }
+      if (selected) {
+        // Measure bounding box
+        let maxW = 0;
+        for (const line of lines) {
+          const w = ctx.measureText(line).width;
+          if (w > maxW) maxW = w;
+        }
+        const pad = 4;
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 3]);
+        ctx.strokeRect(-maxW / 2 - pad, -totalHeight / 2 - pad, maxW + pad * 2, totalHeight + pad * 2);
+        ctx.setLineDash([]);
+      }
+      ctx.restore();
+    }
+  }
+
+  function hitTestTextAnnotation(wp: Point, floor: Floor): string | null {
+    if (!floor.textAnnotations) return null;
+    // Create a temporary canvas for measurement
+    const measureCtx = ctx;
+    for (let i = floor.textAnnotations.length - 1; i >= 0; i--) {
+      const ta = floor.textAnnotations[i];
+      // Transform point into text-local coordinates
+      let dx = wp.x - ta.x;
+      let dy = wp.y - ta.y;
+      if (ta.rotation) {
+        const angle = -ta.rotation * Math.PI / 180;
+        const rx = dx * Math.cos(angle) - dy * Math.sin(angle);
+        const ry = dx * Math.sin(angle) + dy * Math.cos(angle);
+        dx = rx; dy = ry;
+      }
+      measureCtx.font = `${ta.fontSize}px sans-serif`;
+      const lines = ta.text.split('\n');
+      const lineHeight = ta.fontSize * 1.2;
+      const totalHeight = lines.length * lineHeight;
+      let maxW = 0;
+      for (const line of lines) {
+        const w = measureCtx.measureText(line).width / zoom;
+        if (w > maxW) maxW = w;
+      }
+      const pad = 8 / zoom;
+      if (Math.abs(dx) < maxW / 2 + pad && Math.abs(dy) < totalHeight / 2 + pad) return ta.id;
+    }
+    return null;
+  }
+
   function drawWallJoints(floor: Floor, selId: string | null) {
     // Find endpoints shared by 2+ walls and draw filled circles to cover corner gaps
     const epMap = new Map<string, { x: number; y: number; thickness: number; selected: boolean }[]>();
@@ -3059,6 +3136,8 @@
     if (layerVis.annotations && floor) drawAnnotations(floor);
     // Annotation preview
     if (annotating && annotationStart) drawAnnotationPreview();
+    // Text annotations
+    if (floor) drawTextAnnotations(floor);
 
     // Drag preview ghost
     if (dragPreview) {
@@ -3100,7 +3179,11 @@
     const unsub3 = selectedRoomId.subscribe((id) => { currentSelectedRoomId = id; });
     const unsub4 = placingFurnitureId.subscribe((id) => { currentPlacingId = id; });
     const unsub5 = placingRotation.subscribe((r) => { currentPlacingRotation = r; });
-    const unsub6 = selectedTool.subscribe((t) => { currentTool = t; });
+    const unsub6 = selectedTool.subscribe((t) => {
+      currentTool = t;
+      textAnnotationMode = t === 'text';
+      if (t !== 'text') { editingTextAnnotationId = null; }
+    });
     const unsub7 = detectedRoomsStore.subscribe((rooms) => { if (rooms.length > 0) detectedRooms = rooms; });
     const unsub8 = placingDoorType.subscribe((t) => { currentDoorType = t; });
     const unsub9 = placingWindowType.subscribe((t) => { currentWindowType = t; });
@@ -3470,6 +3553,37 @@
     const wp = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
     const tool = currentTool;
 
+    // Text annotation tool: click to place text
+    if (textAnnotationMode) {
+      const snapped = { x: snap(wp.x), y: snap(wp.y) };
+      // Check if clicking on an existing text annotation to edit it
+      if (currentFloor) {
+        const hitId = hitTestTextAnnotation(wp, currentFloor);
+        if (hitId) {
+          // Edit existing text annotation
+          const ta = currentFloor.textAnnotations?.find(t => t.id === hitId);
+          if (ta) {
+            const sp = worldToScreen(ta.x, ta.y);
+            editingTextAnnotationId = hitId;
+            editingTextAnnotationPos = { x: sp.x, y: sp.y };
+            editingTextAnnotationValue = ta.text;
+            selectedTextAnnotationId = hitId;
+            selectedElementId.set(hitId);
+            return;
+          }
+        }
+      }
+      // Place new text annotation — show inline input
+      const sp = worldToScreen(snapped.x, snapped.y);
+      const id = addTextAnnotation(snapped.x, snapped.y, 'Text', 16, '#1e293b', 0);
+      editingTextAnnotationId = id;
+      editingTextAnnotationPos = { x: sp.x, y: sp.y };
+      editingTextAnnotationValue = '';
+      selectedTextAnnotationId = id;
+      selectedElementId.set(id);
+      return;
+    }
+
     // Annotation tool: click first point, then second point
     if (annotating) {
       const snapped = magneticSnap(wp);
@@ -3518,6 +3632,25 @@
         return;
       }
       selectedMeasurementId = null;
+    }
+
+    // Text annotation click detection (select + drag)
+    if (tool === 'select' && currentFloor) {
+      const textHitId = hitTestTextAnnotation(wp, currentFloor);
+      if (textHitId) {
+        selectedTextAnnotationId = textHitId;
+        selectedAnnotationId = null;
+        selectedMeasurementId = null;
+        selectedElementId.set(textHitId);
+        const ta = currentFloor.textAnnotations?.find(t => t.id === textHitId);
+        if (ta) {
+          draggingTextAnnotationId = textHitId;
+          textAnnotationDragOffset = { x: wp.x - ta.x, y: wp.y - ta.y };
+          commitFurnitureMove();
+        }
+        return;
+      }
+      selectedTextAnnotationId = null;
     }
 
     // Annotation click detection (select)
@@ -3802,6 +3935,24 @@
       return;
     }
 
+    // Double-click on a text annotation to edit it
+    if (currentTool === 'select' && currentFloor) {
+      const wp = screenToWorld(sx, sy);
+      const textHitId = hitTestTextAnnotation(wp, currentFloor);
+      if (textHitId) {
+        const ta = currentFloor.textAnnotations?.find(t => t.id === textHitId);
+        if (ta) {
+          const sp = worldToScreen(ta.x, ta.y);
+          editingTextAnnotationId = textHitId;
+          editingTextAnnotationPos = { x: sp.x, y: sp.y };
+          editingTextAnnotationValue = ta.text;
+          selectedTextAnnotationId = textHitId;
+          selectedElementId.set(textHitId);
+          return;
+        }
+      }
+    }
+
     // Double-click on a room to edit its name inline
     if (currentTool === 'select') {
       const wp = screenToWorld(sx, sy);
@@ -3985,6 +4136,15 @@
         }
       }
     }
+    if (draggingTextAnnotationId && currentFloor?.textAnnotations) {
+      const basePos = { x: mousePos.x - textAnnotationDragOffset.x, y: mousePos.y - textAnnotationDragOffset.y };
+      moveTextAnnotation(draggingTextAnnotationId, { x: snap(basePos.x), y: snap(basePos.y) });
+      // Update inline editor position if open
+      if (editingTextAnnotationId === draggingTextAnnotationId) {
+        const sp = worldToScreen(snap(basePos.x), snap(basePos.y));
+        editingTextAnnotationPos = { x: sp.x, y: sp.y };
+      }
+    }
     if (draggingColumnId && currentFloor?.columns) {
       const basePos = { x: mousePos.x - columnDragOffset.x, y: mousePos.y - columnDragOffset.y };
       moveColumn(draggingColumnId, { x: snap(basePos.x), y: snap(basePos.y) });
@@ -4142,6 +4302,8 @@
     if (draggingRoomId) commitFurnitureMove();
     if (draggingStairId) commitFurnitureMove();
     if (draggingColumnId) commitFurnitureMove();
+    if (draggingTextAnnotationId) commitFurnitureMove();
+    draggingTextAnnotationId = null;
     draggingRoomId = null;
     roomDragStartPositions.clear();
     draggingMultiSelect = null;
@@ -4221,6 +4383,15 @@
       return;
     }
 
+    // Delete selected text annotation
+    if ((e.key === 'Delete' || e.key === 'Backspace') && selectedTextAnnotationId && !editingTextAnnotationId) {
+      removeTextAnnotation(selectedTextAnnotationId);
+      selectedTextAnnotationId = null;
+      selectedElementId.set(null);
+      e.preventDefault();
+      return;
+    }
+
     // Delete selected annotation
     if ((e.key === 'Delete' || e.key === 'Backspace') && selectedAnnotationId) {
       removeAnnotation(selectedAnnotationId);
@@ -4234,6 +4405,8 @@
       wallStart = null; wallSequenceFirst = null;
       placingFurnitureId.set(null);
       placingRotation.set(0);
+      editingTextAnnotationId = null;
+      textAnnotationMode = false;
       measuring = false;
       measureStart = null;
       measureEnd = null;
@@ -4680,6 +4853,7 @@
     draggingWallEndpoint ? 'crosshair' :
     draggingHandle === 'rotate' ? 'grabbing' :
     draggingHandle?.startsWith('resize') ? 'nwse-resize' :
+    currentTool === 'text' ? 'text' :
     currentTool === 'select' ? 'default' :
     currentTool === 'furniture' ? 'copy' :
     (currentTool === 'door' || currentTool === 'window') ? (placementPreview ? 'crosshair' : 'not-allowed') :
@@ -4728,6 +4902,53 @@
           updateRoom(editingRoomId, { name: editingRoomName });
           detectedRoomsStore.update(rooms => rooms.map(r => r.id === editingRoomId ? { ...r, name: editingRoomName } : r));
           editingRoomId = null;
+        }
+      }}
+      autofocus
+    />
+  {/if}
+  <!-- Inline text annotation editor -->
+  {#if editingTextAnnotationId}
+    <input
+      type="text"
+      class="absolute bg-white border-2 border-blue-500 rounded px-2 py-1 text-sm text-center shadow-lg outline-none"
+      style="left: {editingTextAnnotationPos.x}px; top: {editingTextAnnotationPos.y}px; transform: translate(-50%, -50%); z-index: 20; min-width: 120px;"
+      value={editingTextAnnotationValue}
+      oninput={(e) => { editingTextAnnotationValue = (e.target as HTMLInputElement).value; }}
+      onkeydown={(e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') {
+          if (editingTextAnnotationValue.trim()) {
+            updateTextAnnotation(editingTextAnnotationId!, { text: editingTextAnnotationValue });
+          } else {
+            removeTextAnnotation(editingTextAnnotationId!);
+            selectedTextAnnotationId = null;
+            selectedElementId.set(null);
+          }
+          editingTextAnnotationId = null;
+        } else if (e.key === 'Escape') {
+          // If it was a new annotation with default text and user cancels, remove it
+          if (currentFloor?.textAnnotations) {
+            const ta = currentFloor.textAnnotations.find(t => t.id === editingTextAnnotationId);
+            if (ta && ta.text === 'Text' && !editingTextAnnotationValue.trim()) {
+              removeTextAnnotation(editingTextAnnotationId!);
+              selectedTextAnnotationId = null;
+              selectedElementId.set(null);
+            }
+          }
+          editingTextAnnotationId = null;
+        }
+      }}
+      onblur={() => {
+        if (editingTextAnnotationId) {
+          if (editingTextAnnotationValue.trim()) {
+            updateTextAnnotation(editingTextAnnotationId, { text: editingTextAnnotationValue });
+          } else {
+            removeTextAnnotation(editingTextAnnotationId);
+            selectedTextAnnotationId = null;
+            selectedElementId.set(null);
+          }
+          editingTextAnnotationId = null;
         }
       }}
       autofocus
@@ -4934,6 +5155,11 @@
   {#if measuring}
     <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-red-600 text-white px-3 py-1 rounded-full text-xs shadow">
       Right-click two points to measure · M to exit · Esc to cancel
+    </div>
+  {/if}
+  {#if textAnnotationMode}
+    <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-3 py-1 rounded-full text-xs shadow">
+      Click to place text label · Esc to cancel
     </div>
   {/if}
   {#if annotating}
