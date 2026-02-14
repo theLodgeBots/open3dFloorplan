@@ -173,6 +173,60 @@ export const furnitureCatalog: FurnitureDef[] = [
   { id: 'planter_box', name: 'Planter Box', category: 'Structures', icon: '🌱', color: '#92400e', width: 80, depth: 30, height: 30 },
   { id: 'raised_bed', name: 'Raised Bed', category: 'Structures', icon: '🌱', color: '#7B5B3A', width: 180, depth: 90, height: 40 },
 
+  // Pool & Spa
+  { id: 'pool_rectangular', name: 'Rectangular Pool', category: 'Pool & Spa', icon: '🏊', color: '#0ea5e9', width: 500, depth: 300, height: 15 },
+  { id: 'pool_round', name: 'Round Pool', category: 'Pool & Spa', icon: '🏊', color: '#0ea5e9', width: 300, depth: 300, height: 15 },
+  { id: 'pool_lshaped', name: 'L-Shaped Pool', category: 'Pool & Spa', icon: '🏊', color: '#0891b2', width: 600, depth: 400, height: 15 },
+  { id: 'pool_kidney', name: 'Kidney Pool', category: 'Pool & Spa', icon: '🏊', color: '#06b6d4', width: 500, depth: 280, height: 15 },
+  { id: 'hot_tub', name: 'Hot Tub', category: 'Pool & Spa', icon: '♨️', color: '#0284c7', width: 200, depth: 200, height: 80 },
+  { id: 'pool_ladder', name: 'Pool Ladder', category: 'Pool & Spa', icon: '🪜', color: '#94a3b8', width: 50, depth: 30, height: 100 },
+  { id: 'diving_board', name: 'Diving Board', category: 'Pool & Spa', icon: '🏊', color: '#e2e8f0', width: 50, depth: 200, height: 80 },
+  { id: 'pool_lounge', name: 'Pool Lounger', category: 'Pool & Spa', icon: '🛏️', color: '#f8fafc', width: 70, depth: 190, height: 35 },
+
+  // Garage
+  { id: 'car_sedan', name: 'Car (Sedan)', category: 'Garage', icon: '🚗', color: '#475569', width: 180, depth: 450, height: 150 },
+  { id: 'car_suv', name: 'Car (SUV)', category: 'Garage', icon: '🚙', color: '#334155', width: 190, depth: 480, height: 170 },
+  { id: 'garage_door_single', name: 'Garage Door (Single)', category: 'Garage', icon: '🚪', color: '#9ca3af', width: 280, depth: 10, height: 220 },
+  { id: 'garage_door_double', name: 'Garage Door (Double)', category: 'Garage', icon: '🚪', color: '#9ca3af', width: 500, depth: 10, height: 220 },
+  { id: 'workbench', name: 'Workbench', category: 'Garage', icon: '🔧', color: '#78716c', width: 180, depth: 60, height: 90 },
+  { id: 'tool_cabinet', name: 'Tool Cabinet', category: 'Garage', icon: '🧰', color: '#dc2626', width: 70, depth: 45, height: 140 },
+  { id: 'bike', name: 'Bicycle', category: 'Garage', icon: '🚲', color: '#374151', width: 60, depth: 170, height: 110 },
+  { id: 'motorcycle', name: 'Motorcycle', category: 'Garage', icon: '🏍️', color: '#1e293b', width: 80, depth: 210, height: 110 },
+
+  // Paths & Lawns
+  { id: 'lawn_rect', name: 'Lawn (Rectangle)', category: 'Paths & Lawns', icon: '🟩', color: '#22c55e', width: 400, depth: 300, height: 3 },
+  { id: 'lawn_square', name: 'Lawn (Square)', category: 'Paths & Lawns', icon: '🟩', color: '#22c55e', width: 300, depth: 300, height: 3 },
+  { id: 'lawn_large', name: 'Lawn (Large)', category: 'Paths & Lawns', icon: '🟩', color: '#16a34a', width: 600, depth: 400, height: 3 },
+  { id: 'path_straight', name: 'Path (Straight)', category: 'Paths & Lawns', icon: '🟫', color: '#a8a29e', width: 100, depth: 300, height: 3 },
+  { id: 'path_wide', name: 'Path (Wide)', category: 'Paths & Lawns', icon: '🟫', color: '#a8a29e', width: 150, depth: 300, height: 3 },
+  { id: 'patio_stone', name: 'Stone Patio', category: 'Paths & Lawns', icon: '🪨', color: '#d6d3d1', width: 300, depth: 300, height: 5 },
+  { id: 'gravel_area', name: 'Gravel Area', category: 'Paths & Lawns', icon: '⬜', color: '#e7e5e4', width: 200, depth: 200, height: 3 },
+  { id: 'stepping_stones', name: 'Stepping Stones', category: 'Paths & Lawns', icon: '🪨', color: '#a8a29e', width: 60, depth: 300, height: 3 },
+  { id: 'driveway', name: 'Driveway', category: 'Paths & Lawns', icon: '🟫', color: '#78716c', width: 300, depth: 600, height: 3 },
+  { id: 'sandbox', name: 'Sandbox', category: 'Paths & Lawns', icon: '🏖️', color: '#fbbf24', width: 200, depth: 200, height: 20 },
+
+  // Outdoor Lighting
+  { id: 'lamp_post', name: 'Lamp Post', category: 'Outdoor Lighting', icon: '🔦', color: '#1e293b', width: 30, depth: 30, height: 300 },
+  { id: 'lamp_post_double', name: 'Double Lamp Post', category: 'Outdoor Lighting', icon: '🔦', color: '#1e293b', width: 60, depth: 30, height: 300 },
+  { id: 'bollard_light', name: 'Bollard Light', category: 'Outdoor Lighting', icon: '💡', color: '#374151', width: 15, depth: 15, height: 80 },
+  { id: 'wall_sconce_outdoor', name: 'Wall Sconce', category: 'Outdoor Lighting', icon: '💡', color: '#374151', width: 20, depth: 15, height: 30 },
+  { id: 'spot_light_outdoor', name: 'Spot Light', category: 'Outdoor Lighting', icon: '🔆', color: '#1e293b', width: 15, depth: 15, height: 25 },
+  { id: 'string_lights', name: 'String Lights', category: 'Outdoor Lighting', icon: '✨', color: '#fbbf24', width: 300, depth: 10, height: 250 },
+  { id: 'solar_path_light', name: 'Solar Path Light', category: 'Outdoor Lighting', icon: '☀️', color: '#374151', width: 12, depth: 12, height: 40 },
+  { id: 'flood_light', name: 'Flood Light', category: 'Outdoor Lighting', icon: '🔦', color: '#1e293b', width: 25, depth: 20, height: 30 },
+
+  // Garden Structures
+  { id: 'greenhouse', name: 'Greenhouse', category: 'Garden Structures', icon: '🏡', color: '#86efac', width: 300, depth: 400, height: 250 },
+  { id: 'greenhouse_small', name: 'Small Greenhouse', category: 'Garden Structures', icon: '🏡', color: '#86efac', width: 200, depth: 250, height: 200 },
+  { id: 'trellis', name: 'Trellis', category: 'Garden Structures', icon: '🌿', color: '#92400e', width: 150, depth: 10, height: 200 },
+  { id: 'arbor', name: 'Garden Arbor', category: 'Garden Structures', icon: '🌿', color: '#92400e', width: 150, depth: 60, height: 230 },
+  { id: 'compost_bin', name: 'Compost Bin', category: 'Garden Structures', icon: '🗑️', color: '#422006', width: 80, depth: 80, height: 90 },
+  { id: 'rain_barrel', name: 'Rain Barrel', category: 'Garden Structures', icon: '🛢️', color: '#3b82f6', width: 60, depth: 60, height: 90 },
+  { id: 'bird_bath', name: 'Bird Bath', category: 'Garden Structures', icon: '🐦', color: '#d6d3d1', width: 50, depth: 50, height: 80 },
+  { id: 'fountain', name: 'Garden Fountain', category: 'Garden Structures', icon: '⛲', color: '#94a3b8', width: 120, depth: 120, height: 150 },
+  { id: 'statue', name: 'Garden Statue', category: 'Garden Structures', icon: '🗿', color: '#d6d3d1', width: 40, depth: 40, height: 120 },
+  { id: 'mailbox', name: 'Mailbox', category: 'Garden Structures', icon: '📫', color: '#1e293b', width: 30, depth: 20, height: 110 },
+
   // Electrical Symbols (2D only)
   { id: 'sym_outlet', name: 'Power Outlet', category: 'Electrical', icon: '🔌', color: '#2563eb', width: 15, depth: 15, height: 0, symbol: true },
   { id: 'sym_switch', name: 'Light Switch', category: 'Electrical', icon: '🔘', color: '#2563eb', width: 15, depth: 15, height: 0, symbol: true },

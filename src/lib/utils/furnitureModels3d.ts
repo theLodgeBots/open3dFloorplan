@@ -229,6 +229,59 @@ export function createFurnitureModel(catalogId: string, def: FurnitureDef): THRE
     case 'deck_patio':
       createDeckPatio(group, w, d, h, color);
       break;
+    // Pool & Spa
+    case 'pool_rectangular':
+    case 'pool_round':
+    case 'pool_lshaped':
+    case 'pool_kidney':
+      createPool(group, w, d, h, color, catalogId);
+      break;
+    case 'hot_tub':
+      createHotTub(group, w, d, h, color);
+      break;
+    case 'diving_board':
+      createDivingBoard(group, w, d, h);
+      break;
+    // Garage
+    case 'car_sedan':
+    case 'car_suv':
+      createCar(group, w, d, h, color);
+      break;
+    // Paths & Lawns
+    case 'lawn_rect':
+    case 'lawn_square':
+    case 'lawn_large':
+      createLawn(group, w, d, h, color);
+      break;
+    case 'path_straight':
+    case 'path_wide':
+    case 'driveway':
+      createPath(group, w, d, h, color);
+      break;
+    case 'patio_stone':
+    case 'gravel_area':
+      createFlatSurface(group, w, d, h, color);
+      break;
+    // Outdoor Lighting
+    case 'lamp_post':
+    case 'lamp_post_double':
+      createLampPost(group, w, d, h, color, catalogId === 'lamp_post_double');
+      break;
+    case 'bollard_light':
+      createBollardLight(group, w, d, h, color);
+      break;
+    // Garden Structures
+    case 'greenhouse':
+    case 'greenhouse_small':
+      createGreenhouse(group, w, d, h);
+      break;
+    case 'fountain':
+      createFountain(group, w, d, h, color);
+      break;
+    case 'arbor':
+    case 'trellis':
+      createArbor(group, w, d, h, color);
+      break;
     default:
       // Fallback to simple box
       const geometry = new THREE.BoxGeometry(w, h, d);
@@ -1541,6 +1594,221 @@ function createPlanterBox(group: THREE.Group, w: number, d: number, h: number, c
 function createRaisedBed(group: THREE.Group, w: number, d: number, h: number, color: string): void {
   // Same as planter but uses the provided (wider/lower) dimensions
   createPlanterBox(group, w, d, h, color || '#7B5B3A');
+}
+
+// --- Pool & Spa ---
+function createPool(group: THREE.Group, w: number, d: number, h: number, color: string, type: string): void {
+  const waterMat = createMaterial(color || '#0ea5e9', 0.3, 0.1);
+  (waterMat as THREE.MeshStandardMaterial).transparent = true;
+  (waterMat as THREE.MeshStandardMaterial).opacity = 0.7;
+  const rimMat = createMaterial('#d6d3d1', 0.9, 0.0);
+  const rimH = 8;
+  if (type === 'pool_round' || type === 'pool_kidney') {
+    const rx = w / 2, rz = d / 2;
+    const water = new THREE.Mesh(new THREE.CylinderGeometry(rx, rx, h, 32), waterMat);
+    water.position.y = h / 2;
+    group.add(water);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(rx, rimH / 2, 8, 32), rimMat);
+    rim.rotation.x = -Math.PI / 2;
+    rim.position.y = h;
+    group.add(rim);
+  } else {
+    const water = new THREE.Mesh(new THREE.BoxGeometry(w - 16, h, d - 16), waterMat);
+    water.position.y = h / 2;
+    group.add(water);
+    // Rim (4 edges)
+    const addRim = (rx: number, rz: number, rw: number, rd: number) => {
+      const r = new THREE.Mesh(new THREE.BoxGeometry(rw, rimH, rd), rimMat);
+      r.position.set(rx, h + rimH / 2, rz);
+      group.add(r);
+    };
+    addRim(0, -d / 2, w, rimH); addRim(0, d / 2, w, rimH);
+    addRim(-w / 2, 0, rimH, d); addRim(w / 2, 0, rimH, d);
+  }
+}
+
+function createHotTub(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const mat = createMaterial(color || '#0284c7', 0.4, 0.1);
+  (mat as THREE.MeshStandardMaterial).transparent = true;
+  (mat as THREE.MeshStandardMaterial).opacity = 0.7;
+  const wallMat = createMaterial('#78716c', 0.9, 0.0);
+  const r = w / 2;
+  // Outer shell
+  const outer = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 24), wallMat);
+  outer.position.y = h / 2;
+  group.add(outer);
+  // Water inside
+  const water = new THREE.Mesh(new THREE.CylinderGeometry(r - 5, r - 5, h - 5, 24), mat);
+  water.position.y = h / 2 + 2.5;
+  group.add(water);
+}
+
+function createDivingBoard(group: THREE.Group, w: number, d: number, h: number): void {
+  const baseMat = createMaterial('#94a3b8', 0.7, 0.2);
+  const boardMat = createMaterial('#e2e8f0', 0.6, 0.1);
+  // Support base
+  const base = new THREE.Mesh(new THREE.BoxGeometry(w, h * 0.7, 30), baseMat);
+  base.position.set(0, h * 0.35, -d / 2 + 15);
+  group.add(base);
+  // Board
+  const board = new THREE.Mesh(new THREE.BoxGeometry(w * 0.8, 3, d), boardMat);
+  board.position.set(0, h * 0.7, 0);
+  group.add(board);
+}
+
+// --- Garage ---
+function createCar(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const bodyMat = createMaterial(color || '#475569', 0.4, 0.5);
+  const glassMat = createMaterial('#bfdbfe', 0.2, 0.6);
+  (glassMat as THREE.MeshStandardMaterial).transparent = true;
+  (glassMat as THREE.MeshStandardMaterial).opacity = 0.5;
+  const wheelMat = createMaterial('#1e1e1e', 0.9, 0.0);
+  // Body
+  const body = new THREE.Mesh(new THREE.BoxGeometry(w, h * 0.4, d * 0.8), bodyMat);
+  body.position.set(0, h * 0.2, 0);
+  group.add(body);
+  // Cabin
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(w * 0.85, h * 0.35, d * 0.45), glassMat);
+  cabin.position.set(0, h * 0.575, -d * 0.05);
+  group.add(cabin);
+  // Wheels (4)
+  const wheelR = h * 0.15;
+  const positions = [
+    [-w / 2, wheelR, -d * 0.3], [w / 2, wheelR, -d * 0.3],
+    [-w / 2, wheelR, d * 0.3], [w / 2, wheelR, d * 0.3]
+  ];
+  for (const [x, y, z] of positions) {
+    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(wheelR, wheelR, 8, 12), wheelMat);
+    wheel.rotation.z = Math.PI / 2;
+    wheel.position.set(x, y, z);
+    group.add(wheel);
+  }
+}
+
+// --- Paths & Lawns ---
+function createLawn(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const mat = createMaterial(color || '#22c55e', 0.95, 0.0);
+  const lawn = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  lawn.position.y = h / 2;
+  group.add(lawn);
+}
+
+function createPath(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const mat = createMaterial(color || '#a8a29e', 0.85, 0.0);
+  const path = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  path.position.y = h / 2;
+  group.add(path);
+}
+
+function createFlatSurface(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const mat = createMaterial(color || '#d6d3d1', 0.9, 0.0);
+  const surface = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  surface.position.y = h / 2;
+  group.add(surface);
+}
+
+// --- Outdoor Lighting ---
+function createLampPost(group: THREE.Group, w: number, d: number, h: number, color: string, isDouble: boolean): void {
+  const poleMat = createMaterial(color || '#1e293b', 0.7, 0.3);
+  const lightMat = createMaterial('#fbbf24', 0.3, 0.1);
+  // Pole
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(3, 4, h * 0.85, 8), poleMat);
+  pole.position.y = h * 0.425;
+  group.add(pole);
+  // Lamp head(s)
+  const addLamp = (offsetX: number) => {
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 25, 6), poleMat);
+    arm.rotation.z = Math.PI / 2;
+    arm.position.set(offsetX / 2, h * 0.85, 0);
+    group.add(arm);
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(8, 12, 8), lightMat);
+    lamp.position.set(offsetX, h * 0.9, 0);
+    group.add(lamp);
+  };
+  if (isDouble) { addLamp(-15); addLamp(15); } else { addLamp(0); }
+}
+
+function createBollardLight(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const mat = createMaterial(color || '#374151', 0.7, 0.3);
+  const lightMat = createMaterial('#fbbf24', 0.3, 0.1);
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(w / 3, w / 2.5, h * 0.8, 8), mat);
+  post.position.y = h * 0.4;
+  group.add(post);
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(w / 2, w / 3, h * 0.2, 8), lightMat);
+  top.position.y = h * 0.9;
+  group.add(top);
+}
+
+// --- Garden Structures ---
+function createGreenhouse(group: THREE.Group, w: number, d: number, h: number): void {
+  const frameMat = createMaterial('#374151', 0.7, 0.3);
+  const glassMat = createMaterial('#86efac', 0.2, 0.2);
+  (glassMat as THREE.MeshStandardMaterial).transparent = true;
+  (glassMat as THREE.MeshStandardMaterial).opacity = 0.35;
+  // Frame posts (4 corners)
+  const postW = 4;
+  for (const [x, z] of [[-w/2, -d/2], [w/2, -d/2], [-w/2, d/2], [w/2, d/2]]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(postW, h, postW), frameMat);
+    post.position.set(x, h / 2, z);
+    group.add(post);
+  }
+  // Glass walls (4 sides)
+  const addWall = (x: number, z: number, ww: number, wd: number) => {
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(ww, h * 0.85, wd), glassMat);
+    wall.position.set(x, h * 0.425, z);
+    group.add(wall);
+  };
+  addWall(0, -d/2, w, 2); addWall(0, d/2, w, 2);
+  addWall(-w/2, 0, 2, d); addWall(w/2, 0, 2, d);
+  // Pitched roof
+  const roofShape = new THREE.Shape();
+  roofShape.moveTo(-w / 2, 0);
+  roofShape.lineTo(0, h * 0.25);
+  roofShape.lineTo(w / 2, 0);
+  roofShape.lineTo(-w / 2, 0);
+  const roofGeo = new THREE.ExtrudeGeometry(roofShape, { depth: d, bevelEnabled: false });
+  const roof = new THREE.Mesh(roofGeo, glassMat);
+  roof.position.set(0, h, -d / 2);
+  group.add(roof);
+}
+
+function createFountain(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const mat = createMaterial(color || '#94a3b8', 0.7, 0.1);
+  const waterMat = createMaterial('#60a5fa', 0.3, 0.1);
+  // Base basin
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(w / 2, w / 2.2, h * 0.25, 24), mat);
+  base.position.y = h * 0.125;
+  group.add(base);
+  // Middle tier
+  const mid = new THREE.Mesh(new THREE.CylinderGeometry(w / 4, w / 3.5, h * 0.3, 16), mat);
+  mid.position.y = h * 0.4;
+  group.add(mid);
+  // Top
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(w / 8, w / 6, h * 0.2, 12), mat);
+  top.position.y = h * 0.7;
+  group.add(top);
+  // Water
+  const water = new THREE.Mesh(new THREE.CylinderGeometry(w / 2.3, w / 2.3, h * 0.08, 24), waterMat);
+  water.position.y = h * 0.2;
+  group.add(water);
+}
+
+function createArbor(group: THREE.Group, w: number, d: number, h: number, color: string): void {
+  const mat = createMaterial(color || '#92400e', 0.85, 0.0);
+  const postW = 6;
+  // 4 posts
+  for (const [x, z] of [[-w/2, -d/2], [w/2, -d/2], [-w/2, d/2], [w/2, d/2]]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(postW, h, postW), mat);
+    post.position.set(x, h / 2, z);
+    group.add(post);
+  }
+  // Cross beams on top
+  for (let i = 0; i < 4; i++) {
+    const z = -d / 2 + (d / 3) * i;
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(w + 20, 4, 4), mat);
+    beam.position.set(0, h, z);
+    group.add(beam);
+  }
 }
 
 function createDeckPatio(group: THREE.Group, w: number, d: number, h: number, color: string): void {
