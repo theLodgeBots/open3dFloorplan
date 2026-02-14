@@ -1876,30 +1876,103 @@
   }
 
   function drawWallJoints(floor: Floor, selId: string | null) {
-    // Find endpoints shared by 2+ walls and draw filled circles to cover corner gaps
-    const epMap = new Map<string, { x: number; y: number; thickness: number; selected: boolean }[]>();
+    // Collect wall info at each shared endpoint for proper miter/T-junction rendering
+    interface WallEdge { wallId: string; angle: number; thickness: number; selected: boolean; }
+    const epMap = new Map<string, { x: number; y: number; edges: WallEdge[] }>();
+
     for (const w of floor.walls) {
-      const sel = w.id === selId;
-      for (const ep of [w.start, w.end]) {
-        const key = `${Math.round(ep.x)},${Math.round(ep.y)}`;
-        if (!epMap.has(key)) epMap.set(key, []);
-        epMap.get(key)!.push({ x: ep.x, y: ep.y, thickness: w.thickness, selected: sel });
-      }
+      const sel = w.id === selId || currentSelectedIds.has(w.id);
+      const dx = w.end.x - w.start.x;
+      const dy = w.end.y - w.start.y;
+      const len = Math.hypot(dx, dy);
+      if (len < 1) continue;
+      const angle = Math.atan2(dy, dx);
+
+      // Start endpoint: wall goes outward at `angle`
+      const keyS = `${Math.round(w.start.x)},${Math.round(w.start.y)}`;
+      if (!epMap.has(keyS)) epMap.set(keyS, { x: w.start.x, y: w.start.y, edges: [] });
+      epMap.get(keyS)!.edges.push({ wallId: w.id, angle, thickness: w.thickness, selected: sel });
+
+      // End endpoint: wall goes outward at `angle + PI` (back toward start)
+      const keyE = `${Math.round(w.end.x)},${Math.round(w.end.y)}`;
+      if (!epMap.has(keyE)) epMap.set(keyE, { x: w.end.x, y: w.end.y, edges: [] });
+      epMap.get(keyE)!.edges.push({ wallId: w.id, angle: angle + Math.PI, thickness: w.thickness, selected: sel });
     }
-    for (const [, entries] of epMap) {
-      if (entries.length < 2) continue;
-      const anySelected = entries.some(e => e.selected);
-      const maxThickness = Math.max(...entries.map(e => e.thickness));
-      const s = worldToScreen(entries[0].x, entries[0].y);
-      const r = Math.max(maxThickness * zoom, 4) / 2 + 0.5;
+
+    for (const [, ep] of epMap) {
+      if (ep.edges.length < 2) continue;
+
+      const anySelected = ep.edges.some(e => e.selected);
+      const center = worldToScreen(ep.x, ep.y);
+
+      // Sort edges by angle
+      const sorted = [...ep.edges].sort((a, b) => {
+        const na = ((a.angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+        const nb = ((b.angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+        return na - nb;
+      });
+
+      // Compute the convex polygon formed by all wall edge corners at this junction
+      // Each wall contributes two edge points (left and right side of the wall at the endpoint)
+      const cornerPoints: { x: number; y: number }[] = [];
+      for (const edge of sorted) {
+        const halfT = Math.max(edge.thickness * zoom, 4) / 2;
+        const cos = Math.cos(edge.angle);
+        const sin = Math.sin(edge.angle);
+        // Perpendicular (left normal)
+        const nx = -sin * halfT;
+        const ny = cos * halfT;
+        cornerPoints.push({ x: center.x + nx, y: center.y + ny });
+        cornerPoints.push({ x: center.x - nx, y: center.y - ny });
+      }
+
+      // Compute convex hull of corner points for clean joint fill
+      const hull = convexHull(cornerPoints);
+      if (hull.length < 3) continue;
+
       ctx.fillStyle = anySelected ? '#93c5fd' : '#404040';
       ctx.strokeStyle = anySelected ? '#3b82f6' : '#333333';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+      ctx.moveTo(hull[0].x, hull[0].y);
+      for (let i = 1; i < hull.length; i++) {
+        ctx.lineTo(hull[i].x, hull[i].y);
+      }
+      ctx.closePath();
       ctx.fill();
       ctx.stroke();
     }
+  }
+
+  /** Compute convex hull of 2D points using Andrew's monotone chain algorithm */
+  function convexHull(points: { x: number; y: number }[]): { x: number; y: number }[] {
+    const pts = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
+    if (pts.length <= 2) return pts;
+
+    const cross = (O: { x: number; y: number }, A: { x: number; y: number }, B: { x: number; y: number }) =>
+      (A.x - O.x) * (B.y - O.y) - (A.y - O.y) * (B.x - O.x);
+
+    // Lower hull
+    const lower: { x: number; y: number }[] = [];
+    for (const p of pts) {
+      while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0)
+        lower.pop();
+      lower.push(p);
+    }
+
+    // Upper hull
+    const upper: { x: number; y: number }[] = [];
+    for (let i = pts.length - 1; i >= 0; i--) {
+      const p = pts[i];
+      while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0)
+        upper.pop();
+      upper.push(p);
+    }
+
+    // Remove last point of each half because it's repeated
+    lower.pop();
+    upper.pop();
+    return lower.concat(upper);
   }
 
   function drawSnapPoints() {
