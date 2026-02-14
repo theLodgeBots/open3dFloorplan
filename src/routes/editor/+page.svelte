@@ -12,8 +12,10 @@
   import AlignmentToolbar from '$lib/components/editor/AlignmentToolbar.svelte';
   import UndoHistoryPanel from '$lib/components/editor/UndoHistoryPanel.svelte';
   import CommandPalette from '$lib/components/editor/CommandPalette.svelte';
+  import PrintLayout from '$lib/components/editor/PrintLayout.svelte';
 
   let commandPaletteOpen = $state(false);
+  let printOpen = $state(false);
 
   // Lazy-load ThreeViewer to avoid loading Three.js (~1.4MB) until 3D mode is activated
   let ThreeViewer: any = $state(null);
@@ -71,7 +73,7 @@
   });
 </script>
 
-<svelte:window on:keydown={(e) => { if ((e.key === 'k' && (e.ctrlKey || e.metaKey)) || (e.key === '/' && !e.ctrlKey && !e.metaKey && (e.target as HTMLElement)?.tagName !== 'INPUT' && (e.target as HTMLElement)?.tagName !== 'TEXTAREA')) { e.preventDefault(); commandPaletteOpen = !commandPaletteOpen; } if (e.key === '?' && !e.ctrlKey && !e.metaKey) { showHelp = !showHelp; e.preventDefault(); } if (e.key === 'Escape' && showHelp) { showHelp = false; } if (e.key === 'l' && !e.ctrlKey && !e.metaKey && !e.altKey && (e.target as HTMLElement)?.tagName !== 'INPUT') { showLayers = !showLayers; } }} />
+<svelte:window on:keydown={(e) => { if (e.key === 'p' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); printOpen = true; } if ((e.key === 'k' && (e.ctrlKey || e.metaKey)) || (e.key === '/' && !e.ctrlKey && !e.metaKey && (e.target as HTMLElement)?.tagName !== 'INPUT' && (e.target as HTMLElement)?.tagName !== 'TEXTAREA')) { e.preventDefault(); commandPaletteOpen = !commandPaletteOpen; } if (e.key === '?' && !e.ctrlKey && !e.metaKey) { showHelp = !showHelp; e.preventDefault(); } if (e.key === 'Escape' && showHelp) { showHelp = false; } if (e.key === 'l' && !e.ctrlKey && !e.metaKey && !e.altKey && (e.target as HTMLElement)?.tagName !== 'INPUT') { showLayers = !showLayers; } }} />
 
 {#if ready}
   <div class="h-screen flex flex-col overflow-hidden">
@@ -307,6 +309,7 @@
   {/if}
 
   <CommandPalette bind:open={commandPaletteOpen} />
+  <PrintLayout bind:open={printOpen} />
 {:else}
   <div class="h-screen flex items-center justify-center">
     <p class="text-gray-400">Loading...</p>

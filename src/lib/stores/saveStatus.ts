@@ -1,6 +1,7 @@
 import { writable, get } from 'svelte/store';
 import { currentProject } from './project';
 import { localStore } from '$lib/services/datastore';
+import { saveSnapshot } from '$lib/stores/versionHistory';
 
 export type SaveState = 'saved' | 'unsaved' | 'saving';
 
@@ -75,6 +76,7 @@ export async function manualSave() {
   try {
     await localStore.save(p);
     captureThumbnail(p.id);
+    saveSnapshot(p, 'Manual save');
     saveState.set('saved');
     lastSavedAt.set(new Date());
   } catch (e) {

@@ -6,3 +6,33 @@ html, body {
   height: 100%;
   font-family: system-ui, -apple-system, sans-serif;
 }
+
+/* ── Print styles ─────────────────────────────────────────────── */
+@media print {
+  /* Hide everything except the print page */
+  body > * {
+    display: none !important;
+  }
+  .print-overlay-backdrop {
+    display: block !important;
+    position: static !important;
+    background: none !important;
+    overflow: visible !important;
+  }
+  .print-hide {
+    display: none !important;
+  }
+  .print-page {
+    margin: 0 !important;
+    box-shadow: none !important;
+    width: 100% !important;
+    min-height: auto !important;
+    page-break-inside: avoid;
+  }
+  .print-canvas-container canvas {
+    width: 100% !important;
+  }
+  @page {
+    margin: 0.5in;
+  }
+}
