@@ -99,6 +99,10 @@
   let cameraPreviewRenderer: THREE.WebGLRenderer | null = null;
   let cameraPlaced = $state(false);
   let cameraDragMode = $state<'position' | 'lookat' | null>(null);
+  let cameraYaw = $state(0);   // degrees, 0 = initial direction
+  let cameraPitch = $state(0); // degrees, negative = look down, positive = look up
+  let cameraBaseDir = { x: 1, z: 0 }; // normalized direction from position to lookAt
+  let cameraPreviewDirty = $state(false);
 
   function createCameraMarker(pos: THREE.Vector3, lookAt: THREE.Vector3) {
     if (cameraHelper) wallGroup.remove(cameraHelper);
@@ -166,7 +170,22 @@
     }
     interiorCamera.fov = cameraFOV;
     interiorCamera.position.set(cameraPosition.x, cameraHeight, cameraPosition.z);
-    interiorCamera.lookAt(cameraLookAt.x, cameraHeight * 0.75, cameraLookAt.z);
+    
+    // Apply yaw (horizontal) and pitch (vertical) rotation to base direction
+    const yawRad = cameraYaw * Math.PI / 180;
+    const pitchRad = cameraPitch * Math.PI / 180;
+    const cos = Math.cos(yawRad);
+    const sin = Math.sin(yawRad);
+    const dirX = cameraBaseDir.x * cos - cameraBaseDir.z * sin;
+    const dirZ = cameraBaseDir.x * sin + cameraBaseDir.z * cos;
+    const lookDist = 500;
+    const lookY = cameraHeight + Math.tan(pitchRad) * lookDist;
+    
+    interiorCamera.lookAt(
+      cameraPosition.x + dirX * lookDist,
+      lookY,
+      cameraPosition.z + dirZ * lookDist
+    );
     interiorCamera.updateProjectionMatrix();
   }
 
@@ -204,20 +223,33 @@
   }
 
   function renderCameraPreview() {
-    if (!cameraPreviewCanvas || !scene || !interiorCamera) return;
+    if (!cameraPreviewCanvas || !scene) return;
     updateInteriorCamera();
+    if (!interiorCamera) return;
 
     if (!cameraPreviewRenderer) {
       cameraPreviewRenderer = new THREE.WebGLRenderer({ canvas: cameraPreviewCanvas, antialias: true, alpha: false });
       cameraPreviewRenderer.shadowMap.enabled = true;
+      cameraPreviewRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
       cameraPreviewRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+      cameraPreviewRenderer.toneMappingExposure = 1.0;
     }
     cameraPreviewRenderer.setSize(384, 216);
+    cameraPreviewRenderer.setPixelRatio(1);
 
     if (cameraHelper) cameraHelper.visible = false;
     cameraPreviewRenderer.render(scene, interiorCamera);
     if (cameraHelper) cameraHelper.visible = true;
+    cameraPreviewDirty = false;
   }
+
+  // Auto-render preview when dirty flag is set
+  $effect(() => {
+    if (cameraPreviewDirty && cameraPreviewCanvas && cameraPlaced) {
+      // Use requestAnimationFrame to ensure canvas is in DOM
+      requestAnimationFrame(() => renderCameraPreview());
+    }
+  });
 
   // 3D Furniture Placement
   let furniturePlacementMode = $state(false);
@@ -438,21 +470,30 @@
             // First click: place camera position
             cameraPosition = { x: hit.x, y: cameraHeight, z: hit.z };
             cameraLookAt = { x: hit.x + 200, y: cameraHeight * 0.75, z: hit.z };
+            cameraBaseDir = { x: 1, z: 0 };
+            cameraYaw = 0;
+            cameraPitch = 0;
             cameraPlaced = true;
             updateInteriorCamera();
             createCameraMarker(new THREE.Vector3(hit.x, 0, hit.z), new THREE.Vector3(hit.x + 200, 0, hit.z));
             cameraPreviewOpen = true;
-            setTimeout(renderCameraPreview, 100);
+            cameraPreviewDirty = true;
           } else {
             // Second click: set look-at direction
             cameraLookAt = { x: hit.x, y: cameraHeight * 0.75, z: hit.z };
+            const dx = hit.x - cameraPosition.x;
+            const dz = hit.z - cameraPosition.z;
+            const len = Math.sqrt(dx * dx + dz * dz) || 1;
+            cameraBaseDir = { x: dx / len, z: dz / len };
+            cameraYaw = 0;
+            cameraPitch = 0;
             updateInteriorCamera();
             createCameraMarker(
               new THREE.Vector3(cameraPosition.x, 0, cameraPosition.z),
               new THREE.Vector3(hit.x, 0, hit.z)
             );
             cameraPlacementMode = false;
-            setTimeout(renderCameraPreview, 100);
+            cameraPreviewDirty = true;
           }
         }
         return;
@@ -1983,19 +2024,35 @@
       <canvas bind:this={cameraPreviewCanvas} width="384" height="216" class="w-full"></canvas>
       <div class="px-3 py-2 space-y-2">
         <label class="flex items-center justify-between text-xs text-gray-300">
-          <span>FOV (wide angle)</span>
+          <span>Rotate L/R</span>
           <div class="flex items-center gap-2">
-            <input type="range" min="50" max="120" bind:value={cameraFOV} class="w-24 h-1 accent-blue-400"
-              oninput={() => { updateInteriorCamera(); createCameraMarker(new THREE.Vector3(cameraPosition.x, 0, cameraPosition.z), new THREE.Vector3(cameraLookAt.x, 0, cameraLookAt.z)); setTimeout(renderCameraPreview, 50); }} />
-            <span class="w-8 text-right">{cameraFOV}°</span>
+            <input type="range" min="-180" max="180" bind:value={cameraYaw} class="w-28 h-1 accent-blue-400"
+              oninput={() => { cameraPreviewDirty = true; }} />
+            <span class="w-10 text-right">{cameraYaw}°</span>
+          </div>
+        </label>
+        <label class="flex items-center justify-between text-xs text-gray-300">
+          <span>Tilt U/D</span>
+          <div class="flex items-center gap-2">
+            <input type="range" min="-45" max="45" bind:value={cameraPitch} class="w-28 h-1 accent-blue-400"
+              oninput={() => { cameraPreviewDirty = true; }} />
+            <span class="w-10 text-right">{cameraPitch}°</span>
+          </div>
+        </label>
+        <label class="flex items-center justify-between text-xs text-gray-300">
+          <span>FOV</span>
+          <div class="flex items-center gap-2">
+            <input type="range" min="50" max="120" bind:value={cameraFOV} class="w-28 h-1 accent-blue-400"
+              oninput={() => { cameraPreviewDirty = true; }} />
+            <span class="w-10 text-right">{cameraFOV}°</span>
           </div>
         </label>
         <label class="flex items-center justify-between text-xs text-gray-300">
           <span>Height</span>
           <div class="flex items-center gap-2">
-            <input type="range" min="80" max="220" bind:value={cameraHeight} class="w-24 h-1 accent-blue-400"
-              oninput={() => { updateInteriorCamera(); createCameraMarker(new THREE.Vector3(cameraPosition.x, 0, cameraPosition.z), new THREE.Vector3(cameraLookAt.x, 0, cameraLookAt.z)); setTimeout(renderCameraPreview, 50); }} />
-            <span class="w-12 text-right">{cameraHeight}cm</span>
+            <input type="range" min="80" max="220" bind:value={cameraHeight} class="w-28 h-1 accent-blue-400"
+              oninput={() => { cameraPreviewDirty = true; }} />
+            <span class="w-10 text-right">{cameraHeight}cm</span>
           </div>
         </label>
         <div class="flex gap-2 pt-1">
