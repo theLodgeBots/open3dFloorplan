@@ -57,6 +57,8 @@
   // Furniture drag state
   let draggingFurnitureId: string | null = $state(null);
   let dragOffset: Point = { x: 0, y: 0 };
+  let dragStartRotation: number = 0;
+  let dragWasWallSnapped: boolean = false;
   let draggingDoorId: string | null = $state(null);
   let draggingWindowId: string | null = $state(null);
 
@@ -2329,6 +2331,8 @@
           draggingFurnitureId = fi.id;
           commitFurnitureMove(); // snapshot before drag for undo
           dragOffset = { x: wp.x - fi.position.x, y: wp.y - fi.position.y };
+          dragStartRotation = fi.rotation;
+          dragWasWallSnapped = false;
         }
         return;
       }
@@ -2662,6 +2666,7 @@
         if (wallSnap) {
           moveFurniture(draggingFurnitureId, wallSnap.position);
           setFurnitureRotation(draggingFurnitureId, wallSnap.rotation);
+          dragWasWallSnapped = true;
           wallSnapInfo = { wallId: wallSnap.wallId, side: wallSnap.side, wallAngle: wallSnap.wallAngle };
         } else {
           const snapped = { x: snap(basePos.x), y: snap(basePos.y) };
@@ -2678,6 +2683,11 @@
             }
           }
           moveFurniture(draggingFurnitureId, snapped);
+          // Restore original rotation when leaving wall snap
+          if (dragWasWallSnapped) {
+            setFurnitureRotation(draggingFurnitureId, dragStartRotation);
+            dragWasWallSnapped = false;
+          }
           wallSnapInfo = null;
         }
       }
