@@ -121,8 +121,9 @@
     { id: 'gemini-2.5-flash-image', name: 'Nano Banana (2.5 Flash)', desc: 'Fast & efficient image gen ✓' },
     { id: 'gemini-3-pro-image-preview', name: 'Nano Banana Pro (3 Pro)', desc: 'Best quality, thinking, up to 4K ✓' },
   ];
-  let openaiModel = $state('gpt-image-1');
+  let openaiModel = $state('gpt-5.2');
   const OPENAI_MODELS = [
+    { id: 'gpt-5.2', name: 'GPT-5.2', desc: 'Latest image generation' },
     { id: 'gpt-image-1', name: 'GPT Image 1', desc: 'High quality image generation' },
   ];
 
