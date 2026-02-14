@@ -159,7 +159,7 @@
   let dragPreview: { x: number; y: number; type: string; width: number; depth: number } | null = $state(null);
 
   // Resize/rotate handle drag state
-  type HandleType = 'resize-tl' | 'resize-tr' | 'resize-bl' | 'resize-br' | 'rotate';
+  type HandleType = 'resize-tl' | 'resize-tr' | 'resize-bl' | 'resize-br' | 'resize-t' | 'resize-b' | 'resize-l' | 'resize-r' | 'rotate';
   let draggingHandle: HandleType | null = $state(null);
   let handleDragStart: Point = { x: 0, y: 0 };
   let handleOrigScale: { x: number; y: number } = { x: 1, y: 1 };
@@ -2525,11 +2525,30 @@
             const ang = -(fi.rotation * Math.PI) / 180;
             const localX = dx * Math.cos(ang) - dy * Math.sin(ang);
             const localY = dx * Math.sin(ang) + dy * Math.cos(ang);
-            // Scale based on corner position
-            let newSx = Math.abs(localX * 2) / cat.width;
-            let newSy = Math.abs(localY * 2) / cat.depth;
-            newSx = Math.max(0.3, Math.round(newSx * 20) / 20); // snap to 0.05
-            newSy = Math.max(0.3, Math.round(newSy * 20) / 20);
+            const minScale = 10 / Math.max(cat.width, cat.depth); // 10cm minimum
+            let newSx = fi.scale?.x ?? 1;
+            let newSy = fi.scale?.y ?? 1;
+            const isEdge = ['resize-t', 'resize-b', 'resize-l', 'resize-r'].includes(draggingHandle);
+            const resizesX = !isEdge || draggingHandle === 'resize-l' || draggingHandle === 'resize-r';
+            const resizesY = !isEdge || draggingHandle === 'resize-t' || draggingHandle === 'resize-b';
+            if (resizesX) {
+              newSx = Math.abs(localX * 2) / cat.width;
+              newSx = Math.max(minScale, Math.round(newSx * 20) / 20);
+            }
+            if (resizesY) {
+              newSy = Math.abs(localY * 2) / cat.depth;
+              newSy = Math.max(minScale, Math.round(newSy * 20) / 20);
+            }
+            // Shift: maintain aspect ratio
+            if (shiftDown && resizesX && resizesY) {
+              const origRatio = (handleOrigScale.x * cat.width) / (handleOrigScale.y * cat.depth);
+              const currentRatio = (newSx * cat.width) / (newSy * cat.depth);
+              if (currentRatio > origRatio) {
+                newSy = (newSx * cat.width) / (origRatio * cat.depth);
+              } else {
+                newSx = (newSy * cat.depth * origRatio) / cat.width;
+              }
+            }
             scaleFurniture(currentSelectedId, { x: newSx, y: newSy });
           }
         }
@@ -3314,6 +3333,8 @@
     draggingCurveHandle ? 'crosshair' :
     draggingWallEndpoint ? 'crosshair' :
     draggingHandle === 'rotate' ? 'grabbing' :
+    (draggingHandle === 'resize-t' || draggingHandle === 'resize-b') ? 'ns-resize' :
+    (draggingHandle === 'resize-l' || draggingHandle === 'resize-r') ? 'ew-resize' :
     draggingHandle?.startsWith('resize') ? 'nwse-resize' :
     currentTool === 'text' ? 'text' :
     currentTool === 'select' ? 'default' :

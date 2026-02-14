@@ -848,9 +848,17 @@ export function drawFurnitureItem(cs: CanvasState, item: FurnitureItem, selected
     ctx.fillStyle = '#ffffff';
     ctx.strokeStyle = '#3b82f6';
     ctx.lineWidth = 1.5;
+    // Corner handles
     for (const [hx, hy] of [[-w/2, -d/2], [w/2, -d/2], [-w/2, d/2], [w/2, d/2]]) {
       ctx.fillRect(hx - hs, hy - hs, hs * 2, hs * 2);
       ctx.strokeRect(hx - hs, hy - hs, hs * 2, hs * 2);
+    }
+
+    // Edge midpoint handles
+    const ehs = 4; // slightly smaller
+    for (const [hx, hy] of [[0, -d/2], [0, d/2], [-w/2, 0], [w/2, 0]]) {
+      ctx.fillRect(hx - ehs, hy - ehs, ehs * 2, ehs * 2);
+      ctx.strokeRect(hx - ehs, hy - ehs, ehs * 2, ehs * 2);
     }
 
     const rotY = -d / 2 - 18;

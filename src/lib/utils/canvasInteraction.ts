@@ -88,4 +88,4 @@ export function findConnectedEndpoints(pt: Point, excludeWallId: string, walls: 
 }
 
 /** Resize handle types for furniture */
-export type HandleType = 'resize-tl' | 'resize-tr' | 'resize-bl' | 'resize-br' | 'rotate';
+export type HandleType = 'resize-tl' | 'resize-tr' | 'resize-bl' | 'resize-br' | 'resize-t' | 'resize-b' | 'resize-l' | 'resize-r' | 'rotate';

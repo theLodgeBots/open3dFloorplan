@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import { localStore } from '$lib/services/datastore';
   import { createDefaultProject, currentProject } from '$lib/stores/project';
+  import { houseTemplates } from '$lib/utils/houseTemplates';
 
   let { onDismiss }: { onDismiss: () => void } = $props();
 
@@ -28,8 +29,9 @@
     goto(`/editor?id=${p.id}`);
   }
 
-  async function useTemplate(name: string) {
-    const p = createDefaultProject(name);
+  async function useHouseTemplate(index: number) {
+    const template = houseTemplates[index];
+    const p = template.create();
     currentProject.set(p);
     await localStore.save(p);
     markSeen();
@@ -38,15 +40,6 @@
 
   let showTemplates = $state(false);
   let showImport = $state(false);
-
-  const templates = [
-    { name: 'Living Room', icon: '🛋️' },
-    { name: 'Kitchen', icon: '🍳' },
-    { name: 'Bedroom', icon: '🛏️' },
-    { name: 'Bathroom', icon: '🚿' },
-    { name: 'Office', icon: '💼' },
-    { name: 'Studio', icon: '🎨' },
-  ];
 
   let fileInput: HTMLInputElement;
 
@@ -117,17 +110,22 @@
     </div>
   {:else if showTemplates}
     <!-- Template grid -->
-    <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full mx-4">
+    <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-xl w-full mx-4">
       <button onclick={() => showTemplates = false} class="text-gray-400 hover:text-gray-600 mb-4 text-sm">← Back</button>
-      <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">Choose a Template</h2>
-      <div class="grid grid-cols-3 gap-3">
-        {#each templates as t}
+      <h2 class="text-2xl font-bold text-gray-800 mb-2 text-center">Floor Plan Templates</h2>
+      <p class="text-sm text-gray-400 text-center mb-6">Complete house layouts with walls, doors & windows</p>
+      <div class="space-y-3">
+        {#each houseTemplates as t, i}
           <button
-            onclick={() => useTemplate(t.name)}
-            class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all"
+            onclick={() => useHouseTemplate(i)}
+            class="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all text-left"
           >
             <span class="text-3xl">{t.icon}</span>
-            <span class="text-sm font-medium text-gray-700">{t.name}</span>
+            <div class="flex-1 min-w-0">
+              <div class="font-semibold text-gray-800">{t.name}</div>
+              <div class="text-xs text-gray-400">{t.description}</div>
+            </div>
+            <span class="text-xs font-medium text-blue-500 bg-blue-50 px-2 py-1 rounded-lg shrink-0">{t.area}</span>
           </button>
         {/each}
       </div>

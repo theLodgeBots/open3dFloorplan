@@ -4,6 +4,7 @@
   import { localStore } from '$lib/services/datastore';
   import { createDefaultProject, currentProject } from '$lib/stores/project';
   import WelcomeScreen from '$lib/components/WelcomeScreen.svelte';
+  import { houseTemplates } from '$lib/utils/houseTemplates';
 
   let projects = $state<{ id: string; name: string; updatedAt: string }[]>([]);
   let thumbnails = $state<Record<string, string | null>>({});
@@ -12,6 +13,7 @@
   let renamingId = $state<string | null>(null);
   let renameValue = $state('');
   let contextMenuId = $state<string | null>(null);
+  let showTemplateModal = $state(false);
 
   onMount(async () => {
     projects = await localStore.list();
@@ -28,6 +30,15 @@
       showWelcome = true;
     }
   });
+
+  async function createFromTemplate(index: number) {
+    const template = houseTemplates[index];
+    const p = template.create();
+    currentProject.set(p);
+    await localStore.save(p);
+    showTemplateModal = false;
+    goto(`/editor?id=${p.id}`);
+  }
 
   async function newProject() {
     const p = createDefaultProject('Untitled Project');
@@ -103,13 +114,22 @@
         <h1 class="text-2xl font-bold text-white">Floor Plan Editor</h1>
         <p class="text-sm text-white/50 mt-0.5">{projects.length} project{projects.length !== 1 ? 's' : ''}</p>
       </div>
-      <button
-        onclick={newProject}
-        class="px-5 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold text-sm shadow-lg shadow-blue-500/25 transition-all hover:shadow-blue-500/40 flex items-center gap-2"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        New Project
-      </button>
+      <div class="flex items-center gap-3">
+        <button
+          onclick={() => showTemplateModal = true}
+          class="px-4 py-2.5 bg-white/10 text-white rounded-lg hover:bg-white/20 font-medium text-sm transition-all flex items-center gap-2 border border-white/20"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          Templates
+        </button>
+        <button
+          onclick={newProject}
+          class="px-5 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold text-sm shadow-lg shadow-blue-500/25 transition-all hover:shadow-blue-500/40 flex items-center gap-2"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Project
+        </button>
+      </div>
     </div>
   </div>
 
@@ -121,9 +141,14 @@
         </div>
         <p class="text-lg text-gray-400 font-medium">No projects yet</p>
         <p class="text-sm text-gray-300 mt-1">Create your first floor plan to get started</p>
-        <button onclick={newProject} class="mt-6 px-5 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold text-sm">
-          Create Project
-        </button>
+        <div class="mt-6 flex items-center gap-3 justify-center">
+          <button onclick={newProject} class="px-5 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold text-sm">
+            Create Project
+          </button>
+          <button onclick={() => showTemplateModal = true} class="px-5 py-2.5 bg-white text-gray-700 rounded-lg hover:bg-gray-100 font-semibold text-sm border border-gray-200">
+            Start from Template
+          </button>
+        </div>
       </div>
     {:else}
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -207,4 +232,32 @@
       </div>
     {/if}
   </div>
+
+  <!-- Template Modal -->
+  {#if showTemplateModal}
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onclick={() => showTemplateModal = false}>
+      <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-xl w-full mx-4" onclick={(e) => e.stopPropagation()}>
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-2xl font-bold text-gray-800">Floor Plan Templates</h2>
+          <button onclick={() => showTemplateModal = false} class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+        </div>
+        <p class="text-sm text-gray-400 mb-6">Complete house layouts with walls, doors & windows</p>
+        <div class="space-y-3">
+          {#each houseTemplates as t, i}
+            <button
+              onclick={() => createFromTemplate(i)}
+              class="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all text-left"
+            >
+              <span class="text-3xl">{t.icon}</span>
+              <div class="flex-1 min-w-0">
+                <div class="font-semibold text-gray-800">{t.name}</div>
+                <div class="text-xs text-gray-400">{t.description}</div>
+              </div>
+              <span class="text-xs font-medium text-blue-500 bg-blue-50 px-2 py-1 rounded-lg shrink-0">{t.area}</span>
+            </button>
+          {/each}
+        </div>
+      </div>
+    </div>
+  {/if}
 </div>

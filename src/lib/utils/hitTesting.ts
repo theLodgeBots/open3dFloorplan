@@ -90,6 +90,12 @@ export function findHandleAt(
   if (Math.abs(rx - (-hw)) < ht && Math.abs(ry - hd) < ht) return 'resize-bl';
   if (Math.abs(rx - hw) < ht && Math.abs(ry - hd) < ht) return 'resize-br';
 
+  // Edge midpoint handles
+  if (Math.abs(rx) < ht && Math.abs(ry - (-hd)) < ht) return 'resize-t';
+  if (Math.abs(rx) < ht && Math.abs(ry - hd) < ht) return 'resize-b';
+  if (Math.abs(rx - (-hw)) < ht && Math.abs(ry) < ht) return 'resize-l';
+  if (Math.abs(rx - hw) < ht && Math.abs(ry) < ht) return 'resize-r';
+
   return null;
 }
 
