@@ -3,6 +3,7 @@
   import { get } from 'svelte/store';
   import { activeFloor, currentProject, detectedRoomsStore, selectedElementId } from '$lib/stores/project';
   import type { Floor, Wall, Door, Window as Win, Room, Stair } from '$lib/models/types';
+  import { getWallStartHeight, getWallEndHeight, getWallHeightAt } from '$lib/models/types';
   import { wallColors, type WallColor } from '$lib/utils/materials';
   import { projectSettings, formatArea } from '$lib/stores/settings';
   import * as THREE from 'three';
@@ -617,6 +618,73 @@
     return tex;
   }
 
+  function exitWalkthroughMode() {
+    walkthroughMode = false;
+    controls.enabled = true;
+    velocity.set(0, 0, 0);
+    moveForward = moveBackward = moveLeft = moveRight = false;
+    lookLeft = lookRight = lookUp = lookDown = false;
+    
+    if (typeof document !== 'undefined' && document.pointerLockElement) {
+      document.exitPointerLock();
+    }
+  }
+
+  function onKeyDown(event: KeyboardEvent) {
+    // ESC exits edit mode
+    if (event.code === 'Escape' && editMode && !walkthroughMode) {
+      if (furniturePlacementMode) {
+        furniturePlacementMode = false;
+        furniturePickerOpen = false;
+        selectedCatalogId = null;
+        removeGhostPreview();
+        return;
+      }
+      if (materialPickerWall) {
+        materialPickerWall = null;
+        materialPickerPos = null;
+        return;
+      }
+      editMode = false;
+      selectedElementId.set(null);
+      return;
+    }
+    if (!walkthroughMode) return;
+    
+    switch (event.code) {
+      // Arrows = move
+      case 'ArrowUp': moveForward = true; break;
+      case 'ArrowDown': moveBackward = true; break;
+      case 'ArrowLeft': moveLeft = true; break;
+      case 'ArrowRight': moveRight = true; break;
+      // WASD = look
+      case 'KeyW': lookUp = true; break;
+      case 'KeyS': lookDown = true; break;
+      case 'KeyA': lookLeft = true; break;
+      case 'KeyD': lookRight = true; break;
+      case 'ShiftLeft':
+      case 'ShiftRight': isShiftHeld = true; break;
+      case 'Escape': exitWalkthroughMode(); break;
+    }
+  }
+
+  function onKeyUp(event: KeyboardEvent) {
+    if (!walkthroughMode) return;
+    
+    switch (event.code) {
+      case 'ArrowUp': moveForward = false; break;
+      case 'ArrowDown': moveBackward = false; break;
+      case 'ArrowLeft': moveLeft = false; break;
+      case 'ArrowRight': moveRight = false; break;
+      case 'KeyW': lookUp = false; break;
+      case 'KeyS': lookDown = false; break;
+      case 'KeyA': lookLeft = false; break;
+      case 'KeyD': lookRight = false; break;
+      case 'ShiftLeft':
+      case 'ShiftRight': isShiftHeld = false; break;
+    }
+  }
+
   function init() {
     scene = new THREE.Scene();
 
@@ -1150,6 +1218,100 @@
     }
   }
 
+  function createSlopedBoxGeometry(
+    width: number,
+    thickness: number,
+    bottomY: number,
+    topYLeft: number,
+    topYRight: number
+  ): THREE.BufferGeometry {
+    const hLeft = topYLeft - bottomY;
+    const hRight = topYRight - bottomY;
+    if (Math.abs(hLeft - hRight) < 0.1) {
+      const h = Math.max(0.1, hLeft);
+      const geo = new THREE.BoxGeometry(width, h, thickness);
+      geo.translate(0, bottomY + h / 2, 0);
+      return geo;
+    }
+
+    const hw = width / 2;
+    const ht = thickness / 2;
+    const yb = bottomY;
+    const ytl = Math.max(yb + 0.1, topYLeft);
+    const ytr = Math.max(yb + 0.1, topYRight);
+
+    // 6 faces * 4 vertices = 24 vertices
+    const positions = new Float32Array([
+      // +X face (right)
+      hw, yb, +ht,   hw, yb, -ht,   hw, ytr, -ht,   hw, ytr, +ht,
+      // -X face (left)
+      -hw, yb, -ht,  -hw, yb, +ht,  -hw, ytl, +ht,  -hw, ytl, -ht,
+      // +Y face (top sloped)
+      -hw, ytl, +ht,  hw, ytr, +ht,  hw, ytr, -ht, -hw, ytl, -ht,
+      // -Y face (bottom)
+      -hw, yb, -ht,   hw, yb, -ht,   hw, yb, +ht,  -hw, yb, +ht,
+      // +Z face (front / interior)
+      -hw, yb, +ht,   hw, yb, +ht,   hw, ytr, +ht, -hw, ytl, +ht,
+      // -Z face (back / exterior)
+      hw, yb, -ht,   -hw, yb, -ht,  -hw, ytl, -ht,  hw, ytr, -ht,
+    ]);
+
+    const dx = width;
+    const dy = ytr - ytl;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len;
+    const ny = dx / len;
+
+    const normals = new Float32Array([
+      // +X face
+      1, 0, 0,  1, 0, 0,  1, 0, 0,  1, 0, 0,
+      // -X face
+      -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0,
+      // +Y face
+      nx, ny, 0,  nx, ny, 0,  nx, ny, 0,  nx, ny, 0,
+      // -Y face
+      0, -1, 0,  0, -1, 0,  0, -1, 0,  0, -1, 0,
+      // +Z face
+      0, 0, 1,   0, 0, 1,   0, 0, 1,   0, 0, 1,
+      // -Z face
+      0, 0, -1,  0, 0, -1,  0, 0, -1,  0, 0, -1,
+    ]);
+
+    const uvs = new Float32Array([
+      // +X face
+      0, 0,  1, 0,  1, 1,  0, 1,
+      // -X face
+      0, 0,  1, 0,  1, 1,  0, 1,
+      // +Y face
+      0, 0,  1, 0,  1, 1,  0, 1,
+      // -Y face
+      0, 0,  1, 0,  1, 1,  0, 1,
+      // +Z face
+      0, 0,  1, 0,  1, 1,  0, 1,
+      // -Z face
+      0, 0,  1, 0,  1, 1,  0, 1,
+    ]);
+
+    const indices = [];
+    for (let i = 0; i < 6; i++) {
+      const offset = i * 4;
+      indices.push(offset, offset + 1, offset + 2);
+      indices.push(offset, offset + 2, offset + 3);
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+    geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+    geo.setIndex(indices);
+
+    for (let i = 0; i < 6; i++) {
+      geo.addGroup(i * 6, 6, i);
+    }
+
+    return geo;
+  }
+
   function buildWalls(floor: Floor) {
     clearGroup(wallGroup);
     wallMeshMap.clear();
@@ -1198,9 +1360,12 @@
       } else {
         exteriorMat = defaultExteriorMat;
       }
+      const startH = getWallStartHeight(wall);
+      const endH = getWallEndHeight(wall);
+      const wallMaxH = Math.max(startH, endH);
+
       // Curved wall handling
       if (wall.curvePoint) {
-        const h = wall.height;
         const t = Math.max(wall.thickness, WALL_THICKNESS);
         const SEGS = 16;
         const materials = [
@@ -1221,11 +1386,13 @@
           const segAngle = Math.atan2(p1y - p0y, p1x - p0x);
           const segCx = (p0x + p1x) / 2;
           const segCy = (p0y + p1y) / 2;
-          const geo = new THREE.BoxGeometry(segLen, h, t);
+          const segStartH = startH + (endH - startH) * t0;
+          const segEndH = startH + (endH - startH) * t1;
+          const geo = createSlopedBoxGeometry(segLen, t, 0, segStartH, segEndH);
           const mesh = new THREE.Mesh(geo, materials);
           mesh.castShadow = true;
           mesh.receiveShadow = true;
-          mesh.position.set(segCx, h / 2, segCy);
+          mesh.position.set(segCx, 0, segCy);
           mesh.rotation.y = -segAngle;
           mesh.userData.wallId = wall.id;
           wallMeshMap.set(mesh, wall.id);
@@ -1257,7 +1424,6 @@
       const len = Math.hypot(dx, dy);
       if (len < 1) continue;
 
-      const h = wall.height;
       const t = Math.max(wall.thickness, WALL_THICKNESS);
       const angle = Math.atan2(dy, dx);
       const cx = (wall.start.x + wall.end.x) / 2;
@@ -1265,10 +1431,10 @@
 
       const doorOpenings = floor.doors.filter((d) => d.wallId === wall.id);
       const winOpenings = floor.windows.filter((w) => w.wallId === wall.id);
-      const segments = buildWallSegments(len, h, t, doorOpenings, winOpenings);
+      const segments = buildWallSegments(len, startH, endH, t, doorOpenings, winOpenings);
 
       for (const seg of segments) {
-        const geo = new THREE.BoxGeometry(seg.width, seg.height, t);
+        const geo = createSlopedBoxGeometry(seg.width, t, seg.bottomY, seg.topYLeft, seg.topYRight);
 
         // Create a multi-material wall: interior white, exterior brown
         const materials = [
@@ -1283,7 +1449,7 @@
         const localX = seg.offsetX - len / 2;
         mesh.position.set(
           cx + localX * Math.cos(angle),
-          seg.height / 2 + seg.offsetY,
+          0,
           cy + localX * Math.sin(angle)
         );
         mesh.rotation.y = -angle;
@@ -1352,7 +1518,8 @@
       const wt = Math.max(wall.thickness, WALL_THICKNESS);
 
       const frameMat = new THREE.MeshStandardMaterial({ color: 0x6b4423, roughness: 0.6 });
-      const doorHeight = 210;
+      const doorHOnWall = getWallHeightAt(wall, door.position);
+      const doorHeight = Math.min(door.height ?? 210, doorHOnWall);
       const jamb = 5; // jamb thickness
 
       // Left jamb
@@ -1434,7 +1601,7 @@
         const handleSin = Math.sin(-angle + swingAngle);
         handleMesh.position.set(
           panelMesh.position.x + handleLocalX * handleCos,
-          100,
+          Math.min(100, doorHeight * 0.5),
           panelMesh.position.z - handleLocalX * handleSin
         );
         wallGroup.add(handleMesh);
@@ -1450,19 +1617,21 @@
       const py = wall.start.y + (wall.end.y - wall.start.y) * t;
       const angle = Math.atan2(wall.end.y - wall.start.y, wall.end.x - wall.start.x);
       const wt = Math.max(wall.thickness, WALL_THICKNESS);
-      const winCY = win.sillHeight + win.height / 2;
+      const currentWallH = getWallHeightAt(wall, win.position);
+      const effectiveWinH = Math.min(win.height, Math.max(0, currentWallH - win.sillHeight));
+      const winCY = win.sillHeight + effectiveWinH / 2;
 
       const frameMat = new THREE.MeshStandardMaterial({ color: 0xe0e0e0, roughness: 0.4, metalness: 0.1 });
       const mullionW = 4; // mullion bar width
 
       // Outer frame — 4 bars forming rectangle
       const bars: { w: number; h: number; ox: number; oy: number }[] = [
-        { w: win.width + mullionW * 2, h: mullionW, ox: 0, oy: -win.height / 2 - mullionW / 2 }, // bottom
-        { w: win.width + mullionW * 2, h: mullionW, ox: 0, oy: win.height / 2 + mullionW / 2 },  // top
-        { w: mullionW, h: win.height, ox: -win.width / 2 - mullionW / 2, oy: 0 },  // left
-        { w: mullionW, h: win.height, ox: win.width / 2 + mullionW / 2, oy: 0 },   // right
+        { w: win.width + mullionW * 2, h: mullionW, ox: 0, oy: -effectiveWinH / 2 - mullionW / 2 }, // bottom
+        { w: win.width + mullionW * 2, h: mullionW, ox: 0, oy: effectiveWinH / 2 + mullionW / 2 },  // top
+        { w: mullionW, h: effectiveWinH, ox: -win.width / 2 - mullionW / 2, oy: 0 },  // left
+        { w: mullionW, h: effectiveWinH, ox: win.width / 2 + mullionW / 2, oy: 0 },   // right
         // Center vertical mullion
-        { w: mullionW, h: win.height, ox: 0, oy: 0 },
+        { w: mullionW, h: effectiveWinH, ox: 0, oy: 0 },
         // Center horizontal mullion
         { w: win.width, h: mullionW, ox: 0, oy: 0 },
       ];
@@ -1484,7 +1653,7 @@
         roughness: 0.05, metalness: 0.1, side: THREE.DoubleSide
       });
       const halfW = (win.width - mullionW) / 2;
-      const halfH = (win.height - mullionW) / 2;
+      const halfH = (effectiveWinH - mullionW) / 2;
       for (const qx of [-1, 1]) {
         for (const qy of [-1, 1]) {
           const gGeo = new THREE.BoxGeometry(halfW, halfH, 1);
@@ -1758,7 +1927,8 @@
       const len = Math.hypot(dx, dy);
       if (len < 1) continue;
 
-      const h = wall.height;
+      const startH = getWallStartHeight(wall);
+      const endH = getWallEndHeight(wall);
       const t = Math.max(wall.thickness, WALL_THICKNESS);
       const angle = Math.atan2(dy, dx);
       const cx = (wall.start.x + wall.end.x) / 2;
@@ -1766,7 +1936,7 @@
 
       const doorOpenings = floor.doors.filter((d) => d.wallId === wall.id);
       const winOpenings = floor.windows.filter((w) => w.wallId === wall.id);
-      const segments = buildWallSegments(len, h, t, doorOpenings, winOpenings);
+      const segments = buildWallSegments(len, startH, endH, t, doorOpenings, winOpenings);
 
       const materials = [
         defaultExteriorMat, defaultExteriorMat,
@@ -1775,14 +1945,14 @@
       ];
 
       for (const seg of segments) {
-        const geo = new THREE.BoxGeometry(seg.width, seg.height, t);
+        const geo = createSlopedBoxGeometry(seg.width, t, seg.bottomY, seg.topYLeft, seg.topYRight);
         const mesh = new THREE.Mesh(geo, materials);
         mesh.castShadow = true;
         mesh.receiveShadow = true;
         const localX = seg.offsetX - len / 2;
         mesh.position.set(
           cx + localX * Math.cos(angle),
-          seg.height / 2 + seg.offsetY + yOffset,
+          yOffset,
           cy + localX * Math.sin(angle)
         );
         mesh.rotation.y = -angle;
@@ -1849,26 +2019,34 @@
 
   interface WallSegment {
     width: number;
-    height: number;
+    bottomY: number;
+    topYLeft: number;
+    topYRight: number;
     offsetX: number;
-    offsetY: number;
   }
 
   function buildWallSegments(
-    wallLen: number, wallH: number, _t: number,
+    wallLen: number, startH: number, endH: number, _t: number,
     doors: Door[], windows: Win[]
   ): WallSegment[] {
+    const getHAt = (x: number) => startH + (endH - startH) * (Math.max(0, Math.min(wallLen, x)) / (wallLen || 1));
+
     type Opening = { pos: number; width: number; bottomY: number; topY: number };
     const openings: Opening[] = [];
     for (const d of doors) {
-      openings.push({ pos: d.position * wallLen, width: d.width, bottomY: 0, topY: 210 });
+      const currentH = getHAt(d.position * wallLen);
+      const topY = Math.min(d.height ?? 210, currentH);
+      openings.push({ pos: d.position * wallLen, width: d.width, bottomY: 0, topY });
     }
     for (const w of windows) {
-      openings.push({ pos: w.position * wallLen, width: w.width, bottomY: w.sillHeight, topY: w.sillHeight + w.height });
+      const currentH = getHAt(w.position * wallLen);
+      const sill = w.sillHeight ?? 90;
+      const topY = Math.min(sill + w.height, currentH);
+      openings.push({ pos: w.position * wallLen, width: w.width, bottomY: sill, topY });
     }
 
     if (openings.length === 0) {
-      return [{ width: wallLen, height: wallH, offsetX: wallLen / 2, offsetY: 0 }];
+      return [{ width: wallLen, bottomY: 0, topYLeft: startH, topYRight: endH, offsetX: wallLen / 2 }];
     }
 
     openings.sort((a, b) => a.pos - b.pos);
@@ -1876,81 +2054,53 @@
     let cursor = 0;
 
     for (const op of openings) {
-      const left = op.pos - op.width / 2;
-      const right = op.pos + op.width / 2;
+      const left = Math.max(0, op.pos - op.width / 2);
+      const right = Math.min(wallLen, op.pos + op.width / 2);
       if (left > cursor) {
-        segs.push({ width: left - cursor, height: wallH, offsetX: cursor + (left - cursor) / 2, offsetY: 0 });
+        segs.push({
+          width: left - cursor,
+          bottomY: 0,
+          topYLeft: getHAt(cursor),
+          topYRight: getHAt(left),
+          offsetX: cursor + (left - cursor) / 2
+        });
       }
-      if (op.topY < wallH) {
-        segs.push({ width: op.width, height: wallH - op.topY, offsetX: op.pos, offsetY: op.topY });
+      const wallHAtOp = getHAt(op.pos);
+      if (op.topY < wallHAtOp) {
+        segs.push({
+          width: right - left,
+          bottomY: op.topY,
+          topYLeft: getHAt(left),
+          topYRight: getHAt(right),
+          offsetX: op.pos
+        });
       }
       if (op.bottomY > 0) {
-        segs.push({ width: op.width, height: op.bottomY, offsetX: op.pos, offsetY: 0 });
+        segs.push({
+          width: right - left,
+          bottomY: 0,
+          topYLeft: op.bottomY,
+          topYRight: op.bottomY,
+          offsetX: op.pos
+        });
       }
       cursor = Math.max(cursor, right);
     }
 
     if (cursor < wallLen) {
-      segs.push({ width: wallLen - cursor, height: wallH, offsetX: cursor + (wallLen - cursor) / 2, offsetY: 0 });
+      segs.push({
+        width: wallLen - cursor,
+        bottomY: 0,
+        topYLeft: getHAt(cursor),
+        topYRight: getHAt(wallLen),
+        offsetX: cursor + (wallLen - cursor) / 2
+      });
     }
 
     return segs;
   }
 
-  function onKeyDown(event: KeyboardEvent) {
-    // ESC exits edit mode
-    if (event.code === 'Escape' && editMode && !walkthroughMode) {
-      if (furniturePlacementMode) {
-        furniturePlacementMode = false;
-        furniturePickerOpen = false;
-        selectedCatalogId = null;
-        removeGhostPreview();
-        return;
-      }
-      if (materialPickerWall) {
-        materialPickerWall = null;
-        materialPickerPos = null;
-        return;
-      }
-      editMode = false;
-      selectedElementId.set(null);
-      return;
-    }
-    if (!walkthroughMode) return;
-    
-    switch (event.code) {
-      // Arrows = move
-      case 'ArrowUp': moveForward = true; break;
-      case 'ArrowDown': moveBackward = true; break;
-      case 'ArrowLeft': moveLeft = true; break;
-      case 'ArrowRight': moveRight = true; break;
-      // WASD = look
-      case 'KeyW': lookUp = true; break;
-      case 'KeyS': lookDown = true; break;
-      case 'KeyA': lookLeft = true; break;
-      case 'KeyD': lookRight = true; break;
-      case 'ShiftLeft':
-      case 'ShiftRight': isShiftHeld = true; break;
-      case 'Escape': exitWalkthroughMode(); break;
-    }
-  }
 
-  function onKeyUp(event: KeyboardEvent) {
-    if (!walkthroughMode) return;
-    
-    switch (event.code) {
-      case 'ArrowUp': moveForward = false; break;
-      case 'ArrowDown': moveBackward = false; break;
-      case 'ArrowLeft': moveLeft = false; break;
-      case 'ArrowRight': moveRight = false; break;
-      case 'KeyW': lookUp = false; break;
-      case 'KeyS': lookDown = false; break;
-      case 'KeyA': lookLeft = false; break;
-      case 'KeyD': lookRight = false; break;
-      case 'ShiftLeft':
-      case 'ShiftRight': isShiftHeld = false; break;
-    }
-  }
   
   function toggleWallTransparency() {
     wallsTransparent = !wallsTransparent;
@@ -2030,17 +2180,7 @@
     pointerControls.lock();
   }
   
-  function exitWalkthroughMode() {
-    walkthroughMode = false;
-    controls.enabled = true;
-    velocity.set(0, 0, 0);
-    moveForward = moveBackward = moveLeft = moveRight = false;
-    lookLeft = lookRight = lookUp = lookDown = false;
-    
-    if (document.pointerLockElement) {
-      document.exitPointerLock();
-    }
-  }
+
 
   function animate() {
     animId = requestAnimationFrame(animate);

@@ -631,6 +631,8 @@ export function importRoomPlan(jsonData: any, options: RoomPlanImportOptions = {
       end,
       thickness: 15,
       height: Math.round(height),
+      startHeight: Math.round(height),
+      endHeight: Math.round(height),
       color: '#444444',
     });
   }

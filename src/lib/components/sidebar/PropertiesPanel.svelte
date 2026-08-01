@@ -1,11 +1,12 @@
 <script lang="ts">
-  import { activeFloor, selectedElementId, selectedRoomId, updateWall, updateDoor, updateWindow, updateRoom, updateFurniture, detectedRoomsStore, updateStair, updateColumn, updateBackgroundImage, setBackgroundImage, calibrationMode, calibrationPoints, updateTextAnnotation, toggleFurnitureLock, updateEntourageItem, removeElement, elevationWallId } from '$lib/stores/project';
+  import { activeFloor, selectedElementId, selectedRoomId, updateWall, reverseWall, updateDoor, updateWindow, updateRoom, updateFurniture, detectedRoomsStore, updateStair, updateColumn, updateBackgroundImage, setBackgroundImage, calibrationMode, calibrationPoints, updateTextAnnotation, toggleFurnitureLock, updateEntourageItem, removeElement, elevationWallId } from '$lib/stores/project';
   import { getEntourageDef } from '$lib/utils/entourageCatalog';
   import { floorMaterials, wallColors } from '$lib/utils/materials';
   import { getCatalogItem } from '$lib/utils/furnitureCatalog';
   import { projectSettings, formatLength, formatArea } from '$lib/stores/settings';
   import { base } from '$app/paths';
   import type { Floor, Wall, Door, Window as Win, Room, FurnitureItem, Stair, Column, RoomCategory, TextAnnotation } from '$lib/models/types';
+  import { getWallStartHeight, getWallEndHeight } from '$lib/models/types';
 
   let floor = $state<Floor | null>(null);
   let selId: string | null = $state(null);
@@ -103,7 +104,25 @@
   }
   function onWallHeight(e: Event) {
     if (!selectedWall) return;
-    updateWall(selectedWall.id, { height: inputToCm(Number((e.target as HTMLInputElement).value)) });
+    const val = inputToCm(Number((e.target as HTMLInputElement).value));
+    updateWall(selectedWall.id, { height: val, startHeight: val, endHeight: val });
+  }
+  function onWallStartHeight(e: Event) {
+    if (!selectedWall) return;
+    const val = inputToCm(Number((e.target as HTMLInputElement).value));
+    const endH = getWallEndHeight(selectedWall);
+    updateWall(selectedWall.id, { startHeight: val, endHeight: endH, height: Math.max(val, endH) });
+  }
+  function onWallEndHeight(e: Event) {
+    if (!selectedWall) return;
+    const val = inputToCm(Number((e.target as HTMLInputElement).value));
+    const startH = getWallStartHeight(selectedWall);
+    updateWall(selectedWall.id, { startHeight: startH, endHeight: val, height: Math.max(startH, val) });
+  }
+  function equalizeWallHeights() {
+    if (!selectedWall) return;
+    const startH = getWallStartHeight(selectedWall);
+    updateWall(selectedWall.id, { startHeight: startH, endHeight: startH, height: startH });
   }
   function onWallColor(e: Event) {
     if (!selectedWall) return;
@@ -336,10 +355,33 @@
         <span class="text-xs text-gray-500">Thickness ({unitLabel()})</span>
         <input type="number" value={displayValue(selectedWall.thickness)} oninput={onWallThickness} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
-      <label class="block">
-        <span class="text-xs text-gray-500">Height ({unitLabel()})</span>
-        <input type="number" value={displayValue(selectedWall.height)} oninput={onWallHeight} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
-      </label>
+      <div class="grid grid-cols-2 gap-2">
+        <label class="block">
+          <span class="text-xs text-gray-500">Start Height ({unitLabel()})</span>
+          <input type="number" value={displayValue(getWallStartHeight(selectedWall))} oninput={onWallStartHeight} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        </label>
+        <label class="block">
+          <span class="text-xs text-gray-500">End Height ({unitLabel()})</span>
+          <input type="number" value={displayValue(getWallEndHeight(selectedWall))} oninput={onWallEndHeight} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        </label>
+      </div>
+      <div class="flex items-center gap-2">
+        {#if getWallStartHeight(selectedWall) !== getWallEndHeight(selectedWall)}
+          <button
+            onclick={equalizeWallHeights}
+            class="text-xs text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
+          >
+            ↔️ Equalize ({displayValue(getWallStartHeight(selectedWall))} {unitLabel()})
+          </button>
+        {/if}
+        <button
+          onclick={() => { if (selectedWall) reverseWall(selectedWall.id); }}
+          class="text-xs text-gray-600 hover:text-gray-900 border border-gray-200 px-2 py-0.5 rounded flex items-center gap-1 ml-auto"
+          title="Reverse wall direction (swap start/end points and heights)"
+        >
+          🔄 Reverse direction
+        </button>
+      </div>
       <button
         class="w-full py-1.5 text-sm rounded-md bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors flex items-center justify-center gap-1.5"
         onclick={() => { if (selectedWall) elevationWallId.set(selectedWall.id); }}
