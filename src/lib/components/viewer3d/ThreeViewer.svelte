@@ -1816,19 +1816,28 @@
       sprite.scale.set(150, 40, 1);
       wallGroup.add(sprite);
 
-      // Ceiling — render at wall height, visible from below
-      const defaultWallH = floor.walls.length > 0 ? floor.walls[0].height : 260;
-      const ceilMat = new THREE.MeshStandardMaterial({
-        color: 0xf5f5f0,
-        roughness: 0.95,
-        side: THREE.BackSide // visible from below
-      });
-      const ceilGeo = new THREE.ShapeGeometry(shape);
-      const ceilMesh = new THREE.Mesh(ceilGeo, ceilMat);
-      ceilMesh.rotation.x = -Math.PI / 2;
-      ceilMesh.position.y = defaultWallH;
-      ceilMesh.receiveShadow = true;
-      wallGroup.add(ceilMesh);
+      // Ceiling — render at wall height for uniform walls (omit flat ceiling slice over sloped rooms)
+      let hasSlopedWall = false;
+      for (const w of floor.walls) {
+        if (Math.abs(getWallStartHeight(w) - getWallEndHeight(w)) > 0.1) {
+          hasSlopedWall = true;
+          break;
+        }
+      }
+      if (!hasSlopedWall && floor.walls.length > 0) {
+        const defaultWallH = getWallStartHeight(floor.walls[0]);
+        const ceilMat = new THREE.MeshStandardMaterial({
+          color: 0xf5f5f0,
+          roughness: 0.95,
+          side: THREE.BackSide // visible from below
+        });
+        const ceilGeo = new THREE.ShapeGeometry(shape);
+        const ceilMesh = new THREE.Mesh(ceilGeo, ceilMat);
+        ceilMesh.rotation.x = -Math.PI / 2;
+        ceilMesh.position.y = defaultWallH;
+        ceilMesh.receiveShadow = true;
+        wallGroup.add(ceilMesh);
+      }
     }
 
     // Stairs

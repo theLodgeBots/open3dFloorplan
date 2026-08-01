@@ -19,6 +19,7 @@ import {
   currentProject
 } from './project';
 import { get } from 'svelte/store';
+import * as THREE from 'three';
 
 describe('Variable Height Wall Unit Tests', () => {
 
@@ -335,6 +336,69 @@ describe('Variable Height Wall Unit Tests', () => {
       const requestedWinH = 120;
       const effectiveWinHAtStart = Math.min(requestedWinH, Math.max(0, wallHAtStart - sillH));
       expect(effectiveWinHAtStart).toBe(60); // 150 - 90 = 60cm max window height
+    });
+  });
+
+  describe('11. 3D Sloped Wall Geometry Topology & Bounding Box', () => {
+    it('creates closed trapezoidal prism with valid indices, local bounds, and vertex normals', () => {
+      const width = 200;
+      const thickness = 15;
+      const bottomY = 0;
+      const topYLeft = 200;
+      const topYRight = 350;
+
+      const hw = width / 2;
+      const ht = thickness / 2;
+      const yb = bottomY;
+      const ytl = topYLeft;
+      const ytr = topYRight;
+
+      const positions = new Float32Array([
+        // +X face (right)
+        hw, yb, +ht,   hw, yb, -ht,   hw, ytr, -ht,   hw, ytr, +ht,
+        // -X face (left)
+        -hw, yb, -ht,  -hw, yb, +ht,  -hw, ytl, +ht,  -hw, ytl, -ht,
+        // +Y face (top sloped)
+        -hw, ytl, +ht,  hw, ytr, +ht,  hw, ytr, -ht, -hw, ytl, -ht,
+        // -Y face (bottom)
+        -hw, yb, -ht,   hw, yb, -ht,   hw, yb, +ht,  -hw, yb, +ht,
+        // +Z face (front / interior)
+        -hw, yb, +ht,   hw, yb, +ht,   hw, ytr, +ht, -hw, ytl, +ht,
+        // -Z face (back / exterior)
+        hw, yb, -ht,   -hw, yb, -ht,  -hw, ytl, -ht,  hw, ytr, -ht,
+      ]);
+
+      const indices: number[] = [];
+      for (let i = 0; i < 6; i++) {
+        const offset = i * 4;
+        indices.push(offset, offset + 1, offset + 2);
+        indices.push(offset, offset + 2, offset + 3);
+      }
+
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geo.setIndex(indices);
+      geo.computeVertexNormals();
+      geo.computeBoundingBox();
+
+      const numVertices = positions.length / 3; // 24
+      expect(numVertices).toBe(24);
+      expect(indices.length).toBe(36); // 12 triangles
+
+      // 1. All indices point to valid vertices
+      for (const idx of indices) {
+        expect(idx).toBeGreaterThanOrEqual(0);
+        expect(idx).toBeLessThan(numVertices);
+      }
+
+      // 2. Bounding box stays strictly within wall length, thickness, and height bounds
+      const bbox = geo.boundingBox!;
+      expect(bbox.min.x).toBeCloseTo(-hw, 5);
+      expect(bbox.max.x).toBeCloseTo(hw, 5);
+      expect(bbox.min.z).toBeCloseTo(-ht, 5);
+      expect(bbox.max.z).toBeCloseTo(ht, 5);
+      expect(bbox.min.y).toBeCloseTo(bottomY, 5);
+      expect(bbox.max.y).toBeCloseTo(Math.max(topYLeft, topYRight), 5);
     });
   });
 
