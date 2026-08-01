@@ -17,6 +17,8 @@
   import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
   import { getMaterial } from '$lib/utils/materials';
   import { getWallTextureCanvas, getFloorTextureCanvas, setTextureLoadCallback } from '$lib/utils/textureGenerator';
+  import { getOpenAIKey, getOpenAIBaseUrl, getOpenAIModel, setOpenAIModel } from '$lib/stores/aiKeys';
+  import { generateOpenAIRenderImage, fetchOpenAIModels } from '$lib/utils/openaiClient';
 
   let container: HTMLDivElement;
   let renderer: THREE.WebGLRenderer;
@@ -122,13 +124,54 @@
     { id: 'gemini-2.5-flash-image', name: 'Nano Banana (2.5 Flash)', desc: 'Fast & efficient image gen ✓' },
     { id: 'gemini-3-pro-image-preview', name: 'Nano Banana Pro (3 Pro)', desc: 'Best quality, thinking, up to 4K ✓' },
   ];
-  let openaiModel = $state('gpt-image-1');
-  const OPENAI_MODELS = [
+  let openaiModel = $state(typeof window !== 'undefined' ? (getOpenAIModel() || 'gpt-image-1') : 'gpt-image-1');
+  let openaiFetchedModels = $state<string[]>([]);
+  let fetchingOpenAIModels = $state(false);
+  let openaiModelsError = $state<string | null>(null);
+
+  const DEFAULT_OPENAI_MODELS = [
     { id: 'gpt-5.2', name: 'GPT-5.2', desc: 'Latest model' },
     { id: 'gpt-image-1', name: 'GPT Image 1', desc: 'Best image quality' },
     { id: 'gpt-4.1', name: 'GPT-4.1', desc: 'Vision + image gen' },
     { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', desc: 'Fast & affordable' },
   ];
+
+  async function loadOpenAIModelsFromEndpoint() {
+    if (typeof window === 'undefined') return;
+    fetchingOpenAIModels = true;
+    openaiModelsError = null;
+    try {
+      const apiKey = getOpenAIKey();
+      const baseUrl = getOpenAIBaseUrl();
+      const models = await fetchOpenAIModels({ apiKey, baseUrl });
+      if (models && models.length > 0) {
+        openaiFetchedModels = models;
+        const currentSaved = getOpenAIModel();
+        if (currentSaved && models.includes(currentSaved)) {
+          openaiModel = currentSaved;
+        } else if (!models.includes(openaiModel)) {
+          openaiModel = models[0];
+          setOpenAIModel(openaiModel);
+        }
+      }
+    } catch (err: any) {
+      openaiModelsError = err.message || 'Could not fetch models from endpoint.';
+    } finally {
+      fetchingOpenAIModels = false;
+    }
+  }
+
+  let effectiveOpenAIModels = $derived.by(() => {
+    if (openaiFetchedModels.length > 0) {
+      return openaiFetchedModels.map(m => ({ id: m, name: m, desc: '' }));
+    }
+    const saved = typeof window !== 'undefined' ? getOpenAIModel() : '';
+    const list = [...DEFAULT_OPENAI_MODELS];
+    if (saved && saved.trim() && !list.some(m => m.id === saved.trim())) {
+      list.unshift({ id: saved.trim(), name: saved.trim(), desc: 'Selected' });
+    }
+    return list;
+  });
 
   function buildAIPrompt(): string {
     let prompt = `Transform this interior 3D floor plan render into a ${aiRenderStyle} image. `;
@@ -225,9 +268,13 @@
   }
 
   async function runOpenAIRender() {
-    const openaiKey = localStorage.getItem('o3d_openai_key');
-    if (!openaiKey) {
-      alert('Please add your OpenAI API key in Settings > AI tab first.');
+    const openaiKey = getOpenAIKey() || '';
+    const openaiBaseUrl = getOpenAIBaseUrl();
+    const modelSetting = getOpenAIModel();
+    const activeModel = openaiModel || modelSetting || 'gpt-image-1';
+
+    if (!openaiKey && !openaiBaseUrl) {
+      alert('Please add your OpenAI API key or Base URL in Settings > AI tab first.');
       return;
     }
     
@@ -239,41 +286,11 @@
       const base64Image = imageDataUrl.split(',')[1];
       const prompt = buildAIPrompt();
 
-      // Use OpenAI Responses API with image_generation tool
-      const requestBody = {
-        model: openaiModel,
-        input: [
-          { role: 'user', content: [
-            { type: 'input_image', image_url: `data:image/png;base64,${base64Image}` },
-            { type: 'input_text', text: prompt }
-          ]}
-        ],
-        tools: [{ type: 'image_generation', quality: 'high', size: '1536x1024' }]
-      };
-      
-      const response = await fetch('https://api.openai.com/v1/responses', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openaiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-      });
-      
-      if (!response.ok) {
-        const err = await response.text();
-        throw new Error(`OpenAI API error: ${response.status} — ${err}`);
-      }
-      
-      const data = await response.json();
-      const imageOutput = data.output?.find((o: any) => o.type === 'image_generation_call');
-      if (imageOutput?.result) {
-        aiRenderResult = `data:image/png;base64,${imageOutput.result}`;
-      } else {
-        const textOutput = data.output?.find((o: any) => o.type === 'message');
-        const msg = textOutput?.content?.[0]?.text || JSON.stringify(data.output);
-        throw new Error(`No image returned. Response: ${msg}`);
-      }
+      aiRenderResult = await generateOpenAIRenderImage(
+        { apiKey: openaiKey, baseUrl: openaiBaseUrl, model: activeModel },
+        base64Image,
+        prompt
+      );
     } catch (e: any) {
       aiRenderError = e.message;
     } finally {
@@ -2313,7 +2330,12 @@
       <div class="flex items-center justify-between px-3 py-2 border-b border-gray-700">
         <span class="text-white text-sm font-medium">📷 Interior Camera</span>
         <div class="flex gap-2">
-          <button class="text-xs text-blue-400 hover:text-blue-300" onclick={() => { aiRenderOpen = !aiRenderOpen; }}>
+          <button class="text-xs text-blue-400 hover:text-blue-300" onclick={() => {
+            aiRenderOpen = !aiRenderOpen;
+            if (aiRenderOpen && aiProvider === 'openai' && openaiFetchedModels.length === 0) {
+              loadOpenAIModelsFromEndpoint();
+            }
+          }}>
             {aiRenderOpen ? 'Hide AI' : '✨ AI Render'}
           </button>
           <button class="text-gray-400 hover:text-white text-lg leading-none" onclick={() => { cameraPreviewOpen = false; if (cameraHelper) { wallGroup.remove(cameraHelper); cameraHelper = null; } cameraPlaced = false; aiRenderOpen = false; aiRenderResult = null; aiRenderError = null; }} aria-label="Close camera">✕</button>
@@ -2391,7 +2413,10 @@
             >Gemini</button>
             <button
               class="flex-1 text-xs py-1.5 font-medium transition-colors {aiProvider === 'openai' ? 'bg-green-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-gray-200'}"
-              onclick={() => { aiProvider = 'openai'; }}
+              onclick={() => {
+                aiProvider = 'openai';
+                if (openaiFetchedModels.length === 0) loadOpenAIModelsFromEndpoint();
+              }}
             >OpenAI</button>
           </div>
 
@@ -2402,9 +2427,36 @@
                 {#each AI_MODELS as m}<option value={m.id}>{m.name} — {m.desc}</option>{/each}
               </select>
             {:else}
-              <select bind:value={openaiModel} class="w-full bg-gray-800 text-gray-200 text-xs rounded px-1.5 py-1.5 border border-gray-700">
-                {#each OPENAI_MODELS as m}<option value={m.id}>{m.name} — {m.desc}</option>{/each}
-              </select>
+              <div class="flex gap-1.5 relative">
+                <select
+                  value={openaiModel}
+                  onchange={(e) => {
+                    openaiModel = (e.target as HTMLSelectElement).value;
+                    setOpenAIModel(openaiModel);
+                  }}
+                  class="w-full bg-gray-800 text-gray-200 text-xs rounded px-1.5 py-1.5 border border-gray-700 focus:outline-none focus:border-green-500"
+                >
+                  {#each effectiveOpenAIModels as m}
+                    <option value={m.id}>
+                      {m.name}{m.desc ? ` — ${m.desc}` : ''}
+                    </option>
+                  {/each}
+                </select>
+                <button
+                  type="button"
+                  class="px-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded border border-gray-700 text-xs flex items-center justify-center transition-colors disabled:opacity-50"
+                  onclick={loadOpenAIModelsFromEndpoint}
+                  disabled={fetchingOpenAIModels}
+                  title="Fetch models from GET /models endpoint"
+                >
+                  {fetchingOpenAIModels ? '⏳' : '🔄'}
+                </button>
+              </div>
+              {#if openaiModelsError}
+                <p class="text-[10px] text-amber-400 mt-1 flex items-center gap-1">
+                  ⚠️ {openaiModelsError}
+                </p>
+              {/if}
             {/if}
           </label>
           

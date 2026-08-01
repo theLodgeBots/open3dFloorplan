@@ -5,6 +5,13 @@
   import type { Project } from '$lib/models/types';
   import { themePreference, type ThemePreference } from '$lib/stores/theme';
 
+  import {
+    getGeminiKey, getOpenAIKey, setOpenAIKey, removeOpenAIKey,
+    getOpenAIBaseUrl, setOpenAIBaseUrl, removeOpenAIBaseUrl,
+    getOpenAIModel, setOpenAIModel, removeOpenAIModel
+  } from '$lib/stores/aiKeys';
+  import { fetchOpenAIModels } from '$lib/utils/openaiClient';
+
   let { open = $bindable(false) }: { open: boolean } = $props();
   let projectName = $state('');
   let projectDescription = $state('');
@@ -33,13 +40,17 @@
   let geminiKeyVisible = $state(false);
   let geminiKeySaved = $state(false);
   let openaiKey = $state('');
+  let openaiBaseUrl = $state('');
   let openaiKeyVisible = $state(false);
   let openaiKeySaved = $state(false);
 
-  // Load API keys from localStorage
+  let showAdvancedOptions = $state(false);
+
+  // Load API settings from localStorage
   if (typeof window !== 'undefined') {
-    geminiKey = localStorage.getItem('o3d_gemini_key') ?? '';
-    openaiKey = localStorage.getItem('o3d_openai_key') ?? '';
+    geminiKey = getGeminiKey() ?? '';
+    openaiKey = getOpenAIKey() ?? '';
+    openaiBaseUrl = getOpenAIBaseUrl();
   }
 
   function saveGeminiKey() {
@@ -63,22 +74,21 @@
     setTimeout(() => { geminiKeySaved = false; }, 2000);
   }
 
-  function saveOpenAIKey() {
+  function saveOpenAISettings() {
     if (typeof window !== 'undefined') {
-      if (openaiKey.trim()) {
-        localStorage.setItem('o3d_openai_key', openaiKey.trim());
-      } else {
-        localStorage.removeItem('o3d_openai_key');
-      }
+      setOpenAIKey(openaiKey);
+      setOpenAIBaseUrl(openaiBaseUrl);
       openaiKeySaved = true;
       setTimeout(() => { openaiKeySaved = false; }, 2000);
     }
   }
 
-  function clearOpenAIKey() {
+  function clearOpenAISettings() {
     openaiKey = '';
+    openaiBaseUrl = '';
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('o3d_openai_key');
+      removeOpenAIKey();
+      removeOpenAIBaseUrl();
     }
     openaiKeySaved = true;
     setTimeout(() => { openaiKeySaved = false; }, 2000);
@@ -299,17 +309,17 @@
             </div>
           </div>
         {:else if activeTab === 'ai'}
-          <div class="space-y-4">
+          <div class="space-y-3">
             <div>
               <span class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">Gemini API Key</span>
-              <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Required for AI-powered photorealistic rendering. Your key is stored locally in your browser only - never sent to our servers.</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Required for AI-powered photorealistic rendering. Your key is stored locally in your browser only - never sent to our servers.</p>
               <div class="flex gap-2">
                 <div class="relative flex-1">
                   <input
                     type={geminiKeyVisible ? 'text' : 'password'}
                     value={geminiKey}
                     oninput={(e) => { geminiKey = (e.target as HTMLInputElement).value; }}
-                    class="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-mono focus:ring-2 focus:ring-slate-500 focus:border-slate-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-100"
+                    class="w-full px-3 py-1.5 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-mono focus:ring-2 focus:ring-slate-500 focus:border-slate-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-100"
                     placeholder="AIza..."
                   />
                   <button
@@ -321,16 +331,16 @@
                   </button>
                 </div>
               </div>
-              <div class="flex gap-2 mt-3">
+              <div class="flex gap-2 mt-2">
                 <button
-                  class="px-4 py-2 text-sm font-medium bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors"
+                  class="px-3.5 py-1.5 text-sm font-medium bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors"
                   onclick={saveGeminiKey}
                 >
                   {geminiKeySaved ? '✓ Saved' : 'Save Key'}
                 </button>
                 {#if geminiKey}
                   <button
-                    class="px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    class="px-3.5 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                     onclick={clearGeminiKey}
                   >
                     Remove
@@ -338,29 +348,30 @@
                 {/if}
               </div>
             </div>
-            <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">How to get a Gemini key</span>
-              <ol class="text-xs text-gray-500 dark:text-gray-400 space-y-1 list-decimal list-inside">
+            <div class="border-t border-gray-200 dark:border-gray-700 pt-2.5">
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">How to get a Gemini key</span>
+              <ol class="text-xs text-gray-500 dark:text-gray-400 space-y-0.5 list-decimal list-inside">
                 <li>Go to <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" class="text-blue-500 hover:underline">Google AI Studio</a></li>
                 <li>Click "Create API Key"</li>
                 <li>Copy and paste it above</li>
               </ol>
             </div>
 
-            <!-- OpenAI API Key -->
-            <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">OpenAI API Key</span>
-              <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Optional — enables OpenAI image generation as an alternative to Gemini. Stored locally only.</p>
-              <div class="flex gap-2">
-                <div class="relative flex-1">
+            <!-- OpenAI Settings -->
+            <div class="border-t border-gray-200 dark:border-gray-700 pt-2.5 space-y-2.5">
+              <div>
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">OpenAI API Key</span>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1.5">Optional for local endpoints. Stored locally in browser.</p>
+                <div class="relative">
                   <input
                     type={openaiKeyVisible ? 'text' : 'password'}
                     value={openaiKey}
                     oninput={(e) => { openaiKey = (e.target as HTMLInputElement).value; }}
-                    class="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-mono focus:ring-2 focus:ring-slate-500 focus:border-slate-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-100"
+                    class="w-full px-3 py-1.5 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-mono focus:ring-2 focus:ring-slate-500 focus:border-slate-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-100"
                     placeholder="sk-..."
                   />
                   <button
+                    type="button"
                     class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-sm"
                     onclick={() => openaiKeyVisible = !openaiKeyVisible}
                     aria-label={openaiKeyVisible ? 'Hide key' : 'Show key'}
@@ -369,25 +380,58 @@
                   </button>
                 </div>
               </div>
-              <div class="flex gap-2 mt-3">
+
+              <!-- Discrete Collapsible Options Link -->
+              <div>
                 <button
-                  class="px-4 py-2 text-sm font-medium bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors"
-                  onclick={saveOpenAIKey}
+                  type="button"
+                  class="text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 flex items-center gap-1.5 py-0.5 outline-none transition-colors group cursor-pointer"
+                  onclick={() => showAdvancedOptions = !showAdvancedOptions}
                 >
-                  {openaiKeySaved ? '✓ Saved' : 'Save Key'}
+                  <span class="text-[10px] text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200">{showAdvancedOptions ? '▼' : '▶'}</span>
+                  <span class="underline decoration-dotted underline-offset-2">Options</span>
                 </button>
-                {#if openaiKey}
+
+                {#if showAdvancedOptions}
+                  <div class="mt-2 pl-3 border-l-2 border-slate-200 dark:border-slate-700/60 pt-0.5">
+                    <!-- Base URL -->
+                    <div>
+                      <span class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">Base URL</span>
+                      <p class="text-xs text-gray-500 dark:text-gray-400 mb-1.5">Optional — Custom OpenAI-compatible endpoint. Empty uses api.openai.com/v1.</p>
+                      <input
+                        type="text"
+                        value={openaiBaseUrl}
+                        oninput={(e) => { openaiBaseUrl = (e.target as HTMLInputElement).value; }}
+                        class="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-mono focus:ring-2 focus:ring-slate-500 focus:border-slate-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-100"
+                        placeholder="https://api.openai.com/v1"
+                      />
+                    </div>
+                  </div>
+                {/if}
+              </div>
+
+              <div class="flex gap-2 mt-2">
+                <button
+                  type="button"
+                  class="px-3.5 py-1.5 text-sm font-medium bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors"
+                  onclick={saveOpenAISettings}
+                >
+                  {openaiKeySaved ? '✓ Saved' : 'Save Settings'}
+                </button>
+                {#if openaiKey || openaiBaseUrl}
                   <button
-                    class="px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                    onclick={clearOpenAIKey}
+                    type="button"
+                    class="px-3.5 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    onclick={clearOpenAISettings}
                   >
-                    Remove
+                    Remove Settings
                   </button>
                 {/if}
               </div>
-              <div class="mt-3">
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">How to get an OpenAI key</span>
-                <ol class="text-xs text-gray-500 dark:text-gray-400 space-y-1 list-decimal list-inside">
+
+              <div class="mt-2 border-t border-gray-100 dark:border-gray-700/50 pt-2">
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">How to get an OpenAI key</span>
+                <ol class="text-xs text-gray-500 dark:text-gray-400 space-y-0.5 list-decimal list-inside">
                   <li>Go to <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" class="text-blue-500 hover:underline">OpenAI Platform</a></li>
                   <li>Click "Create new secret key"</li>
                   <li>Copy and paste it above</li>
