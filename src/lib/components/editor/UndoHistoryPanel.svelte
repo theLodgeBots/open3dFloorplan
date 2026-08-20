@@ -1,5 +1,6 @@
 <script lang="ts">
   import { undoHistoryStore, jumpToUndoStep } from '$lib/stores/project';
+  import { locale, t } from '$lib/i18n';
 
   let { visible = $bindable(false) } : { visible?: boolean } = $props();
 
@@ -18,21 +19,22 @@
 </script>
 
 {#if visible}
+  {#key $locale}
   <div class="fixed bottom-12 left-4 w-64 max-h-80 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 flex flex-col overflow-hidden">
     <!-- Header -->
     <div class="flex items-center justify-between px-3 py-2 border-b border-gray-100 bg-gray-50">
       <div class="flex items-center gap-1.5">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-slate-500"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-        <span class="text-xs font-semibold text-slate-700">Undo History</span>
+        <span class="text-xs font-semibold text-slate-700">{t('undoHistory.title')}</span>
       </div>
       <div class="flex items-center gap-2">
         <span class="text-[10px] text-slate-400">
-          Step {history.currentIndex} of {history.entries.length}
+          {t('undoHistory.step', { current: history.currentIndex, total: history.entries.length })}
         </span>
         <button
           class="text-gray-400 hover:text-gray-600 text-sm leading-none"
           onclick={() => visible = false}
-          aria-label="Close history"
+          aria-label={t('undoHistory.close')}
         >✕</button>
       </div>
     </div>
@@ -40,7 +42,7 @@
     <!-- Steps list -->
     <div class="flex-1 overflow-y-auto">
       {#if history.entries.length === 0}
-        <div class="px-3 py-6 text-center text-xs text-gray-400">No history yet</div>
+        <div class="px-3 py-6 text-center text-xs text-gray-400">{t('undoHistory.noHistory')}</div>
       {:else}
         <div class="py-1">
           {#each history.entries as entry, i}
@@ -65,10 +67,11 @@
             class:text-gray-700={history.currentIndex !== history.entries.length}
           >
             <span class="w-5 text-[10px] text-gray-400 text-right shrink-0">●</span>
-            <span class="truncate flex-1 font-medium">Current state</span>
+            <span class="truncate flex-1 font-medium">{t('undoHistory.currentState')}</span>
           </div>
         </div>
       {/if}
     </div>
   </div>
+  {/key}
 {/if}

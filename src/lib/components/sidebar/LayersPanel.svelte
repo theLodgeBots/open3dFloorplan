@@ -3,6 +3,7 @@
   import { getCatalogItem } from '$lib/utils/furnitureCatalog';
   import { getEntourageDef } from '$lib/utils/entourageCatalog';
   import type { Floor } from '$lib/models/types';
+  import { locale, t } from '$lib/i18n';
 
   let floor: Floor | null = $state(null);
   activeFloor.subscribe(f => { floor = f; });
@@ -36,77 +37,81 @@
   }
 
   let categories: Category[] = $derived.by(() => {
+    $locale;
     if (!floor) return [];
     const cats: Category[] = [];
 
     cats.push({
-      key: 'walls', label: 'Walls', icon: '🧱',
-      items: floor.walls.map((w, i) => ({ id: w.id, label: `Wall ${i + 1}`, icon: '─' })),
+      key: 'walls', label: t('layers.walls'), icon: '🧱',
+      items: floor.walls.map((w, i) => ({ id: w.id, label: `${t('layers.wall')} ${i + 1}`, icon: '─' })),
     });
 
     cats.push({
-      key: 'doors', label: 'Doors', icon: '🚪',
-      items: floor.doors.map((d, i) => ({ id: d.id, label: `${d.type} door ${i + 1}`, icon: '🚪' })),
+      key: 'doors', label: t('layers.doors'), icon: '🚪',
+      items: floor.doors.map((d, i) => ({ id: d.id, label: `${d.type} ${t('layers.door')} ${i + 1}`, icon: '🚪' })),
     });
 
     cats.push({
-      key: 'windows', label: 'Windows', icon: '🪟',
-      items: floor.windows.map((w, i) => ({ id: w.id, label: `${w.type} window ${i + 1}`, icon: '🪟' })),
+      key: 'windows', label: t('layers.windows'), icon: '🪟',
+      items: floor.windows.map((w, i) => ({ id: w.id, label: `${w.type} ${t('layers.window')} ${i + 1}`, icon: '🪟' })),
     });
 
     cats.push({
-      key: 'furniture', label: 'Furniture', icon: '🪑',
+      key: 'furniture', label: t('layers.furniture'), icon: '🪑',
       items: floor.furniture.map((fi) => {
         const cat = getCatalogItem(fi.catalogId);
-        return { id: fi.id, label: cat?.name ?? fi.catalogId, icon: cat?.icon ?? '📦' };
+        return { id: fi.id, label: cat?.name ? t(`furnitureItem:${cat.name}`) : fi.catalogId, icon: cat?.icon ?? '📦' };
       }),
     });
 
     if (floor.entourage?.length) {
       cats.push({
-        key: 'entourage', label: 'Entourage', icon: '🌳',
-        items: floor.entourage.map((en, i) => ({ id: en.id, label: getEntourageDef(en.defId)?.name ?? `Custom ${i + 1}`, icon: '🌳' })),
+        key: 'entourage', label: t('layers.entourage'), icon: '🌳',
+        items: floor.entourage.map((en, i) => {
+          const def = getEntourageDef(en.defId);
+          return { id: en.id, label: def ? t(`entourageItem:${def.name}`) : `${t('layers.custom')} ${i + 1}`, icon: '🌳' };
+        }),
       });
     }
 
     if (floor.stairs?.length) {
       cats.push({
-        key: 'stairs', label: 'Stairs', icon: '🪜',
-        items: floor.stairs.map((s, i) => ({ id: s.id, label: `Stair ${i + 1} (${s.direction})`, icon: '🪜' })),
+        key: 'stairs', label: t('layers.stairs'), icon: '🪜',
+        items: floor.stairs.map((s, i) => ({ id: s.id, label: `${t('layers.stair')} ${i + 1} (${s.direction})`, icon: '🪜' })),
       });
     }
 
     if (floor.columns?.length) {
       cats.push({
-        key: 'columns', label: 'Columns', icon: '🏛️',
-        items: floor.columns.map((c, i) => ({ id: c.id, label: `${c.shape} column ${i + 1}`, icon: '🏛️' })),
+        key: 'columns', label: t('layers.columns'), icon: '🏛️',
+        items: floor.columns.map((c, i) => ({ id: c.id, label: `${c.shape} ${t('layers.column')} ${i + 1}`, icon: '🏛️' })),
       });
     }
 
     if (floor.guides?.length) {
       cats.push({
-        key: 'guides', label: 'Guides', icon: '📏',
-        items: floor.guides.map((g, i) => ({ id: g.id, label: `${g.orientation} guide ${i + 1}`, icon: g.orientation === 'horizontal' ? '─' : '│' })),
+        key: 'guides', label: t('layers.guides'), icon: '📏',
+        items: floor.guides.map((g, i) => ({ id: g.id, label: `${g.orientation} ${t('layers.guide')} ${i + 1}`, icon: g.orientation === 'horizontal' ? '─' : '│' })),
       });
     }
 
     if (floor.measurements?.length) {
       cats.push({
-        key: 'measurements', label: 'Measurements', icon: '📐',
+        key: 'measurements', label: t('layers.measurements'), icon: '📐',
         items: floor.measurements.map((m, i) => {
           const dist = Math.round(Math.hypot(m.x2 - m.x1, m.y2 - m.y1));
-          return { id: m.id, label: `Measurement ${i + 1} (${dist} cm)`, icon: '📐' };
+          return { id: m.id, label: `${t('layers.measurement')} ${i + 1} (${dist} cm)`, icon: '📐' };
         }),
       });
     }
 
     if (floor.annotations?.length) {
       cats.push({
-        key: 'annotations', label: 'Annotations', icon: '📏',
+        key: 'annotations', label: t('layers.annotations'), icon: '📏',
         items: floor.annotations.map((a, i) => {
           const dist = Math.round(Math.hypot(a.x2 - a.x1, a.y2 - a.y1));
           const label = a.label || `${dist} cm`;
-          return { id: a.id, label: `Annotation ${i + 1} (${label})`, icon: '📏' };
+          return { id: a.id, label: `${t('layers.annotation')} ${i + 1} (${label})`, icon: '📏' };
         }),
       });
     }
@@ -116,8 +121,9 @@
 </script>
 
 <div class="w-56 bg-white border-l border-gray-200 flex flex-col overflow-hidden text-xs select-none">
+  {#key $locale}
   <div class="px-3 py-2 border-b border-gray-100 font-semibold text-gray-700 text-sm flex items-center gap-1.5">
-    🗂 Layers
+    🗂 {t('layers.title')}
   </div>
   <div class="flex-1 overflow-y-auto">
     {#each categories as cat}
@@ -140,7 +146,7 @@
           class:opacity-30={!vis[cat.key]}
           onclick={(e) => { e.stopPropagation(); toggleVisibility(cat.key); }}
           onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleVisibility(cat.key); } }}
-          title={vis[cat.key] ? `Hide ${cat.label}` : `Show ${cat.label}`}
+          title={vis[cat.key] ? t('layers.hide', { name: cat.label }) : t('layers.show', { name: cat.label })}
         >👁</span>
         <!-- Items -->
         {#if !collapsed[cat.key]}
@@ -157,13 +163,14 @@
             </button>
           {/each}
           {#if cat.items.length === 0}
-            <div class="pl-7 pr-2 py-1 text-gray-300 italic">Empty</div>
+            <div class="pl-7 pr-2 py-1 text-gray-300 italic">{t('layers.empty')}</div>
           {/if}
         {/if}
       </div>
     {/each}
     {#if categories.length === 0}
-      <div class="p-4 text-gray-400 text-center">No elements</div>
+      <div class="p-4 text-gray-400 text-center">{t('layers.noElements')}</div>
     {/if}
   </div>
+  {/key}
 </div>

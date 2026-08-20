@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { getActiveTip, dismissTip, TIP_MESSAGES } from '$lib/stores/onboarding.svelte';
+  import { getActiveTip, dismissTip, TIP_MESSAGE_KEYS } from '$lib/stores/onboarding.svelte';
+  import { locale, t } from '$lib/i18n';
 
   // Reactive binding
   let tip = $derived(getActiveTip());
@@ -22,7 +23,8 @@
 </script>
 
 {#if tip}
-  {@const msg = TIP_MESSAGES[tip.id]}
+  {#key $locale}
+  {@const msg = t(TIP_MESSAGE_KEYS[tip.id])}
   {@const clampedX = Math.min(tip.x, (typeof window !== 'undefined' ? window.innerWidth : 1200) - 320)}
   {@const clampedY = Math.min(tip.y, (typeof window !== 'undefined' ? window.innerHeight : 800) - 100)}
   <div
@@ -40,7 +42,8 @@
       <button
         class="text-xs font-medium px-3 py-1 rounded-lg bg-blue-500 hover:bg-blue-400 transition-colors"
         onclick={dismissTip}
-      >Got it</button>
+      >{t('onboarding.gotIt')}</button>
     </div>
   </div>
+  {/key}
 {/if}

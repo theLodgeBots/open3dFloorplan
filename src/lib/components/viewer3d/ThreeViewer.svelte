@@ -17,6 +17,7 @@
   import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
   import { getMaterial } from '$lib/utils/materials';
   import { getWallTextureCanvas, getFloorTextureCanvas, setTextureLoadCallback } from '$lib/utils/textureGenerator';
+  import { locale, t } from '$lib/i18n';
 
   let container: HTMLDivElement;
   let renderer: THREE.WebGLRenderer;
@@ -172,7 +173,7 @@
   async function runGeminiRender() {
     const geminiKey = localStorage.getItem('o3d_gemini_key');
     if (!geminiKey) {
-      alert('Please add your Gemini API key in Settings > AI tab first.');
+      alert(t('threeViewer.missingGeminiKey'));
       return;
     }
     
@@ -215,7 +216,7 @@
         aiRenderResult = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
       } else {
         const textPart = parts.find((p: any) => p.text && !p.thought);
-        throw new Error(textPart?.text || 'No image returned. Try a different model or prompt.');
+        throw new Error(textPart?.text || t('threeViewer.noImageReturned'));
       }
     } catch (e: any) {
       aiRenderError = e.message;
@@ -227,7 +228,7 @@
   async function runOpenAIRender() {
     const openaiKey = localStorage.getItem('o3d_openai_key');
     if (!openaiKey) {
-      alert('Please add your OpenAI API key in Settings > AI tab first.');
+      alert(t('threeViewer.missingOpenaiKey'));
       return;
     }
     
@@ -272,7 +273,7 @@
       } else {
         const textOutput = data.output?.find((o: any) => o.type === 'message');
         const msg = textOutput?.content?.[0]?.text || JSON.stringify(data.output);
-        throw new Error(`No image returned. Response: ${msg}`);
+        throw new Error(t('threeViewer.noImageReturnedResponse', { response: msg }));
       }
     } catch (e: any) {
       aiRenderError = e.message;
@@ -2176,14 +2177,15 @@
 </script>
 
 <div bind:this={container} class="w-full h-full relative">
+  {#key $locale}
   <!-- 3D Toolbar Row -->
   <div class="absolute top-4 right-4 z-50 flex gap-1.5">
     <!-- Multi-Floor Stacking Toggle -->
     <button
       onclick={() => { showAllFloors = !showAllFloors; rebuildScene(); }}
       class="p-2 rounded-lg transition-colors {showAllFloors ? 'bg-purple-600 text-white ring-2 ring-purple-300' : 'bg-black/70 text-white hover:bg-black/80'}"
-      title={showAllFloors ? 'Active Floor Only' : 'Show All Floors Stacked'}
-      aria-label={showAllFloors ? 'Active Floor Only' : 'Show All Floors Stacked'}
+      title={showAllFloors ? t('threeViewer.activeFloorOnly') : t('threeViewer.showAllFloorsStacked')}
+      aria-label={showAllFloors ? t('threeViewer.activeFloorOnly') : t('threeViewer.showAllFloorsStacked')}
     >
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <rect x="4" y="14" width="16" height="4" rx="1"/>
@@ -2196,8 +2198,8 @@
     <button
       onclick={viewTopDown}
       class="p-2 rounded-lg bg-black/70 text-white hover:bg-black/80 transition-colors"
-      title="Top-Down View"
-      aria-label="Top-Down View"
+      title={t('threeViewer.topDownView')}
+      aria-label={t('threeViewer.topDownView')}
     >
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="10"/>
@@ -2212,8 +2214,8 @@
     <button
       onclick={toggleWallTransparency}
       class="p-2 rounded-lg transition-colors {wallsTransparent ? 'bg-blue-600 text-white ring-2 ring-blue-300' : 'bg-black/70 text-white hover:bg-black/80'}"
-      title={wallsTransparent ? 'Show Solid Walls' : 'Make Walls Transparent'}
-      aria-label={wallsTransparent ? 'Show Solid Walls' : 'Make Walls Transparent'}
+      title={wallsTransparent ? t('threeViewer.showSolidWalls') : t('threeViewer.makeWallsTransparent')}
+      aria-label={wallsTransparent ? t('threeViewer.showSolidWalls') : t('threeViewer.makeWallsTransparent')}
     >
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <rect x="3" y="3" width="18" height="18" rx="2" opacity={wallsTransparent ? 0.3 : 1}/>
@@ -2226,8 +2228,8 @@
     <button
       onclick={() => { editMode = !editMode; if (editMode && walkthroughMode) { exitWalkthroughMode(); } if (!editMode) { selectedElementId.set(null); materialPickerWall = null; materialPickerPos = null; } }}
       class="p-2 rounded-lg transition-colors {editMode ? 'bg-blue-600 text-white ring-2 ring-blue-300' : 'bg-black/70 text-white hover:bg-black/80'}"
-      title={editMode ? 'Exit Edit Mode' : 'Edit Mode — click to select walls & change materials'}
-      aria-label={editMode ? 'Exit Edit Mode' : 'Edit Mode'}
+      title={editMode ? t('threeViewer.exitEditMode') : t('threeViewer.editModeHint')}
+      aria-label={editMode ? t('threeViewer.exitEditMode') : t('threeViewer.editMode')}
     >
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -2249,8 +2251,8 @@
         }
       }}
       class="p-2 rounded-lg transition-colors {cameraPlacementMode ? 'bg-blue-600 text-white ring-2 ring-blue-300' : 'bg-black/70 text-white hover:bg-black/80'}"
-      title={cameraPlacementMode ? 'Cancel camera placement (click floor to place)' : 'Place Interior Camera — click floor to position, click again to aim'}
-      aria-label="Place Interior Camera"
+      title={cameraPlacementMode ? t('threeViewer.cancelCameraPlacement') : t('threeViewer.placeInteriorCameraHint')}
+      aria-label={t('threeViewer.placeInteriorCamera')}
     >
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M23 7l-7 5 7 5V7z"/>
@@ -2262,8 +2264,8 @@
     <button
       onclick={takeScreenshot}
       class="p-2 rounded-lg bg-black/70 text-white hover:bg-black/80 transition-colors"
-      title="Save 3D Screenshot"
-      aria-label="Save 3D Screenshot"
+      title={t('threeViewer.save3dScreenshot')}
+      aria-label={t('threeViewer.save3dScreenshot')}
     >
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
@@ -2275,8 +2277,8 @@
     <button
       onclick={toggleWalkthroughMode}
       class="p-2 rounded-lg bg-black/70 text-white hover:bg-black/80 transition-colors"
-      title={walkthroughMode ? 'Exit Walkthrough Mode' : 'Enter Walkthrough Mode'}
-      aria-label={walkthroughMode ? 'Exit Walkthrough Mode' : 'Enter Walkthrough Mode'}
+      title={walkthroughMode ? t('threeViewer.exitWalkthroughMode') : t('threeViewer.enterWalkthroughMode')}
+      aria-label={walkthroughMode ? t('threeViewer.exitWalkthroughMode') : t('threeViewer.enterWalkthroughMode')}
   >
     {#if walkthroughMode}
       <!-- Exit/Eye closed icon -->
@@ -2299,11 +2301,11 @@
 
   {#if cameraPlacementMode && !cameraPlaced}
     <div class="absolute top-16 left-1/2 -translate-x-1/2 z-50 bg-black/80 text-white px-4 py-2 rounded-lg text-sm backdrop-blur-sm">
-      📷 Click on the floor to place camera position
+      📷 {t('threeViewer.clickFloorToPlaceCamera')}
     </div>
   {:else if cameraPlacementMode && cameraPlaced}
     <div class="absolute top-16 left-1/2 -translate-x-1/2 z-50 bg-black/80 text-white px-4 py-2 rounded-lg text-sm backdrop-blur-sm">
-      🎯 Click where the camera should look
+      🎯 {t('threeViewer.clickWhereToLook')}
     </div>
   {/if}
 
@@ -2311,12 +2313,12 @@
   {#if cameraPreviewOpen && cameraPlaced}
     <div class="absolute bottom-4 right-4 z-50 bg-gray-900/95 rounded-xl shadow-2xl backdrop-blur-sm overflow-y-auto max-w-[calc(100vw-2rem)]" style="width: 420px; max-height: calc(100vh - 8rem);">
       <div class="flex items-center justify-between px-3 py-2 border-b border-gray-700">
-        <span class="text-white text-sm font-medium">📷 Interior Camera</span>
+        <span class="text-white text-sm font-medium">📷 {t('threeViewer.interiorCamera')}</span>
         <div class="flex gap-2">
           <button class="text-xs text-blue-400 hover:text-blue-300" onclick={() => { aiRenderOpen = !aiRenderOpen; }}>
-            {aiRenderOpen ? 'Hide AI' : '✨ AI Render'}
+            {aiRenderOpen ? t('threeViewer.hideAi') : `✨ ${t('threeViewer.aiRender')}`}
           </button>
-          <button class="text-gray-400 hover:text-white text-lg leading-none" onclick={() => { cameraPreviewOpen = false; if (cameraHelper) { wallGroup.remove(cameraHelper); cameraHelper = null; } cameraPlaced = false; aiRenderOpen = false; aiRenderResult = null; aiRenderError = null; }} aria-label="Close camera">✕</button>
+          <button class="text-gray-400 hover:text-white text-lg leading-none" onclick={() => { cameraPreviewOpen = false; if (cameraHelper) { wallGroup.remove(cameraHelper); cameraHelper = null; } cameraPlaced = false; aiRenderOpen = false; aiRenderResult = null; aiRenderError = null; }} aria-label={t('threeViewer.closeCamera')}>✕</button>
         </div>
       </div>
       <!-- Preview canvas with drag-to-rotate -->
@@ -2327,23 +2329,23 @@
         onpointerup={() => { previewDragStart = null; }}
       >
         <canvas bind:this={cameraPreviewCanvas} width="384" height="216" class="w-full pointer-events-none"></canvas>
-        <div class="absolute bottom-1 left-1 text-[10px] text-white/50 pointer-events-none">Drag to look around</div>
+        <div class="absolute bottom-1 left-1 text-[10px] text-white/50 pointer-events-none">{t('threeViewer.dragToLookAround')}</div>
       </div>
 
       <!-- Movement arrows -->
       <div class="flex items-center justify-center gap-1 py-1.5 border-b border-gray-800">
-        <span class="text-[10px] text-gray-500 mr-2">Move:</span>
-        <button class="w-7 h-7 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs flex items-center justify-center" onclick={() => moveCameraRelative(0, -10)} title="Move left">←</button>
+        <span class="text-[10px] text-gray-500 mr-2">{t('threeViewer.move')}:</span>
+        <button class="w-7 h-7 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs flex items-center justify-center" onclick={() => moveCameraRelative(0, -10)} title={t('threeViewer.moveLeft')}>←</button>
         <div class="flex flex-col gap-0.5">
-          <button class="w-7 h-7 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs flex items-center justify-center" onclick={() => moveCameraRelative(10, 0)} title="Move forward">↑</button>
-          <button class="w-7 h-7 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs flex items-center justify-center" onclick={() => moveCameraRelative(-10, 0)} title="Move backward">↓</button>
+          <button class="w-7 h-7 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs flex items-center justify-center" onclick={() => moveCameraRelative(10, 0)} title={t('threeViewer.moveForward')}>↑</button>
+          <button class="w-7 h-7 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs flex items-center justify-center" onclick={() => moveCameraRelative(-10, 0)} title={t('threeViewer.moveBackward')}>↓</button>
         </div>
-        <button class="w-7 h-7 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs flex items-center justify-center" onclick={() => moveCameraRelative(0, 10)} title="Move right">→</button>
+        <button class="w-7 h-7 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs flex items-center justify-center" onclick={() => moveCameraRelative(0, 10)} title={t('threeViewer.moveRight')}>→</button>
       </div>
 
       <div class="px-3 py-2 space-y-1.5">
         <label class="flex items-center justify-between text-xs text-gray-300">
-          <span>FOV</span>
+          <span>{t('threeViewer.fov')}</span>
           <div class="flex items-center gap-2">
             <input type="range" min="50" max="120" bind:value={cameraFOV} class="w-28 h-1 accent-blue-400"
               oninput={() => { cameraPreviewDirty = true; }} />
@@ -2351,7 +2353,7 @@
           </div>
         </label>
         <label class="flex items-center justify-between text-xs text-gray-300">
-          <span>Height</span>
+          <span>{t('properties.height')}</span>
           <div class="flex items-center gap-2">
             <input type="range" min="80" max="220" bind:value={cameraHeight} class="w-28 h-1 accent-blue-400"
               oninput={() => { cameraPreviewDirty = true; }} />
@@ -2360,20 +2362,20 @@
         </label>
         <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer select-none">
           <input type="checkbox" bind:checked={cameraXrayWalls} class="accent-blue-400" onchange={() => { cameraPreviewDirty = true; }} />
-          <span>X-ray walls (see through)</span>
+          <span>{t('threeViewer.xrayWalls')}</span>
         </label>
         <div class="flex gap-2 pt-1">
           <button
             class="flex-1 px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-500 transition-colors"
             onclick={captureInteriorPhoto}
           >
-            📸 Capture 1920×1080
+            📸 {t('threeViewer.capture1920')}
           </button>
           <button
             class="px-3 py-1.5 bg-gray-700 text-gray-300 text-sm rounded-lg hover:bg-gray-600 transition-colors"
             onclick={() => { cameraPlacementMode = true; cameraPlaced = false; }}
           >
-            Reposition
+            {t('threeViewer.reposition')}
           </button>
         </div>
       </div>
@@ -2381,7 +2383,7 @@
       <!-- AI Render Section -->
       {#if aiRenderOpen}
         <div class="border-t border-gray-700 px-3 py-3 space-y-2">
-          <div class="text-xs font-medium text-white">✨ AI Photorealistic Render</div>
+          <div class="text-xs font-medium text-white">✨ {t('threeViewer.aiPhotorealisticRender')}</div>
 
           <!-- Provider toggle -->
           <div class="flex rounded-lg overflow-hidden border border-gray-700">
@@ -2396,7 +2398,7 @@
           </div>
 
           <label class="block">
-            <span class="text-[10px] text-gray-400 block mb-1">Model</span>
+            <span class="text-[10px] text-gray-400 block mb-1">{t('threeViewer.model')}</span>
             {#if aiProvider === 'gemini'}
               <select bind:value={aiModel} class="w-full bg-gray-800 text-gray-200 text-xs rounded px-1.5 py-1.5 border border-gray-700">
                 {#each AI_MODELS as m}<option value={m.id}>{m.name} — {m.desc}</option>{/each}
@@ -2407,22 +2409,22 @@
               </select>
             {/if}
           </label>
-          
+
           <div class="grid grid-cols-3 gap-2">
             <label class="block">
-              <span class="text-[10px] text-gray-400 block mb-1">Style</span>
+              <span class="text-[10px] text-gray-400 block mb-1">{t('threeViewer.style')}</span>
               <select bind:value={aiRenderStyle} class="w-full bg-gray-800 text-gray-200 text-xs rounded px-1.5 py-1 border border-gray-700">
                 {#each STYLE_OPTIONS as opt}<option value={opt}>{opt}</option>{/each}
               </select>
             </label>
             <label class="block">
-              <span class="text-[10px] text-gray-400 block mb-1">Lighting</span>
+              <span class="text-[10px] text-gray-400 block mb-1">{t('threeViewer.lighting')}</span>
               <select bind:value={aiRenderLighting} class="w-full bg-gray-800 text-gray-200 text-xs rounded px-1.5 py-1 border border-gray-700">
                 {#each LIGHTING_OPTIONS as opt}<option value={opt}>{opt}</option>{/each}
               </select>
             </label>
             <label class="block">
-              <span class="text-[10px] text-gray-400 block mb-1">Mood</span>
+              <span class="text-[10px] text-gray-400 block mb-1">{t('threeViewer.mood')}</span>
               <select bind:value={aiRenderMood} class="w-full bg-gray-800 text-gray-200 text-xs rounded px-1.5 py-1 border border-gray-700">
                 {#each MOOD_OPTIONS as opt}<option value={opt}>{opt}</option>{/each}
               </select>
@@ -2430,13 +2432,13 @@
           </div>
 
           <label class="block">
-            <span class="text-[10px] text-gray-400 block mb-1">Extra instructions (optional)</span>
-            <input type="text" bind:value={aiRenderExtra} placeholder="e.g. hardwood floors, white marble counters..."
+            <span class="text-[10px] text-gray-400 block mb-1">{t('threeViewer.extraInstructions')}</span>
+            <input type="text" bind:value={aiRenderExtra} placeholder={t('threeViewer.extraInstructionsPlaceholder')}
               class="w-full bg-gray-800 text-gray-200 text-xs rounded px-2 py-1.5 border border-gray-700 placeholder:text-gray-600" />
           </label>
 
           <details class="text-[10px] text-gray-500">
-            <summary class="cursor-pointer hover:text-gray-400">View full prompt</summary>
+            <summary class="cursor-pointer hover:text-gray-400">{t('threeViewer.viewFullPrompt')}</summary>
             <p class="mt-1 p-2 bg-gray-800 rounded text-gray-400 leading-relaxed">{buildAIPrompt()}</p>
           </details>
 
@@ -2446,31 +2448,31 @@
             disabled={aiRendering}
           >
             {#if aiRendering}
-              <span class="animate-spin">⏳</span> Rendering...
+              <span class="animate-spin">⏳</span> {t('threeViewer.rendering')}
             {:else}
-              ✨ Generate Photorealistic Render
+              ✨ {t('threeViewer.generatePhotorealisticRender')}
             {/if}
           </button>
 
           {#if aiRenderError}
             <div class="bg-red-900/30 border border-red-700 rounded-lg p-3 space-y-2">
-              <div class="text-xs font-medium text-red-400">❌ AI Render Failed</div>
+              <div class="text-xs font-medium text-red-400">❌ {t('threeViewer.aiRenderFailed')}</div>
               <pre class="text-[10px] text-red-300 whitespace-pre-wrap break-all max-h-32 overflow-y-auto select-all cursor-text font-mono bg-red-950/40 rounded p-2">{aiRenderError}</pre>
               <button
                 class="text-[10px] text-red-400 hover:text-red-300 underline"
                 onclick={() => { navigator.clipboard.writeText(aiRenderError ?? ''); }}
-              >📋 Copy error</button>
+              >📋 {t('threeViewer.copyError')}</button>
             </div>
           {/if}
 
           {#if aiRenderResult}
             <div class="space-y-2">
-              <img src={aiRenderResult} alt="AI Render" class="w-full rounded-lg" />
+              <img src={aiRenderResult} alt={t('threeViewer.aiRender')} class="w-full rounded-lg" />
               <button
                 class="w-full px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-500 transition-colors"
                 onclick={downloadAIRender}
               >
-                💾 Download Render
+                💾 {t('threeViewer.downloadRender')}
               </button>
             </div>
           {/if}
@@ -2494,23 +2496,23 @@
     
     <!-- Controls Panel -->
     <div class="absolute top-4 left-4 z-10 bg-black/70 text-white text-xs rounded-lg backdrop-blur-sm p-3 space-y-2 min-w-[180px]">
-      <div class="font-semibold text-white/90 mb-1">Walkthrough Controls</div>
+      <div class="font-semibold text-white/90 mb-1">{t('threeViewer.walkthroughControls')}</div>
       <label class="flex items-center justify-between gap-2">
-        <span class="text-white/70">Eye Height</span>
+        <span class="text-white/70">{t('threeViewer.eyeHeight')}</span>
         <div class="flex items-center gap-1">
           <input type="range" min="80" max="220" bind:value={eyeHeight} class="w-16 h-1 accent-blue-400" />
           <span class="w-10 text-right">{eyeHeight}cm</span>
         </div>
       </label>
       <label class="flex items-center justify-between gap-2">
-        <span class="text-white/70">Walk Speed</span>
+        <span class="text-white/70">{t('threeViewer.walkSpeed')}</span>
         <div class="flex items-center gap-1">
           <input type="range" min="100" max="1000" step="50" bind:value={moveSpeed} class="w-16 h-1 accent-blue-400" />
           <span class="w-10 text-right">{moveSpeed}</span>
         </div>
       </label>
       <label class="flex items-center justify-between gap-2">
-        <span class="text-white/70">Sprint Speed</span>
+        <span class="text-white/70">{t('threeViewer.sprintSpeed')}</span>
         <div class="flex items-center gap-1">
           <input type="range" min="200" max="2000" step="100" bind:value={sprintSpeed} class="w-16 h-1 accent-blue-400" />
           <span class="w-10 text-right">{sprintSpeed}</span>
@@ -2521,7 +2523,7 @@
     <!-- Help Text -->
     <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
       <div class="bg-black/70 text-white text-sm px-4 py-2 rounded-lg backdrop-blur-sm">
-        WASD to look • Arrows to move • Mouse to look • Shift to sprint • ESC to exit
+        {t('threeViewer.walkthroughHelp')}
       </div>
     </div>
   {/if}
@@ -2534,9 +2536,9 @@
           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
         </svg>
         {#if furniturePlacementMode}
-          🪑 Click floor to place {selectedCatalogId ? getCatalogItem(selectedCatalogId)?.name ?? 'furniture' : 'furniture'} • ESC to cancel
+          🪑 {t('threeViewer.clickFloorToPlace', { item: selectedCatalogId ? getCatalogItem(selectedCatalogId)?.name ?? t('layers.furniture') : t('layers.furniture') })}
         {:else}
-          🪣 Click walls to paint materials • ESC to close picker or exit
+          🪣 {t('threeViewer.clickWallsToPaint')}
         {/if}
       </div>
     </div>
@@ -2545,8 +2547,8 @@
     <button
       onclick={() => { furniturePlacementMode = !furniturePlacementMode; if (!furniturePlacementMode) { removeGhostPreview(); selectedCatalogId = null; furniturePickerOpen = false; } else { furniturePickerOpen = true; materialPickerWall = null; materialPickerPos = null; } }}
       class="absolute top-16 right-28 z-50 p-2 rounded-lg transition-colors {furniturePlacementMode ? 'bg-green-600 text-white ring-2 ring-green-300' : 'bg-black/70 text-white hover:bg-black/80'}"
-      title={furniturePlacementMode ? 'Exit Furniture Placement' : 'Place Furniture'}
-      aria-label={furniturePlacementMode ? 'Exit Furniture Placement' : 'Place Furniture'}
+      title={furniturePlacementMode ? t('threeViewer.exitFurniturePlacement') : t('threeViewer.placeFurniture')}
+      aria-label={furniturePlacementMode ? t('threeViewer.exitFurniturePlacement') : t('threeViewer.placeFurniture')}
     >
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <rect x="3" y="12" width="18" height="8" rx="1"/>
@@ -2560,7 +2562,7 @@
     {#if furniturePlacementMode && furniturePickerOpen}
       <div class="absolute top-4 left-4 z-50 bg-black/85 text-white rounded-lg backdrop-blur-sm w-56 max-h-[70vh] flex flex-col overflow-hidden select-none">
         <div class="p-2 border-b border-white/10 flex items-center justify-between">
-          <span class="font-semibold text-sm">🪑 Furniture</span>
+          <span class="font-semibold text-sm">🪑 {t('layers.furniture')}</span>
           <button onclick={() => { furniturePickerOpen = false; }} class="text-white/50 hover:text-white text-lg leading-none">&times;</button>
         </div>
         <!-- Category tabs -->
@@ -2595,8 +2597,8 @@
   <button
     onclick={() => { lightingPanelOpen = !lightingPanelOpen; }}
     class="absolute bottom-4 left-4 z-50 p-2 rounded-lg transition-colors {lightingPanelOpen ? 'bg-amber-500 text-white ring-2 ring-amber-300' : 'bg-black/70 text-white hover:bg-black/80'}"
-    title="Lighting Controls"
-    aria-label="Lighting Controls"
+    title={t('threeViewer.lightingControls')}
+    aria-label={t('threeViewer.lightingControls')}
   >
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <circle cx="12" cy="12" r="5"/>
@@ -2612,12 +2614,12 @@
     <div class="absolute bottom-14 left-4 z-50 bg-black/80 text-white text-xs rounded-lg backdrop-blur-sm p-3 space-y-3 min-w-[220px] select-none">
       <div class="font-semibold text-white/90 text-sm flex items-center gap-1.5">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
-        Lighting Controls
+        {t('threeViewer.lightingControls')}
       </div>
 
       <!-- Time of Day Presets -->
       <div class="space-y-1">
-        <span class="text-white/60 text-[10px] uppercase tracking-wide">Time of Day</span>
+        <span class="text-white/60 text-[10px] uppercase tracking-wide">{t('threeViewer.timeOfDay')}</span>
         <div class="flex gap-1">
           {#each (['morning', 'noon', 'evening', 'night'] as const) as preset}
             <button
@@ -2625,7 +2627,7 @@
               class="flex-1 px-1.5 py-1 rounded text-[11px] transition-colors {timeOfDay === preset ? 'bg-amber-500 text-white' : 'bg-white/10 hover:bg-white/20 text-white/80'}"
             >
               {preset === 'morning' ? '🌅' : preset === 'noon' ? '☀️' : preset === 'evening' ? '🌇' : '🌙'}
-              <span class="block capitalize">{preset}</span>
+              <span class="block capitalize">{t(`threeViewer.timePreset_${preset}`)}</span>
             </button>
           {/each}
         </div>
@@ -2634,7 +2636,7 @@
       <!-- Sun Position -->
       <label class="block space-y-0.5">
         <div class="flex justify-between text-white/60">
-          <span>Sun Position</span><span>{sunAzimuth}°</span>
+          <span>{t('threeViewer.sunPosition')}</span><span>{sunAzimuth}°</span>
         </div>
         <input type="range" min="0" max="360" bind:value={sunAzimuth} oninput={() => { timeOfDay = null; updateSunPosition(); }} class="w-full h-1 accent-amber-400" />
       </label>
@@ -2642,7 +2644,7 @@
       <!-- Sun Elevation -->
       <label class="block space-y-0.5">
         <div class="flex justify-between text-white/60">
-          <span>Sun Elevation</span><span>{sunElevation}°</span>
+          <span>{t('threeViewer.sunElevation')}</span><span>{sunElevation}°</span>
         </div>
         <input type="range" min="0" max="90" bind:value={sunElevation} oninput={() => { timeOfDay = null; updateSunPosition(); }} class="w-full h-1 accent-amber-400" />
       </label>
@@ -2650,10 +2652,11 @@
       <!-- Ambient Intensity -->
       <label class="block space-y-0.5">
         <div class="flex justify-between text-white/60">
-          <span>Ambient Light</span><span>{Math.round(ambientIntensity * 100)}%</span>
+          <span>{t('threeViewer.ambientLight')}</span><span>{Math.round(ambientIntensity * 100)}%</span>
         </div>
         <input type="range" min="0" max="100" value={Math.round(ambientIntensity * 100)} oninput={(e) => { ambientIntensity = parseInt(e.currentTarget.value) / 100; timeOfDay = null; updateAmbientIntensity(); }} class="w-full h-1 accent-blue-400" />
       </label>
     </div>
   {/if}
+  {/key}
 </div>

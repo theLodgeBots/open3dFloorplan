@@ -6,6 +6,7 @@
   import { get } from 'svelte/store';
   import { goto } from '$app/navigation';
   import { base } from '$app/paths';
+  import { locale, t } from '$lib/i18n';
 
   interface Props {
     open: boolean;
@@ -26,30 +27,36 @@
     action: () => void;
   };
 
-  const tools: ResultItem[] = [
-    { id: 't-select', name: 'Select Tool', icon: '🔧', category: 'tool', categoryLabel: '🔧 Tool', action: () => selectedTool.set('select') },
-    { id: 't-wall', name: 'Wall Tool', icon: '🔧', category: 'tool', categoryLabel: '🔧 Tool', action: () => selectedTool.set('wall') },
-    { id: 't-door', name: 'Door Tool', icon: '🔧', category: 'tool', categoryLabel: '🔧 Tool', action: () => selectedTool.set('door') },
-    { id: 't-window', name: 'Window Tool', icon: '🔧', category: 'tool', categoryLabel: '🔧 Tool', action: () => selectedTool.set('window') },
-    { id: 't-furniture', name: 'Furniture Tool', icon: '🔧', category: 'tool', categoryLabel: '🔧 Tool', action: () => selectedTool.set('furniture') },
-    { id: 't-text', name: 'Text Tool', icon: '🔧', category: 'tool', categoryLabel: '🔧 Tool', action: () => selectedTool.set('text') },
-  ];
+  function buildTools(): ResultItem[] {
+    const toolLabel = `🔧 ${t('commandPalette.tool')}`;
+    return [
+      { id: 't-select', name: t('commandPalette.selectTool'), icon: '🔧', category: 'tool', categoryLabel: toolLabel, action: () => selectedTool.set('select') },
+      { id: 't-wall', name: t('commandPalette.wallTool'), icon: '🔧', category: 'tool', categoryLabel: toolLabel, action: () => selectedTool.set('wall') },
+      { id: 't-door', name: t('commandPalette.doorTool'), icon: '🔧', category: 'tool', categoryLabel: toolLabel, action: () => selectedTool.set('door') },
+      { id: 't-window', name: t('commandPalette.windowTool'), icon: '🔧', category: 'tool', categoryLabel: toolLabel, action: () => selectedTool.set('window') },
+      { id: 't-furniture', name: t('commandPalette.furnitureTool'), icon: '🔧', category: 'tool', categoryLabel: toolLabel, action: () => selectedTool.set('furniture') },
+      { id: 't-text', name: t('commandPalette.textTool'), icon: '🔧', category: 'tool', categoryLabel: toolLabel, action: () => selectedTool.set('text') },
+    ];
+  }
 
-  const actions: ResultItem[] = [
-    { id: 'a-export-svg', name: 'Export SVG', icon: '⚡', category: 'action', categoryLabel: '⚡ Action', action: () => { const p = get(currentProject); if (p) exportAsSVG(p); } },
-    { id: 'a-export-dxf', name: 'Export DXF', icon: '⚡', category: 'action', categoryLabel: '⚡ Action', action: () => { const p = get(currentProject); if (p) exportDXF(p); } },
-    { id: 'a-export-pdf', name: 'Export PDF', icon: '⚡', category: 'action', categoryLabel: '⚡ Action', action: () => { const p = get(currentProject); if (p) exportPDF(p); } },
-    { id: 'a-export-png', name: 'Export PNG', icon: '⚡', category: 'action', categoryLabel: '⚡ Action', action: () => { const canvas = document.querySelector('canvas'); const p = get(currentProject); if (canvas && p) exportAsPNG(canvas, p); } },
-    { id: 'a-export-json', name: 'Export JSON', icon: '⚡', category: 'action', categoryLabel: '⚡ Action', action: () => { const p = get(currentProject); if (p) exportAsJSON(p); } },
-    { id: 'a-toggle-grid', name: 'Toggle Grid', icon: '⚡', category: 'action', categoryLabel: '⚡ Action', action: () => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'g', bubbles: true })); } },
-    { id: 'a-toggle-snap', name: 'Toggle Snap', icon: '⚡', category: 'action', categoryLabel: '⚡ Action', action: () => { snapEnabled.update(v => !v); } },
-    { id: 'a-zoom-fit', name: 'Zoom to Fit', icon: '⚡', category: 'action', categoryLabel: '⚡ Action', action: () => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', bubbles: true })); } },
-    { id: 'a-undo', name: 'Undo', icon: '⚡', category: 'action', categoryLabel: '⚡ Action', action: () => undo() },
-    { id: 'a-redo', name: 'Redo', icon: '⚡', category: 'action', categoryLabel: '⚡ Action', action: () => redo() },
-    { id: 'a-settings', name: 'Settings', icon: '⚡', category: 'action', categoryLabel: '⚡ Action', action: () => { window.dispatchEvent(new CustomEvent('open-settings')); } },
-    { id: 'a-new-project', name: 'New Project', icon: '⚡', category: 'action', categoryLabel: '⚡ Action', action: () => goto(base || '/') },
-    { id: 'a-toggle-3d', name: 'Toggle 2D/3D', icon: '⚡', category: 'action', categoryLabel: '⚡ Action', action: () => { viewMode.update(m => m === '2d' ? '3d' : '2d'); } },
-  ];
+  function buildActions(): ResultItem[] {
+    const actionLabel = `⚡ ${t('commandPalette.action')}`;
+    return [
+      { id: 'a-export-svg', name: t('commandPalette.exportSvg'), icon: '⚡', category: 'action', categoryLabel: actionLabel, action: () => { const p = get(currentProject); if (p) exportAsSVG(p); } },
+      { id: 'a-export-dxf', name: t('commandPalette.exportDxf'), icon: '⚡', category: 'action', categoryLabel: actionLabel, action: () => { const p = get(currentProject); if (p) exportDXF(p); } },
+      { id: 'a-export-pdf', name: t('commandPalette.exportPdf'), icon: '⚡', category: 'action', categoryLabel: actionLabel, action: () => { const p = get(currentProject); if (p) exportPDF(p); } },
+      { id: 'a-export-png', name: t('commandPalette.exportPng'), icon: '⚡', category: 'action', categoryLabel: actionLabel, action: () => { const canvas = document.querySelector('canvas'); const p = get(currentProject); if (canvas && p) exportAsPNG(canvas, p); } },
+      { id: 'a-export-json', name: t('commandPalette.exportJson'), icon: '⚡', category: 'action', categoryLabel: actionLabel, action: () => { const p = get(currentProject); if (p) exportAsJSON(p); } },
+      { id: 'a-toggle-grid', name: t('commandPalette.toggleGrid'), icon: '⚡', category: 'action', categoryLabel: actionLabel, action: () => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'g', bubbles: true })); } },
+      { id: 'a-toggle-snap', name: t('commandPalette.toggleSnap'), icon: '⚡', category: 'action', categoryLabel: actionLabel, action: () => { snapEnabled.update(v => !v); } },
+      { id: 'a-zoom-fit', name: t('commandPalette.zoomToFit'), icon: '⚡', category: 'action', categoryLabel: actionLabel, action: () => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', bubbles: true })); } },
+      { id: 'a-undo', name: t('commandPalette.undo'), icon: '⚡', category: 'action', categoryLabel: actionLabel, action: () => undo() },
+      { id: 'a-redo', name: t('commandPalette.redo'), icon: '⚡', category: 'action', categoryLabel: actionLabel, action: () => redo() },
+      { id: 'a-settings', name: t('topbar.settings'), icon: '⚡', category: 'action', categoryLabel: actionLabel, action: () => { window.dispatchEvent(new CustomEvent('open-settings')); } },
+      { id: 'a-new-project', name: t('topbar.newProject'), icon: '⚡', category: 'action', categoryLabel: actionLabel, action: () => goto(base || '/') },
+      { id: 'a-toggle-3d', name: t('commandPalette.toggle2d3d'), icon: '⚡', category: 'action', categoryLabel: actionLabel, action: () => { viewMode.update(m => m === '2d' ? '3d' : '2d'); } },
+    ];
+  }
 
   const furnitureItems: ResultItem[] = furnitureCatalog.map(f => ({
     id: `f-${f.id}`,
@@ -63,7 +70,10 @@
     },
   }));
 
-  const allItems = [...actions, ...tools, ...furnitureItems];
+  let allItems = $derived.by(() => {
+    $locale;
+    return [...buildActions(), ...buildTools(), ...furnitureItems];
+  });
 
   let results = $derived.by(() => {
     const q = query.toLowerCase().trim();
@@ -109,13 +119,14 @@
 </script>
 
 {#if open}
+  {#key $locale}
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <div
     class="fixed inset-0 bg-black/40 z-[100] flex justify-center"
     onclick={() => open = false}
     onkeydown={(e) => { if (e.key === 'Escape') open = false; }}
     role="dialog"
-    aria-label="Command Palette"
+    aria-label={t('commandPalette.title')}
   >
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <div
@@ -132,7 +143,7 @@
           bind:value={query}
           onkeydown={onKeydown}
           class="flex-1 bg-transparent outline-none text-sm text-gray-800 placeholder-gray-400"
-          placeholder="Search furniture, tools, actions…"
+          placeholder={t('commandPalette.searchPlaceholder')}
           type="text"
           spellcheck="false"
         />
@@ -142,7 +153,7 @@
       <!-- Results -->
       <div class="max-h-[50vh] overflow-y-auto">
         {#if results.length === 0}
-          <div class="px-4 py-6 text-center text-sm text-gray-400">No results found</div>
+          <div class="px-4 py-6 text-center text-sm text-gray-400">{t('commandPalette.noResults')}</div>
         {:else}
           {#each results as item, i}
             <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -167,10 +178,11 @@
 
       <!-- Footer hint -->
       <div class="px-4 py-2 border-t border-gray-100 flex items-center gap-3 text-[10px] text-gray-400">
-        <span><kbd class="px-1 py-0.5 bg-gray-100 rounded border border-gray-200">↑↓</kbd> navigate</span>
-        <span><kbd class="px-1 py-0.5 bg-gray-100 rounded border border-gray-200">↵</kbd> select</span>
-        <span><kbd class="px-1 py-0.5 bg-gray-100 rounded border border-gray-200">esc</kbd> close</span>
+        <span><kbd class="px-1 py-0.5 bg-gray-100 rounded border border-gray-200">↑↓</kbd> {t('commandPalette.navigate')}</span>
+        <span><kbd class="px-1 py-0.5 bg-gray-100 rounded border border-gray-200">↵</kbd> {t('commandPalette.select')}</span>
+        <span><kbd class="px-1 py-0.5 bg-gray-100 rounded border border-gray-200">esc</kbd> {t('commandPalette.close')}</span>
       </div>
     </div>
   </div>
+  {/key}
 {/if}

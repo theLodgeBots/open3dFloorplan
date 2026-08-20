@@ -17,6 +17,7 @@
   import PrintLayout from '$lib/components/editor/PrintLayout.svelte';
   import OnboardingTooltip from '$lib/components/OnboardingTooltip.svelte';
   import { triggerTip } from '$lib/stores/onboarding.svelte';
+  import { locale, t } from '$lib/i18n';
 
   let commandPaletteOpen = $state(false);
   let printOpen = $state(false);
@@ -255,11 +256,12 @@
     <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onclick={() => showHelp = false} onkeydown={(e) => { if (e.key === 'Escape') showHelp = false; }} role="dialog" tabindex="-1" aria-label="Keyboard Shortcuts">
       <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
       <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[85vh] flex flex-col" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="document">
+      {#key $locale}
         <!-- Header -->
         <div class="flex items-center justify-between px-6 pt-5 pb-3 border-b border-gray-100">
           <div class="flex items-center gap-2">
             <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707"/></svg>
-            <h2 class="text-lg font-bold text-slate-800">Keyboard Shortcuts</h2>
+            <h2 class="text-lg font-bold text-slate-800">{t('editor.shortcuts.title')}</h2>
           </div>
           <div class="flex items-center gap-2">
             <button
@@ -329,34 +331,34 @@
             <div>
               <!-- Tools -->
               <div class="flex items-center gap-2 mb-2">
-                <span class="text-xs font-bold uppercase tracking-wider text-indigo-500">Tools</span>
+                <span class="text-xs font-bold uppercase tracking-wider text-indigo-500">{t('editor.shortcuts.tools')}</span>
                 <div class="flex-1 h-px bg-indigo-100"></div>
               </div>
               <div class="space-y-1.5 mb-5">
-                <div class="flex justify-between"><span class="text-gray-600">Select tool</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">V</kbd></div>
-                <div class="flex justify-between"><span class="text-gray-600">Wall tool</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">W</kbd></div>
-                <div class="flex justify-between"><span class="text-gray-600">Door tool</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">D</kbd></div>
-                <div class="flex justify-between"><span class="text-gray-600">Pan mode</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">H</kbd></div>
-                <div class="flex justify-between"><span class="text-gray-600">Measure tool</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">M</kbd></div>
-                <div class="flex justify-between"><span class="text-gray-600">Annotate tool</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">N</kbd></div>
-                <div class="flex justify-between"><span class="text-gray-600">Text tool</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">T</kbd></div>
-                <div class="flex justify-between"><span class="text-gray-600">Toggle snap</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">S</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.selectTool')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">V</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.wallTool')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">W</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.doorTool')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">D</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.panMode')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">H</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.measureTool')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">M</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.annotateTool')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">N</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.textTool')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">T</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.toggleSnap')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">S</kbd></div>
               </div>
 
               <!-- Edit -->
               <div class="flex items-center gap-2 mb-2">
-                <span class="text-xs font-bold uppercase tracking-wider text-amber-500">Edit</span>
+                <span class="text-xs font-bold uppercase tracking-wider text-amber-500">{t('editor.shortcuts.edit')}</span>
                 <div class="flex-1 h-px bg-amber-100"></div>
               </div>
               <div class="space-y-1.5 mb-5">
-                <div class="flex justify-between"><span class="text-gray-600">Undo</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Ctrl+Z</kbd></div>
-                <div class="flex justify-between"><span class="text-gray-600">Redo</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Ctrl+Y</kbd></div>
-                <div class="flex justify-between"><span class="text-gray-600">Copy</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Ctrl+C</kbd></div>
-                <div class="flex justify-between"><span class="text-gray-600">Paste</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Ctrl+V</kbd></div>
-                <div class="flex justify-between"><span class="text-gray-600">Select all</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Ctrl+A</kbd></div>
-                <div class="flex justify-between"><span class="text-gray-600">Deselect all</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Ctrl+D</kbd></div>
-                <div class="flex justify-between"><span class="text-gray-600">Save project</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Ctrl+S</kbd></div>
-                <div class="flex justify-between"><span class="text-gray-600">Cancel / Deselect</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Esc</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.undo')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Ctrl+Z</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.redo')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Ctrl+Y</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.copy')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Ctrl+C</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.paste')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Ctrl+V</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.selectAll')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Ctrl+A</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.deselectAll')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Ctrl+D</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.saveProject')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Ctrl+S</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.cancelDeselect')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Esc</kbd></div>
               </div>
             </div>
 
@@ -364,49 +366,49 @@
             <div>
               <!-- Elements -->
               <div class="flex items-center gap-2 mb-2">
-                <span class="text-xs font-bold uppercase tracking-wider text-emerald-500">Elements</span>
+                <span class="text-xs font-bold uppercase tracking-wider text-emerald-500">{t('editor.shortcuts.elements')}</span>
                 <div class="flex-1 h-px bg-emerald-100"></div>
               </div>
               <div class="space-y-1.5 mb-5">
-                <div class="flex justify-between"><span class="text-gray-600">Rotate element</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">R</kbd></div>
-                <div class="flex justify-between"><span class="text-gray-600">Delete selected</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Del</kbd></div>
-                <div class="flex justify-between"><span class="text-gray-600">Lock / Unlock</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Ctrl+L</kbd></div>
-                <div class="flex justify-between"><span class="text-gray-600">Group selection</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Ctrl+G</kbd></div>
-                <div class="flex justify-between"><span class="text-gray-600">Ungroup</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Ctrl+⇧+G</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.rotateElement')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">R</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.deleteSelected')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Del</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.lockUnlock')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Ctrl+L</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.groupSelection')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Ctrl+G</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.ungroup')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Ctrl+⇧+G</kbd></div>
               </div>
 
               <!-- View -->
               <div class="flex items-center gap-2 mb-2">
-                <span class="text-xs font-bold uppercase tracking-wider text-blue-500">View</span>
+                <span class="text-xs font-bold uppercase tracking-wider text-blue-500">{t('editor.shortcuts.view')}</span>
                 <div class="flex-1 h-px bg-blue-100"></div>
               </div>
               <div class="space-y-1.5 mb-5">
-                <div class="flex justify-between"><span class="text-gray-600">Toggle 2D / 3D</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Tab</kbd></div>
-                <div class="flex justify-between"><span class="text-gray-600">Zoom to fit</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">F</kbd></div>
-                <div class="flex justify-between"><span class="text-gray-600">Toggle grid</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">G</kbd></div>
-                <div class="flex justify-between"><span class="text-gray-600">Toggle layers</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">L</kbd></div>
-                <div class="flex justify-between"><span class="text-gray-600">Show shortcuts</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">?</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.toggle2d3d')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Tab</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.zoomToFit')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">F</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.toggleGrid')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">G</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.toggleLayers')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">L</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.showShortcuts')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">?</kbd></div>
               </div>
 
               <!-- Canvas -->
               <div class="flex items-center gap-2 mb-2">
-                <span class="text-xs font-bold uppercase tracking-wider text-purple-500">Canvas</span>
+                <span class="text-xs font-bold uppercase tracking-wider text-purple-500">{t('editor.shortcuts.canvas')}</span>
                 <div class="flex-1 h-px bg-purple-100"></div>
               </div>
               <div class="space-y-1.5 mb-5">
-                <div class="flex justify-between"><span class="text-gray-600">Zoom in / out</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Scroll</kbd></div>
-                <div class="flex justify-between"><span class="text-gray-600">Zoom in / out</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">+ / −</kbd></div>
-                <div class="flex justify-between"><span class="text-gray-600">Pan canvas</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Space+Drag</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.zoomInOut')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Scroll</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.zoomInOut')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">+ / −</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.panCanvas')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Space+Drag</kbd></div>
               </div>
 
               <!-- Walls -->
               <div class="flex items-center gap-2 mb-2">
-                <span class="text-xs font-bold uppercase tracking-wider text-rose-500">Walls</span>
+                <span class="text-xs font-bold uppercase tracking-wider text-rose-500">{t('editor.shortcuts.walls')}</span>
                 <div class="flex-1 h-px bg-rose-100"></div>
               </div>
               <div class="space-y-1.5">
-                <div class="flex justify-between"><span class="text-gray-600">Finish wall chain</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Dbl-click</kbd></div>
-                <div class="flex justify-between"><span class="text-gray-600">Close wall loop</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">C</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.finishWallChain')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">Dbl-click</kbd></div>
+                <div class="flex justify-between"><span class="text-gray-600">{t('editor.shortcuts.closeWallLoop')}</span><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono text-slate-700 border border-gray-200">C</kbd></div>
               </div>
             </div>
           </div>
@@ -414,8 +416,9 @@
 
         <!-- Footer -->
         <div class="px-6 py-3 border-t border-gray-100 text-center">
-          <p class="text-xs text-gray-400">Press <kbd class="px-1 py-0.5 bg-gray-100 rounded text-xs font-mono border border-gray-200">?</kbd> or <kbd class="px-1 py-0.5 bg-gray-100 rounded text-xs font-mono border border-gray-200">Esc</kbd> to close</p>
+          <p class="text-xs text-gray-400">{t('editor.shortcuts.close', { q: '?', esc: 'Esc' })}</p>
         </div>
+      {/key}
       </div>
     </div>
   {/if}
@@ -425,12 +428,14 @@
   <OnboardingTooltip />
 {:else}
   <div class="h-screen flex flex-col items-center justify-center gap-3">
+    {#key $locale}
     {#if importingCapture}
       <div class="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
-      <p class="text-gray-400">Importing capture from iOS app…</p>
+      <p class="text-gray-400">{t('editor.importingCapture')}</p>
     {:else}
-      <p class="text-gray-400">Loading...</p>
+      <p class="text-gray-400">{t('editor.loading')}</p>
     {/if}
+    {/key}
   </div>
 {/if}
 
@@ -439,7 +444,7 @@
   <div class="fixed top-16 left-1/2 -translate-x-1/2 z-[100] w-[calc(100vw-2rem)] max-w-md bg-red-50 border border-red-200 text-red-700 rounded-lg shadow-lg px-4 py-3 flex items-start gap-3" role="alert">
     <svg class="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
     <div class="flex-1 text-sm">
-      <p class="font-semibold">Capture import failed</p>
+      <p class="font-semibold">{t('editor.captureImportFailed')}</p>
       <p>{importError}</p>
     </div>
     <button class="text-red-400 hover:text-red-600 text-lg leading-none" onclick={() => importError = null} aria-label="Dismiss error">✕</button>

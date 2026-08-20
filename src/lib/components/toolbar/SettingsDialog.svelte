@@ -4,6 +4,7 @@
   import { currentProject, updateProjectName } from '$lib/stores/project';
   import type { Project } from '$lib/models/types';
   import { themePreference, type ThemePreference } from '$lib/stores/theme';
+  import { locale, t, type Locale } from '$lib/i18n';
 
   let { open = $bindable(false) }: { open: boolean } = $props();
   let projectName = $state('');
@@ -112,13 +113,14 @@
 </script>
 
 {#if open}
+{#key $locale}
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-  <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onclick={close} onkeydown={(e) => { if (e.key === 'Escape') close(); }} role="dialog" tabindex="-1" aria-label="Settings">
+  <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onclick={close} onkeydown={(e) => { if (e.key === 'Escape') close(); }} role="dialog" tabindex="-1" aria-label={t('settings.title')}>
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[420px] max-h-[80vh] flex flex-col" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="document">
       <!-- Header -->
       <div class="flex items-center justify-between px-5 pt-4 pb-2">
-        <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">Settings</h2>
-        <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl leading-none" onclick={close} aria-label="Close settings">✕</button>
+        <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">{t('settings.title')}</h2>
+        <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl leading-none" onclick={close} aria-label={t('settings.close')}>✕</button>
       </div>
 
       <!-- Tabs -->
@@ -127,28 +129,28 @@
           class="px-4 py-2 text-sm font-medium transition-colors relative {activeTab === 'project' ? 'text-slate-800 dark:text-slate-200' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}"
           onclick={() => activeTab = 'project'}
         >
-          Project
+          {t('settings.tabProject')}
           {#if activeTab === 'project'}<div class="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-700 dark:bg-slate-300 rounded-t"></div>{/if}
         </button>
         <button
           class="px-4 py-2 text-sm font-medium transition-colors relative {activeTab === 'dimensions' ? 'text-slate-800 dark:text-slate-200' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}"
           onclick={() => activeTab = 'dimensions'}
         >
-          Dimensions
+          {t('settings.tabDimensions')}
           {#if activeTab === 'dimensions'}<div class="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-700 dark:bg-slate-300 rounded-t"></div>{/if}
         </button>
         <button
           class="px-4 py-2 text-sm font-medium transition-colors relative {activeTab === 'appearance' ? 'text-slate-800 dark:text-slate-200' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}"
           onclick={() => activeTab = 'appearance'}
         >
-          Appearance
+          {t('settings.tabAppearance')}
           {#if activeTab === 'appearance'}<div class="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-700 dark:bg-slate-300 rounded-t"></div>{/if}
         </button>
         <button
           class="px-4 py-2 text-sm font-medium transition-colors relative {activeTab === 'ai' ? 'text-slate-800 dark:text-slate-200' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}"
           onclick={() => activeTab = 'ai'}
         >
-          AI
+          {t('settings.tabAi')}
           {#if activeTab === 'ai'}<div class="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-700 dark:bg-slate-300 rounded-t"></div>{/if}
         </button>
       </div>
@@ -158,23 +160,23 @@
         {#if activeTab === 'project'}
           <div class="space-y-4">
             <label class="block">
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Project Name</span>
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{t('settings.projectName')}</span>
               <input
                 type="text"
                 value={projectName}
                 oninput={onNameChange}
                 class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-100"
-                placeholder="Untitled Project"
+                placeholder={t('settings.projectNamePlaceholder')}
               />
             </label>
             <label class="block">
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Description</span>
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{t('settings.description')}</span>
               <textarea
                 value={projectDescription}
                 oninput={onDescriptionChange}
                 rows="3"
                 class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 outline-none resize-none bg-white dark:bg-gray-700 dark:text-gray-100"
-                placeholder="Add a description for this project..."
+                placeholder={t('settings.descriptionPlaceholder')}
               ></textarea>
             </label>
           </div>
@@ -182,38 +184,38 @@
         {:else if activeTab === 'dimensions'}
           <!-- Metrics Unit Toggle -->
           <div class="flex items-center justify-between mb-5">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Metrics unit</span>
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{t('settings.metricsUnit')}</span>
             <div class="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
               <button
                 class="px-3 py-1.5 text-sm font-medium transition-colors {settings.units === 'metric' ? 'bg-slate-700 text-white' : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'}"
                 onclick={() => updateSetting('units', 'metric')}
-              >m, cm</button>
+              >{t('settings.metric')}</button>
               <button
                 class="px-3 py-1.5 text-sm font-medium transition-colors {settings.units === 'imperial' ? 'bg-slate-700 text-white' : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'}"
                 onclick={() => updateSetting('units', 'imperial')}
-              >ft, inch</button>
+              >{t('settings.imperial')}</button>
             </div>
           </div>
 
           <!-- Wall measurement mode (centerline vs edge-to-edge clear span) -->
           <div class="flex items-center justify-between mb-5">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300" title="Edge to edge shows the clear span between adjoining wall faces">Measure walls</span>
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300" title={t('settings.measureWallsTooltip')}>{t('settings.measureWalls')}</span>
             <div class="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
               <button
                 class="px-3 py-1.5 text-sm font-medium transition-colors {settings.wallMeasureMode !== 'edge' ? 'bg-slate-700 text-white' : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'}"
                 onclick={() => updateSetting('wallMeasureMode', 'centerline')}
-              >Centerline</button>
+              >{t('settings.centerline')}</button>
               <button
                 class="px-3 py-1.5 text-sm font-medium transition-colors {settings.wallMeasureMode === 'edge' ? 'bg-slate-700 text-white' : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'}"
                 onclick={() => updateSetting('wallMeasureMode', 'edge')}
-              >Edge to edge</button>
+              >{t('settings.edgeToEdge')}</button>
             </div>
           </div>
 
           <!-- Toggle options -->
           <div class="bg-gray-50 dark:bg-gray-700/50 rounded-xl divide-y divide-gray-200 dark:divide-gray-600">
             <label class="flex items-center justify-between px-4 py-3.5 cursor-pointer">
-              <span class="text-sm text-gray-700">Dimensions</span>
+              <span class="text-sm text-gray-700">{t('settings.dimensions')}</span>
               <input
                 type="checkbox"
                 checked={settings.showDimensions}
@@ -223,7 +225,7 @@
               />
             </label>
             <label class="flex items-center justify-between px-4 py-3.5 cursor-pointer">
-              <span class="text-sm text-gray-700">External Dimensions</span>
+              <span class="text-sm text-gray-700">{t('settings.externalDimensions')}</span>
               <input
                 type="checkbox"
                 checked={settings.showExternalDimensions}
@@ -233,7 +235,7 @@
               />
             </label>
             <label class="flex items-center justify-between px-4 py-3.5 cursor-pointer">
-              <span class="text-sm text-gray-700">Internal Dimensions</span>
+              <span class="text-sm text-gray-700">{t('settings.internalDimensions')}</span>
               <input
                 type="checkbox"
                 checked={settings.showInternalDimensions}
@@ -243,7 +245,7 @@
               />
             </label>
             <label class="flex items-center justify-between px-4 py-3.5 cursor-pointer">
-              <span class="text-sm text-gray-700">Extension Lines</span>
+              <span class="text-sm text-gray-700">{t('settings.extensionLines')}</span>
               <input
                 type="checkbox"
                 checked={settings.showExtensionLines}
@@ -253,7 +255,7 @@
               />
             </label>
             <label class="flex items-center justify-between px-4 py-3.5 cursor-pointer">
-              <span class="text-sm text-gray-700">Object Distance</span>
+              <span class="text-sm text-gray-700">{t('settings.objectDistance')}</span>
               <input
                 type="checkbox"
                 checked={settings.showObjectDistance}
@@ -263,20 +265,20 @@
               />
             </label>
             <div class="flex items-center justify-between px-4 py-3.5">
-              <span class="text-sm text-gray-700">Line Color</span>
+              <span class="text-sm text-gray-700">{t('settings.lineColor')}</span>
               <div class="flex items-center gap-2">
                 <button
                   class="w-8 h-8 rounded border-2 transition-colors {settings.dimensionLineColor === '#ffffff' ? 'border-slate-600' : 'border-gray-200'}"
                   style="background-color: #ffffff"
                   onclick={() => updateSetting('dimensionLineColor', '#ffffff')}
-                  aria-label="White line color"
+                  aria-label={t('settings.whiteLineColor')}
                 ></button>
                 <span class="text-gray-300">|</span>
                 <button
                   class="w-8 h-8 rounded border-2 transition-colors {settings.dimensionLineColor === '#1e293b' ? 'border-slate-600' : 'border-gray-200'}"
                   style="background-color: #1e293b"
                   onclick={() => updateSetting('dimensionLineColor', '#1e293b')}
-                  aria-label="Dark line color"
+                  aria-label={t('settings.darkLineColor')}
                 ></button>
               </div>
             </div>
@@ -284,9 +286,9 @@
         {:else if activeTab === 'appearance'}
           <div class="space-y-4">
             <div>
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-3">Theme</span>
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-3">{t('settings.theme')}</span>
               <div class="flex gap-3">
-                {#each [['light', '☀️', 'Light'], ['dark', '🌙', 'Dark'], ['system', '💻', 'System']] as [value, icon, label]}
+                {#each [['light', '☀️', t('settings.themeLight')], ['dark', '🌙', t('settings.themeDark')], ['system', '💻', t('settings.themeSystem')]] as [value, icon, label]}
                   <button
                     class="flex-1 flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all {currentTheme === value ? 'border-slate-600 bg-slate-50 dark:border-slate-400 dark:bg-slate-700' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'}"
                     onclick={() => themePreference.set(value as ThemePreference)}
@@ -297,12 +299,25 @@
                 {/each}
               </div>
             </div>
+            <div>
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-3">{t('settings.language')}</span>
+              <div class="flex gap-3">
+                {#each [['en', 'English'], ['pt', 'Português']] as [value, label]}
+                  <button
+                    class="flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all {$locale === value ? 'border-slate-600 bg-slate-50 dark:border-slate-400 dark:bg-slate-700' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'}"
+                    onclick={() => locale.set(value as Locale)}
+                  >
+                    <span class="text-xs font-medium text-gray-700 dark:text-gray-300">{label}</span>
+                  </button>
+                {/each}
+              </div>
+            </div>
           </div>
         {:else if activeTab === 'ai'}
           <div class="space-y-4">
             <div>
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">Gemini API Key</span>
-              <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Required for AI-powered photorealistic rendering. Your key is stored locally in your browser only - never sent to our servers.</p>
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">{t('settings.geminiApiKey')}</span>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">{t('settings.geminiApiKeyDesc')}</p>
               <div class="flex gap-2">
                 <div class="relative flex-1">
                   <input
@@ -315,7 +330,7 @@
                   <button
                     class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-sm"
                     onclick={() => geminiKeyVisible = !geminiKeyVisible}
-                    aria-label={geminiKeyVisible ? 'Hide key' : 'Show key'}
+                    aria-label={geminiKeyVisible ? t('settings.hideKey') : t('settings.showKey')}
                   >
                     {geminiKeyVisible ? '🙈' : '👁️'}
                   </button>
@@ -326,31 +341,31 @@
                   class="px-4 py-2 text-sm font-medium bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors"
                   onclick={saveGeminiKey}
                 >
-                  {geminiKeySaved ? '✓ Saved' : 'Save Key'}
+                  {geminiKeySaved ? t('settings.saved') : t('settings.saveKey')}
                 </button>
                 {#if geminiKey}
                   <button
                     class="px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                     onclick={clearGeminiKey}
                   >
-                    Remove
+                    {t('settings.remove')}
                   </button>
                 {/if}
               </div>
             </div>
             <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">How to get a Gemini key</span>
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">{t('settings.howToGetGeminiKey')}</span>
               <ol class="text-xs text-gray-500 dark:text-gray-400 space-y-1 list-decimal list-inside">
-                <li>Go to <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" class="text-blue-500 hover:underline">Google AI Studio</a></li>
-                <li>Click "Create API Key"</li>
-                <li>Copy and paste it above</li>
+                <li>{t('settings.goTo')} <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" class="text-blue-500 hover:underline">{t('settings.goToGoogleAiStudio')}</a></li>
+                <li>{t('settings.createApiKeyStep')}</li>
+                <li>{t('settings.copyPasteAbove')}</li>
               </ol>
             </div>
 
             <!-- OpenAI API Key -->
             <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">OpenAI API Key</span>
-              <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Optional — enables OpenAI image generation as an alternative to Gemini. Stored locally only.</p>
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">{t('settings.openaiApiKey')}</span>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">{t('settings.openaiApiKeyDesc')}</p>
               <div class="flex gap-2">
                 <div class="relative flex-1">
                   <input
@@ -363,7 +378,7 @@
                   <button
                     class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-sm"
                     onclick={() => openaiKeyVisible = !openaiKeyVisible}
-                    aria-label={openaiKeyVisible ? 'Hide key' : 'Show key'}
+                    aria-label={openaiKeyVisible ? t('settings.hideKey') : t('settings.showKey')}
                   >
                     {openaiKeyVisible ? '🙈' : '👁️'}
                   </button>
@@ -374,23 +389,23 @@
                   class="px-4 py-2 text-sm font-medium bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors"
                   onclick={saveOpenAIKey}
                 >
-                  {openaiKeySaved ? '✓ Saved' : 'Save Key'}
+                  {openaiKeySaved ? t('settings.saved') : t('settings.saveKey')}
                 </button>
                 {#if openaiKey}
                   <button
                     class="px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                     onclick={clearOpenAIKey}
                   >
-                    Remove
+                    {t('settings.remove')}
                   </button>
                 {/if}
               </div>
               <div class="mt-3">
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">How to get an OpenAI key</span>
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">{t('settings.howToGetOpenaiKey')}</span>
                 <ol class="text-xs text-gray-500 dark:text-gray-400 space-y-1 list-decimal list-inside">
-                  <li>Go to <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" class="text-blue-500 hover:underline">OpenAI Platform</a></li>
-                  <li>Click "Create new secret key"</li>
-                  <li>Copy and paste it above</li>
+                  <li>{t('settings.goTo')} <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" class="text-blue-500 hover:underline">{t('settings.goToOpenaiPlatform')}</a></li>
+                  <li>{t('settings.createSecretKeyStep')}</li>
+                  <li>{t('settings.copyPasteAbove')}</li>
                 </ol>
               </div>
             </div>
@@ -399,4 +414,5 @@
       </div>
     </div>
   </div>
+{/key}
 {/if}

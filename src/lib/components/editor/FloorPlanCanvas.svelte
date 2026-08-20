@@ -17,6 +17,7 @@
   import { drawWall as _drawWall, drawDoorOnWall as _drawDoorOnWall, drawWindowOnWall as _drawWindowOnWall, drawDoorDistanceDimensions as _drawDoorDistanceDimensions, drawWindowDistanceDimensions as _drawWindowDistanceDimensions, drawFurnitureItem, drawStair as _drawStair, drawColumn as _drawColumn, drawGuides as _drawGuides, drawPersistedMeasurements as _drawPersistedMeasurements, drawTextAnnotations as _drawTextAnnotations, drawAnnotation as _drawAnnotation, drawAnnotations as _drawAnnotations, drawRooms as _drawRooms, drawWallJoints as _drawWallJoints, drawSnapPoints as _drawSnapPoints, drawMinimap as _drawMinimap, drawEntourageItems as _drawEntourageItems, drawEntourageGhost as _drawEntourageGhost, entourageAspect } from '$lib/utils/canvasRenderer';
   import { getEntourageDef } from '$lib/utils/entourageCatalog';
   import { pointInPolygon, positionOnWall, findWallAt as _findWallAt, findHandleAt as _findHandleAt, findFurnitureAt as _findFurnitureAt, findColumnAt as _findColumnAt, findStairAt as _findStairAt, findDoorAt as _findDoorAt, findWindowAt as _findWindowAt, findRoomAt as _findRoomAt, hitTestMeasurement as _hitTestMeasurement, hitTestAnnotation as _hitTestAnnotation, hitTestTextAnnotation as _hitTestTextAnnotation, findEntourageAt } from '$lib/utils/hitTesting';
+  import { locale, t } from '$lib/i18n';
 
   let canvas: HTMLCanvasElement;
   let ctx: CanvasRenderingContext2D;
@@ -3734,11 +3735,12 @@
 <svelte:window on:keydown={onKeyDown} on:keyup={onKeyUp} />
 
 <div class="w-full h-full relative overflow-hidden" role="application">
+  {#key $locale}
   <canvas
     bind:this={canvas}
     class="block w-full h-full touch-none"
     tabindex="0"
-    aria-label="Floor plan editor canvas"
+    aria-label={t('canvas.ariaLabel')}
     style="cursor: {cursorStyle}"
     onmousedown={onMouseDown}
     onmousemove={onMouseMove}
@@ -3754,8 +3756,8 @@
   {#if pickingElevation}
     <div class="absolute top-3 left-1/2 -translate-x-1/2 z-30 bg-slate-800/90 text-white text-xs font-medium px-3.5 py-1.5 rounded-full shadow-lg pointer-events-none flex items-center gap-1.5">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9H3z"/><rect x="10" y="14" width="4" height="6"/><rect x="5.5" y="13" width="3" height="3"/></svg>
-      <span class="max-md:hidden">Click a wall to view its elevation — Esc to cancel</span>
-      <span class="md:hidden">Tap a wall to view its elevation</span>
+      <span class="max-md:hidden">{t('canvas.pickElevationHint')}</span>
+      <span class="md:hidden">{t('canvas.pickElevationHintMobile')}</span>
     </div>
   {/if}
   <!-- Inline room name editor -->
@@ -3837,8 +3839,8 @@
     <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
       <div class="text-center opacity-60">
         <div class="text-5xl mb-3">🏠</div>
-        <div class="text-sm font-medium text-gray-500">Start building your floor plan</div>
-        <div class="text-xs text-gray-400 mt-1">Draw walls with <span class="font-mono bg-gray-100 px-1 rounded">W</span> or drag items from the sidebar</div>
+        <div class="text-sm font-medium text-gray-500">{t('canvas.startBuilding')}</div>
+        <div class="text-xs text-gray-400 mt-1">{t('canvas.drawWallsHintPrefix')} <span class="font-mono bg-gray-100 px-1 rounded">W</span> {t('canvas.drawWallsHintSuffix')}</div>
       </div>
     </div>
   {/if}
@@ -3855,66 +3857,66 @@
   {/if}
   <div class="absolute bottom-2 right-2 bg-white/80 rounded px-2 py-1 text-xs text-gray-500 flex gap-3">
     {#if detectedRooms.length > 0}
-      <span>{detectedRooms.length} room{detectedRooms.length !== 1 ? 's' : ''}</span>
+      <span>{t('canvas.roomsCount', { count: detectedRooms.length, s: detectedRooms.length !== 1 ? 's' : '' })}</span>
       <span>{formatArea(detectedRooms.reduce((s, r) => s + r.area, 0), $projectSettings.units)}</span>
       <span class="text-gray-300">|</span>
     {/if}
     {#if currentFloor}
-      <span>{currentFloor.walls.length} wall{currentFloor.walls.length !== 1 ? 's' : ''}</span>
+      <span>{t('canvas.wallsCount', { count: currentFloor.walls.length, s: currentFloor.walls.length !== 1 ? 's' : '' })}</span>
       {#if currentFloor.doors.length > 0}
-        <span>{currentFloor.doors.length} door{currentFloor.doors.length !== 1 ? 's' : ''}</span>
+        <span>{t('canvas.doorsCount', { count: currentFloor.doors.length, s: currentFloor.doors.length !== 1 ? 's' : '' })}</span>
       {/if}
       {#if currentFloor.windows.length > 0}
-        <span>{currentFloor.windows.length} window{currentFloor.windows.length !== 1 ? 's' : ''}</span>
+        <span>{t('canvas.windowsCount', { count: currentFloor.windows.length, s: currentFloor.windows.length !== 1 ? 's' : '' })}</span>
       {/if}
       {#if currentFloor.furniture.length > 0}
-        <span>{currentFloor.furniture.length} object{currentFloor.furniture.length !== 1 ? 's' : ''}</span>
+        <span>{t('canvas.objectsCount', { count: currentFloor.furniture.length, s: currentFloor.furniture.length !== 1 ? 's' : '' })}</span>
       {/if}
       <span class="text-gray-300">|</span>
     {/if}
     {#if currentSelectedIds.size > 1}
-      <span class="text-blue-600 font-medium">{currentSelectedIds.size} selected</span>
+      <span class="text-blue-600 font-medium">{t('canvas.selectedCount', { count: currentSelectedIds.size })}</span>
       <span class="text-gray-300">|</span>
     {/if}
-    <span>Zoom: {Math.round(zoom * 100)}%</span>
-    <button class="hover:text-gray-700" onclick={() => zoomToFit()} title="Zoom to Fit (F)">⊞ Fit</button>
-    <button class="hover:text-gray-700" onclick={() => showGrid = !showGrid} title="Toggle Grid (G)">
-      {showGrid ? '▦' : '▢'} Grid
+    <span>{t('canvas.zoomLabel', { pct: Math.round(zoom * 100) })}</span>
+    <button class="hover:text-gray-700" onclick={() => zoomToFit()} title={t('topbar.zoomInMenu')}>⊞ {t('canvas.fit')}</button>
+    <button class="hover:text-gray-700" onclick={() => showGrid = !showGrid} title={t('canvas.toggleGrid')}>
+      {showGrid ? '▦' : '▢'} {t('canvas.grid')}
     </button>
-    <button class="hover:text-gray-700" onclick={() => projectSettings.update(s => ({ ...s, snapToGrid: !s.snapToGrid }))} title="Toggle Snap to Grid (S)">
-      {currentSnapToGrid ? '🧲' : '↔'} Snap
+    <button class="hover:text-gray-700" onclick={() => projectSettings.update(s => ({ ...s, snapToGrid: !s.snapToGrid }))} title={t('canvas.toggleSnapToGrid')}>
+      {currentSnapToGrid ? '🧲' : '↔'} {t('canvas.snap')}
     </button>
-    <button class="hover:text-gray-700" onclick={() => layerVisibility.update(v => ({ ...v, furniture: !v.furniture }))} title="Toggle Furniture">
-      {showFurniture ? '🪑' : '👻'} Furniture
+    <button class="hover:text-gray-700" onclick={() => layerVisibility.update(v => ({ ...v, furniture: !v.furniture }))} title={t('topbar.showFurnitureMenu')}>
+      {showFurniture ? '🪑' : '👻'} {t('layers.furniture')}
     </button>
-    <button class="hover:text-gray-700" onclick={() => showLayerPanel = !showLayerPanel} title="Layer Visibility">
-      🗂 Layers
+    <button class="hover:text-gray-700" onclick={() => showLayerPanel = !showLayerPanel} title={t('canvas.layerVisibility')}>
+      🗂 {t('layers.title')}
     </button>
-    <button class="hover:text-gray-700" onclick={() => showRulers = !showRulers} title="Toggle Rulers">
-      {showRulers ? '📏' : '📐'} Rulers
+    <button class="hover:text-gray-700" onclick={() => showRulers = !showRulers} title={t('canvas.toggleRulers')}>
+      {showRulers ? '📏' : '📐'} {t('canvas.rulers')}
     </button>
-    <button class="hover:text-gray-700" onclick={() => showMinimap = !showMinimap} title="Toggle Mini-map">
-      {showMinimap ? '🗺' : '🗺'} Map
+    <button class="hover:text-gray-700" onclick={() => showMinimap = !showMinimap} title={t('canvas.toggleMinimap')}>
+      {showMinimap ? '🗺' : '🗺'} {t('canvas.map')}
     </button>
   </div>
   <!-- Layer Visibility Panel -->
   {#if showLayerPanel}
     <div class="absolute bottom-12 right-2 z-20 bg-white rounded-lg shadow-lg border border-gray-200 p-3 text-xs min-w-[160px]">
-      <div class="font-semibold text-gray-700 mb-2">Layers</div>
-      {#each [['walls','Walls'],['doors','Doors'],['windows','Windows'],['furniture','Furniture'],['stairs','Stairs'],['columns','Columns'],['guides','Guides'],['measurements','Measurements']] as [key, label]}
+      <div class="font-semibold text-gray-700 mb-2">{t('layers.title')}</div>
+      {#each [['walls','layers.walls'],['doors','layers.doors'],['windows','layers.windows'],['furniture','layers.furniture'],['stairs','layers.stairs'],['columns','layers.columns'],['guides','layers.guides'],['measurements','layers.measurements']] as [key, labelKey]}
         <label class="flex items-center gap-2 py-0.5 cursor-pointer hover:bg-gray-50 rounded px-1">
           <input type="checkbox" checked={(layerVis as Record<string, boolean>)[key]} onchange={() => layerVisibility.update(v => ({ ...v, [key]: !(v as Record<string, boolean>)[key] }))} class="accent-blue-500" />
-          <span>{label}</span>
+          <span>{t(labelKey)}</span>
         </label>
       {/each}
       <hr class="my-1 border-gray-100" />
       <label class="flex items-center gap-2 py-0.5 cursor-pointer hover:bg-gray-50 rounded px-1">
         <input type="checkbox" bind:checked={showRoomLabels} class="accent-blue-500" />
-        <span>Room Labels</span>
+        <span>{t('canvas.roomLabels')}</span>
       </label>
       <label class="flex items-center gap-2 py-0.5 cursor-pointer hover:bg-gray-50 rounded px-1">
         <input type="checkbox" bind:checked={showDimensions} class="accent-blue-500" />
-        <span>Dimensions</span>
+        <span>{t('settings.dimensions')}</span>
       </label>
     </div>
   {/if}
@@ -3958,8 +3960,8 @@
       >
         <button
           class="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700"
-          title="Duplicate"
-          aria-label="Duplicate"
+          title={t('contextMenu.duplicate')}
+          aria-label={t('contextMenu.duplicate')}
           onclick={() => {
             if (!currentSelectedId || !currentFloor) return;
             let newId: string | null = null;
@@ -3975,8 +3977,8 @@
         {#if el.type === 'door' && el.door}
           <button
             class="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700"
-            title="Flip swing"
-            aria-label="Flip swing"
+            title={t('canvas.flipSwing')}
+            aria-label={t('canvas.flipSwing')}
             onclick={() => { if (el.door) updateDoor(el.door.id, { swingDirection: el.door.swingDirection === 'left' ? 'right' : 'left' }); }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>
@@ -3985,8 +3987,8 @@
         {#if el.type === 'wall' && currentSelectedId && currentSelectedIds.size === 0}
           <button
             class="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700"
-            title="Split wall at midpoint"
-            aria-label="Split wall at midpoint"
+            title={t('canvas.splitWallMidpoint')}
+            aria-label={t('canvas.splitWallMidpoint')}
             onclick={() => {
               if (currentSelectedId) {
                 const newId = splitWall(currentSelectedId, 0.5);
@@ -4000,8 +4002,8 @@
         <div class="w-px h-5 bg-gray-200 mx-0.5"></div>
         <button
           class="w-7 h-7 flex items-center justify-center rounded hover:bg-red-50 text-gray-400 hover:text-red-600"
-          title="Delete"
-          aria-label="Delete"
+          title={t('contextMenu.delete')}
+          aria-label={t('contextMenu.delete')}
           onclick={() => {
             if (currentSelectedIds.size > 0) {
               beginUndoGroup();
@@ -4022,27 +4024,27 @@
   {/if}
   {#if currentTool === 'wall' && wallStart}
     <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-3 py-1 rounded-full text-xs shadow">
-      Click to add wall segment · Double-click to finish · C to close loop · Esc to cancel
+      {t('canvas.wallModeHint')}
     </div>
   {/if}
   {#if currentPlacingId && currentTool === 'furniture'}
     <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-purple-600 text-white px-3 py-1 rounded-full text-xs shadow">
-      Click to place · Scroll or R to rotate ({currentPlacingRotation}°) · Esc to cancel
+      {t('canvas.furniturePlaceHint', { rotation: currentPlacingRotation })}
     </div>
   {/if}
   {#if measuring}
     <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-red-600 text-white px-3 py-1 rounded-full text-xs shadow">
-      Right-click two points to measure · M to exit · Esc to cancel
+      {t('canvas.measureHint')}
     </div>
   {/if}
   {#if textAnnotationMode}
     <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-3 py-1 rounded-full text-xs shadow">
-      Click to place text label · Esc to cancel
+      {t('canvas.textPlaceHint')}
     </div>
   {/if}
   {#if annotating}
     <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-3 py-1 rounded-full text-xs shadow">
-      {annotationStart ? 'Click second point to create annotation' : 'Click first point'} · N to exit · Esc to cancel
+      {annotationStart ? t('canvas.annotateSecondPoint') : t('canvas.annotateFirstPoint')} {t('canvas.annotateExitHint')}
     </div>
   {/if}
 
@@ -4050,8 +4052,8 @@
   <div class="absolute bottom-3 left-3 z-20 flex items-center gap-1 bg-white rounded-lg shadow-lg border border-gray-200 px-1 py-0.5">
     <button
       class="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 hover:text-gray-800 font-bold text-lg"
-      title="Zoom Out (−)"
-      aria-label="Zoom out"
+      title={t('topbar.zoomOut')}
+      aria-label={t('topbar.zoomOutMenu')}
       onclick={() => {
         const newZoom = Math.max(0.1, zoom * 0.8);
         // Zoom towards canvas center
@@ -4064,14 +4066,14 @@
     >−</button>
     <button
       class="min-w-[3.5rem] h-7 flex items-center justify-center rounded hover:bg-gray-100 text-xs font-medium text-gray-600 hover:text-gray-800 tabular-nums"
-      title="Reset to 100%"
-      aria-label="Zoom to 100%"
+      title={t('canvas.resetTo100')}
+      aria-label={t('canvas.resetTo100')}
       onclick={() => { zoom = 1; }}
     >{Math.round(zoom * 100)}%</button>
     <button
       class="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 hover:text-gray-800 font-bold text-lg"
-      title="Zoom In (+)"
-      aria-label="Zoom in"
+      title={t('topbar.zoomIn')}
+      aria-label={t('topbar.zoomInMenu')}
       onclick={() => {
         const newZoom = Math.min(10, zoom * 1.25);
         zoom = newZoom;
@@ -4080,8 +4082,8 @@
     <div class="w-px h-5 bg-gray-200"></div>
     <button
       class="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700 text-sm"
-      title="Zoom to Fit (F)"
-      aria-label="Zoom to fit"
+      title={t('canvas.zoomToFitShortcut')}
+      aria-label={t('commandPalette.zoomToFit')}
       onclick={() => zoomToFit()}
     >⊞</button>
   </div>
@@ -4100,4 +4102,5 @@
     onclose={() => { ctxMenuVisible = false; }}
     onaction={handleContextMenuAction}
   />
+  {/key}
 </div>

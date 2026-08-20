@@ -3,12 +3,12 @@ const STORAGE_KEY = 'o3d_tips_seen';
 
 export type TipId = 'first-wall' | 'first-furniture' | 'first-3d' | 'first-export' | 'first-door';
 
-export const TIP_MESSAGES: Record<TipId, string> = {
-  'first-wall': 'Nice! Connect walls to create rooms. Press Escape when done.',
-  'first-furniture': 'Drag to move, R to rotate, or use handles to resize.',
-  'first-3d': 'Orbit with mouse, scroll to zoom. Try walkthrough mode!',
-  'first-export': 'Your plan is ready! Try SVG for vector graphics or PDF for printing.',
-  'first-door': 'Click on a wall to place doors and windows.',
+export const TIP_MESSAGE_KEYS: Record<TipId, string> = {
+  'first-wall': 'onboarding.firstWall',
+  'first-furniture': 'onboarding.firstFurniture',
+  'first-3d': 'onboarding.first3d',
+  'first-export': 'onboarding.firstExport',
+  'first-door': 'onboarding.firstDoor',
 };
 
 function getSeenTips(): Set<string> {

@@ -3,6 +3,7 @@
   import { updateWall } from '$lib/stores/project';
   import { base } from '$app/paths';
   import type { Wall } from '$lib/models/types';
+  import { locale, t } from '$lib/i18n';
 
   interface Props {
     wall: Wall;
@@ -22,14 +23,14 @@
   let previewExteriorTexture: string | null = $state(null);
 
   // Quick-access material presets
-  const quickMaterials: { id: string; name: string; icon: string; wallColorId: string }[] = [
-    { id: 'brick', name: 'Brick', icon: '🧱', wallColorId: 'red-brick' },
-    { id: 'concrete', name: 'Concrete', icon: '🏗️', wallColorId: 'concrete-block' },
-    { id: 'stucco', name: 'Stucco', icon: '🏠', wallColorId: 'cream' },
-    { id: 'drywall', name: 'Drywall', icon: '⬜', wallColorId: 'white' },
-    { id: 'wood', name: 'Wood Panel', icon: '🪵', wallColorId: 'wood-panel' },
-    { id: 'stone', name: 'Stone', icon: '🪨', wallColorId: 'stone' },
-    { id: 'tile', name: 'Subway Tile', icon: '🔲', wallColorId: 'subway-tile' },
+  const quickMaterials: { id: string; nameKey: string; icon: string; wallColorId: string }[] = [
+    { id: 'brick', nameKey: 'materialPicker.brick', icon: '🧱', wallColorId: 'red-brick' },
+    { id: 'concrete', nameKey: 'materialPicker.concrete', icon: '🏗️', wallColorId: 'concrete-block' },
+    { id: 'stucco', nameKey: 'materialPicker.stucco', icon: '🏠', wallColorId: 'cream' },
+    { id: 'drywall', nameKey: 'materialPicker.drywall', icon: '⬜', wallColorId: 'white' },
+    { id: 'wood', nameKey: 'materialPicker.woodPanel', icon: '🪵', wallColorId: 'wood-panel' },
+    { id: 'stone', nameKey: 'materialPicker.stone', icon: '🪨', wallColorId: 'stone' },
+    { id: 'tile', nameKey: 'materialPicker.subwayTile', icon: '🔲', wallColorId: 'subway-tile' },
   ];
 
   const textureThumbs: Record<string, string> = {
@@ -154,11 +155,12 @@
   onclick={(e) => e.stopPropagation()}
   onpointerdown={(e) => e.stopPropagation()}
 >
+  {#key $locale}
   <!-- Header -->
   <div class="flex items-center justify-between px-3 py-2 border-b border-gray-700">
     <div class="flex items-center gap-2">
       <span class="text-lg">🎨</span>
-      <span class="font-semibold text-sm">Material Editor</span>
+      <span class="font-semibold text-sm">{t('materialPicker.title')}</span>
     </div>
     <button
       onclick={onclose}
@@ -176,20 +178,20 @@
       class="flex-1 py-2 text-xs font-medium transition-colors {activeTab === 'interior' ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-500/10' : 'text-gray-400 hover:text-gray-200'}"
       onclick={() => activeTab = 'interior'}
     >
-      🏠 Interior
+      🏠 {t('properties.interior')}
     </button>
     <button
       class="flex-1 py-2 text-xs font-medium transition-colors {activeTab === 'exterior' ? 'text-orange-400 border-b-2 border-orange-400 bg-orange-500/10' : 'text-gray-400 hover:text-gray-200'}"
       onclick={() => activeTab = 'exterior'}
     >
-      🏗️ Exterior
+      🏗️ {t('properties.exterior')}
     </button>
   </div>
 
   <div class="p-3 space-y-3 max-h-[420px] overflow-y-auto">
     <!-- Current preview -->
     <div class="flex items-center gap-2 text-xs text-gray-400">
-      <span>Current:</span>
+      <span>{t('materialPicker.current')}:</span>
       <div
         class="w-6 h-6 rounded border border-gray-600"
         style="background-color: {getCurrentColor(activeTab)}"
@@ -203,14 +205,14 @@
           value={getCurrentColor(activeTab)}
           oninput={applyCustomColor}
           class="w-6 h-6 rounded border border-gray-600 cursor-pointer bg-transparent"
-          title="Custom color"
+          title={t('materialPicker.customColor')}
         />
       </div>
     </div>
 
     <!-- Quick Materials -->
     <div>
-      <div class="text-xs text-gray-400 mb-1.5 font-medium">Quick Materials</div>
+      <div class="text-xs text-gray-400 mb-1.5 font-medium">{t('materialPicker.quickMaterials')}</div>
       <div class="grid grid-cols-4 gap-1.5">
         {#each quickMaterials as preset}
           {@const wc = wallColors.find(c => c.id === preset.wallColorId)}
@@ -218,14 +220,14 @@
           <button
             class="flex flex-col items-center gap-0.5 p-1.5 rounded-lg border transition-all {isActive ? 'border-blue-400 bg-blue-500/20 ring-1 ring-blue-400' : 'border-gray-700 hover:border-gray-500 hover:bg-gray-800'}"
             onclick={() => applyQuickMaterial(preset)}
-            title={preset.name}
+            title={t(preset.nameKey)}
           >
             {#if textureThumbs[preset.wallColorId]}
-              <img src={textureThumbs[preset.wallColorId]} alt={preset.name} class="w-10 h-10 rounded object-cover" />
+              <img src={textureThumbs[preset.wallColorId]} alt={t(preset.nameKey)} class="w-10 h-10 rounded object-cover" />
             {:else}
               <div class="w-10 h-10 rounded flex items-center justify-center text-xl" style="background-color: {wc?.color ?? '#888'}">{preset.icon}</div>
             {/if}
-            <span class="text-[10px] text-gray-300 leading-tight text-center">{preset.name}</span>
+            <span class="text-[10px] text-gray-300 leading-tight text-center">{t(preset.nameKey)}</span>
           </button>
         {/each}
       </div>
@@ -233,7 +235,7 @@
 
     <!-- Paint Colors -->
     <div>
-      <div class="text-xs text-gray-400 mb-1.5 font-medium">Paint Colors</div>
+      <div class="text-xs text-gray-400 mb-1.5 font-medium">{t('materialPicker.paintColors')}</div>
       <div class="flex flex-wrap gap-1">
         {#each plainColors as wc}
           {@const isActive = getCurrentColor(activeTab) === wc.color && !getCurrentTexture(activeTab)}
@@ -249,7 +251,7 @@
 
     <!-- Textured Materials -->
     <div>
-      <div class="text-xs text-gray-400 mb-1.5 font-medium">Textures</div>
+      <div class="text-xs text-gray-400 mb-1.5 font-medium">{t('materialPicker.textures')}</div>
       <div class="grid grid-cols-3 gap-1.5">
         {#each texturedColors as wc}
           {@const thumbUrl = textureThumbs[wc.id]}
@@ -271,16 +273,17 @@
         <button
           class="relative rounded-lg border-2 overflow-hidden transition-all hover:scale-105 {!getCurrentTexture(activeTab) ? 'border-blue-400 ring-1 ring-blue-400' : 'border-gray-700 hover:border-gray-500'}"
           onclick={clearTexture}
-          title="No Texture"
+          title={t('materialPicker.noTexture')}
         >
           <div class="w-full h-14 flex items-center justify-center bg-gray-800 text-gray-400">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
           </div>
-          <div class="absolute bottom-0 inset-x-0 bg-black/60 text-[10px] py-0.5 text-center">None</div>
+          <div class="absolute bottom-0 inset-x-0 bg-black/60 text-[10px] py-0.5 text-center">{t('properties.none')}</div>
         </button>
       </div>
     </div>
   </div>
+  {/key}
 </div>

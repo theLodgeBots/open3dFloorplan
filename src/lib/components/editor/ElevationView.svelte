@@ -15,6 +15,7 @@
   import { activeFloor, elevationWallId, selectedElementId, selectedElementIds, selectedRoomId, updateDoor, updateWindow, beginUndoGroup, endUndoGroup } from '$lib/stores/project';
   import { projectSettings, formatLength } from '$lib/stores/settings';
   import type { Door, Window as Win } from '$lib/models/types';
+  import { locale, t } from '$lib/i18n';
 
   const DEFAULT_WALL_HEIGHT = 240; // cm — fallback when a wall has no height
   const DEFAULT_DOOR_HEIGHT = 210; // cm
@@ -279,7 +280,7 @@
   function endDrag(e: PointerEvent) {
     if (drag) {
       if (drag.grouped) {
-        endUndoGroup(drag.kind === 'door' ? 'Moved door (elevation)' : 'Moved window (elevation)');
+        endUndoGroup(drag.kind === 'door' ? t('elevation.movedDoor') : t('elevation.movedWindow'));
       }
       drag = null;
       dragging = false;
@@ -457,6 +458,7 @@
 </script>
 
 {#if wall}
+  {#key $locale}
   <!-- Integrated view: fills the canvas area over the plan canvas; right padding
        leaves room for the fixed PropertiesPanel (w-64) that stays visible on md+ -->
   <div class="absolute inset-0 z-30 bg-white flex flex-col md:pr-64">
@@ -466,20 +468,20 @@
         class="w-7 h-7 flex items-center justify-center rounded-md text-slate-500 hover:text-slate-800 hover:bg-slate-200 transition-colors disabled:opacity-30 disabled:pointer-events-none text-lg leading-none"
         onclick={() => cycleWall(-1)}
         disabled={wallCount < 2}
-        title="Previous wall"
-        aria-label="Previous wall"
+        title={t('elevation.previousWall')}
+        aria-label={t('elevation.previousWall')}
       >‹</button>
-      <span class="text-sm font-semibold text-slate-700 tabular-nums">Wall {wallIndex + 1} of {wallCount}</span>
+      <span class="text-sm font-semibold text-slate-700 tabular-nums">{t('elevation.wallOf', { index: wallIndex + 1, total: wallCount })}</span>
       <button
         class="w-7 h-7 flex items-center justify-center rounded-md text-slate-500 hover:text-slate-800 hover:bg-slate-200 transition-colors disabled:opacity-30 disabled:pointer-events-none text-lg leading-none"
         onclick={() => cycleWall(1)}
         disabled={wallCount < 2}
-        title="Next wall"
-        aria-label="Next wall"
+        title={t('elevation.nextWall')}
+        aria-label={t('elevation.nextWall')}
       >›</button>
       <span class="text-xs text-gray-400 ml-1">{formatLength(wallLen, units)} × {formatLength(wallH, units)}</span>
       <div class="flex-1"></div>
-      <span class="text-[11px] text-gray-400 max-lg:hidden">Drag openings to move · drag windows up/down for sill · Esc for plan</span>
+      <span class="text-[11px] text-gray-400 max-lg:hidden">{t('elevation.dragHint')}</span>
     </div>
 
     <!-- Elevation canvas -->
@@ -495,4 +497,5 @@
       ></canvas>
     </div>
   </div>
+  {/key}
 {/if}

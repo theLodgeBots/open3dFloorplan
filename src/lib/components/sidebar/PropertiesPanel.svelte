@@ -6,6 +6,7 @@
   import { projectSettings, formatLength, formatArea } from '$lib/stores/settings';
   import { base } from '$app/paths';
   import type { Floor, Wall, Door, Window as Win, Room, FurnitureItem, Stair, Column, RoomCategory, TextAnnotation } from '$lib/models/types';
+  import { locale, t } from '$lib/i18n';
 
   let floor = $state<Floor | null>(null);
   let selId: string | null = $state(null);
@@ -218,29 +219,29 @@
   }
   // Preset colors for rooms and columns
   const roomColorPresets = [
-    { name: 'White', color: '#ffffff' },
-    { name: 'Cream', color: '#fffdd0' },
-    { name: 'Beige', color: '#f5f5dc' },
-    { name: 'Light Gray', color: '#d1d5db' },
-    { name: 'Warm Gray', color: '#b8a082' },
-    { name: 'Sage Green', color: '#d4e2d4' },
-    { name: 'Light Blue', color: '#dbeafe' },
-    { name: 'Blush Pink', color: '#f4c2c2' },
-    { name: 'Lavender', color: '#e6e6fa' },
-    { name: 'Butter Yellow', color: '#fff8dc' },
+    { nameKey: 'properties.colorWhite', color: '#ffffff' },
+    { nameKey: 'properties.colorCream', color: '#fffdd0' },
+    { nameKey: 'properties.colorBeige', color: '#f5f5dc' },
+    { nameKey: 'properties.colorLightGray', color: '#d1d5db' },
+    { nameKey: 'properties.colorWarmGray', color: '#b8a082' },
+    { nameKey: 'properties.colorSageGreen', color: '#d4e2d4' },
+    { nameKey: 'properties.colorLightBlue', color: '#dbeafe' },
+    { nameKey: 'properties.colorBlushPink', color: '#f4c2c2' },
+    { nameKey: 'properties.colorLavender', color: '#e6e6fa' },
+    { nameKey: 'properties.colorButterYellow', color: '#fff8dc' },
   ];
 
   const columnColorPresets = [
-    { name: 'White', color: '#ffffff' },
-    { name: 'Light Gray', color: '#d1d5db' },
-    { name: 'Concrete', color: '#999999' },
-    { name: 'Charcoal', color: '#374151' },
-    { name: 'Black', color: '#000000' },
-    { name: 'Cream', color: '#fffdd0' },
-    { name: 'Wood', color: '#8B6914' },
-    { name: 'Bronze', color: '#cd7f32' },
-    { name: 'Silver', color: '#c0c0c0' },
-    { name: 'Navy', color: '#1e3a8a' },
+    { nameKey: 'properties.colorWhite', color: '#ffffff' },
+    { nameKey: 'properties.colorLightGray', color: '#d1d5db' },
+    { nameKey: 'properties.colorConcrete', color: '#999999' },
+    { nameKey: 'properties.colorCharcoal', color: '#374151' },
+    { nameKey: 'properties.colorBlack', color: '#000000' },
+    { nameKey: 'properties.colorCream', color: '#fffdd0' },
+    { nameKey: 'properties.colorWood', color: '#8B6914' },
+    { nameKey: 'properties.colorBronze', color: '#cd7f32' },
+    { nameKey: 'properties.colorSilver', color: '#c0c0c0' },
+    { nameKey: 'properties.colorNavy', color: '#1e3a8a' },
   ];
 
   function updateDetectedRoom(id: string, updates: Partial<{ name: string; floorTexture: string; color: string }>) {
@@ -265,32 +266,33 @@
   }
 
   const roomTypes = [
-    { id: 'living', label: 'Living Room', icon: '🛋️' },
-    { id: 'bedroom', label: 'Bedroom', icon: '🛏️' },
-    { id: 'kitchen', label: 'Kitchen', icon: '🍳' },
-    { id: 'bathroom', label: 'Bathroom', icon: '🚿' },
-    { id: 'dining', label: 'Dining Room', icon: '🍽️' },
-    { id: 'office', label: 'Office', icon: '💻' },
-    { id: 'hallway', label: 'Hallway', icon: '🚶' },
-    { id: 'closet', label: 'Closet', icon: '👔' },
-    { id: 'laundry', label: 'Laundry', icon: '🧺' },
-    { id: 'garage', label: 'Garage', icon: '🚗' },
-    { id: 'custom', label: 'Custom', icon: '✏️' },
+    { id: 'living', labelKey: 'properties.roomTypeLiving', icon: '🛋️' },
+    { id: 'bedroom', labelKey: 'properties.roomTypeBedroom', icon: '🛏️' },
+    { id: 'kitchen', labelKey: 'properties.roomTypeKitchen', icon: '🍳' },
+    { id: 'bathroom', labelKey: 'properties.roomTypeBathroom', icon: '🚿' },
+    { id: 'dining', labelKey: 'properties.roomTypeDining', icon: '🍽️' },
+    { id: 'office', labelKey: 'properties.roomTypeOffice', icon: '💻' },
+    { id: 'hallway', labelKey: 'properties.roomTypeHallway', icon: '🚶' },
+    { id: 'closet', labelKey: 'properties.roomTypeCloset', icon: '👔' },
+    { id: 'laundry', labelKey: 'properties.roomTypeLaundry', icon: '🧺' },
+    { id: 'garage', labelKey: 'properties.roomTypeGarage', icon: '🚗' },
+    { id: 'custom', labelKey: 'properties.roomTypeCustom', icon: '✏️' },
   ];
 
   function onRoomType(e: Event) {
     if (!selectedRoom) return;
     const typeId = (e.target as HTMLSelectElement).value;
-    const rt = roomTypes.find(t => t.id === typeId);
+    const rt = roomTypes.find(r => r.id === typeId);
     if (rt && rt.id !== 'custom') {
-      updateRoom(selectedRoom.id, { name: rt.label });
-      updateDetectedRoom(selectedRoom.id, { name: rt.label });
+      const label = t(rt.labelKey);
+      updateRoom(selectedRoom.id, { name: label });
+      updateDetectedRoom(selectedRoom.id, { name: label });
     }
   }
 
   let selectedRoomType = $derived(() => {
     if (!selectedRoom) return 'custom';
-    const match = roomTypes.find(t => t.label === selectedRoom!.name);
+    const match = roomTypes.find(r => t(r.labelKey) === selectedRoom!.name);
     return match ? match.id : 'custom';
   });
 
@@ -310,11 +312,11 @@
     'concrete-block': `${base}/textures/concrete.jpg`, 'subway-tile': `${base}/textures/subway-tile.jpg`,
   };
   const textureGroups = [
-    { label: '🎨 Plain', ids: ['none'] },
-    { label: '🪵 Wood', ids: ['light-oak', 'walnut', 'bamboo', 'laminate'] },
-    { label: '🔲 Tile', ids: ['ceramic-white', 'ceramic-gray', 'porcelain', 'vinyl'] },
-    { label: '🪨 Stone', ids: ['marble-white', 'marble-dark', 'concrete', 'slate'] },
-    { label: '🧶 Carpet', ids: ['carpet-beige', 'carpet-gray'] },
+    { labelKey: 'properties.texturePlain', icon: '🎨', ids: ['none'] },
+    { labelKey: 'properties.textureWood', icon: '🪵', ids: ['light-oak', 'walnut', 'bamboo', 'laminate'] },
+    { labelKey: 'properties.textureTile', icon: '🔲', ids: ['ceramic-white', 'ceramic-gray', 'porcelain', 'vinyl'] },
+    { labelKey: 'properties.textureStone', icon: '🪨', ids: ['marble-white', 'marble-dark', 'concrete', 'slate'] },
+    { labelKey: 'properties.textureCarpet', icon: '🧶', ids: ['carpet-beige', 'carpet-gray'] },
   ];
 
   let hasSelection = $derived(!!selectedWall || !!selectedDoor || !!selectedWindow || !!selectedFurniture || !!selectedRoom || !!selectedStair || !!selectedColumn || !!selectedTextAnnotation || !!selectedEntourage || (!is3D && hasBgImage));
@@ -322,34 +324,35 @@
 
 <!-- Right sidebar on md+; slides up as a bottom sheet on phones -->
 <div class="{is3D ? 'w-80' : 'w-64'} shrink-0 bg-white border-l border-gray-200 flex flex-col overflow-y-auto p-3 fixed right-0 top-12 bottom-9 z-40 shadow-lg max-md:top-auto max-md:bottom-0 max-md:left-0 max-md:w-full max-md:max-h-[45vh] max-md:border-l-0 max-md:border-t max-md:rounded-t-xl max-md:shadow-2xl" class:hidden={!hasSelection}>
+  {#key $locale}
   {#if selectedWall}
     <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
       <span class="w-6 h-6 bg-gray-200 rounded flex items-center justify-center text-xs">▭</span>
-      Wall Properties
+      {t('properties.wallProperties')}
     </h3>
     <div class="space-y-3">
       <label class="block">
-        <span class="text-xs text-gray-500">Length ({unitLabel()})</span>
+        <span class="text-xs text-gray-500">{t('properties.length')} ({unitLabel()})</span>
         <input type="number" value={displayValue(wallLength)} onchange={onWallLength} min="1" class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Thickness ({unitLabel()})</span>
+        <span class="text-xs text-gray-500">{t('properties.thickness')} ({unitLabel()})</span>
         <input type="number" value={displayValue(selectedWall.thickness)} onchange={onWallThickness} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Height ({unitLabel()})</span>
+        <span class="text-xs text-gray-500">{t('properties.height')} ({unitLabel()})</span>
         <input type="number" value={displayValue(selectedWall.height)} onchange={onWallHeight} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <button
         class="w-full py-1.5 text-sm rounded-md bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors flex items-center justify-center gap-1.5"
         onclick={() => { if (selectedWall) elevationWallId.set(selectedWall.id); }}
-        title="View this wall face-on and edit its doors and windows"
+        title={t('properties.viewElevationTitle')}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="1"/><line x1="3" y1="18" x2="21" y2="18"/><rect x="7" y="9" width="4" height="4"/><rect x="14" y="10" width="3" height="8"/></svg>
-        Elevation
+        {t('topbar.elevation')}
       </button>
       <div class="flex items-center gap-2">
-        <span class="text-xs text-gray-500">Curved</span>
+        <span class="text-xs text-gray-500">{t('properties.curved')}</span>
         <button
           class="px-2 py-0.5 text-xs rounded {selectedWall.curvePoint ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-gray-100 text-gray-500 border border-gray-200'}"
           onclick={() => {
@@ -368,7 +371,7 @@
             }
           }}
         >
-          {selectedWall.curvePoint ? '◆ On' : '◇ Off'}
+          {selectedWall.curvePoint ? `◆ ${t('topbar.on')}` : `◇ ${t('topbar.off')}`}
         </button>
       </div>
       <!-- Wall Material Tabs: Interior / Exterior -->
@@ -377,17 +380,17 @@
           <button
             class="flex-1 py-1.5 text-xs font-medium border-b-2 transition-colors {wallSideTab === 'interior' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-400 hover:text-gray-600'}"
             onclick={() => wallSideTab = 'interior'}
-          >Interior</button>
+          >{t('properties.interior')}</button>
           <button
             class="flex-1 py-1.5 text-xs font-medium border-b-2 transition-colors {wallSideTab === 'exterior' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-400 hover:text-gray-600'}"
             onclick={() => wallSideTab = 'exterior'}
-          >Exterior</button>
+          >{t('properties.exterior')}</button>
         </div>
         {#if wallSideTab === 'interior'}
           {@const sideColor = selectedWall.interiorColor || selectedWall.color}
           {@const sideTex = selectedWall.interiorTexture === 'none' ? undefined : (selectedWall.interiorTexture || selectedWall.texture)}
           <div class="space-y-2">
-            <span class="text-xs text-gray-500">Color</span>
+            <span class="text-xs text-gray-500">{t('properties.color')}</span>
             <div class="grid grid-cols-6 gap-1.5">
               {#each wallColors as wc}
                 <button
@@ -399,15 +402,15 @@
               {/each}
             </div>
             <label class="flex items-center gap-2">
-              <span class="text-xs text-gray-500">Custom:</span>
+              <span class="text-xs text-gray-500">{t('properties.custom')}:</span>
               <input type="color" value={sideColor} oninput={(e) => { if (selectedWall) updateWall(selectedWall.id, { interiorColor: (e.target as HTMLInputElement).value }); }} class="w-8 h-6 rounded border border-gray-200 cursor-pointer" />
             </label>
-            <span class="text-xs text-gray-500">Texture</span>
+            <span class="text-xs text-gray-500">{t('properties.texture')}</span>
             <div class="grid grid-cols-3 gap-1.5">
               <button
                 class="p-1.5 rounded-md border-2 text-[10px] text-center h-14 {!sideTex ? 'border-blue-500 ring-1 ring-blue-200' : 'border-gray-200 hover:border-gray-300'}"
                 onclick={() => { if (selectedWall) updateWall(selectedWall.id, { interiorTexture: 'none' }); }}
-              >None</button>
+              >{t('properties.none')}</button>
               {#each wallColors.filter(wc => wc.texture) as wc}
                 {@const texPath = wallTexPaths[wc.id] ?? ''}
                 <button
@@ -434,15 +437,15 @@
               {/each}
             </div>
             <label class="flex items-center gap-2">
-              <span class="text-xs text-gray-500">Custom:</span>
+              <span class="text-xs text-gray-500">{t('properties.custom')}:</span>
               <input type="color" value={sideColor} oninput={(e) => { if (selectedWall) updateWall(selectedWall.id, { exteriorColor: (e.target as HTMLInputElement).value }); }} class="w-8 h-6 rounded border border-gray-200 cursor-pointer" />
             </label>
-            <span class="text-xs text-gray-500">Texture</span>
+            <span class="text-xs text-gray-500">{t('properties.texture')}</span>
             <div class="grid grid-cols-3 gap-1.5">
               <button
                 class="p-1.5 rounded-md border-2 text-[10px] text-center h-14 {!sideTex ? 'border-blue-500 ring-1 ring-blue-200' : 'border-gray-200 hover:border-gray-300'}"
                 onclick={() => { if (selectedWall) updateWall(selectedWall.id, { exteriorTexture: 'none' }); }}
-              >None</button>
+              >{t('properties.none')}</button>
               {#each wallColors.filter(wc => wc.texture) as wc}
                 {@const texPath = wallTexPaths[wc.id] ?? ''}
                 <button
@@ -460,51 +463,51 @@
   {:else if selectedDoor}
     <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
       <span class="w-6 h-6 bg-amber-100 rounded flex items-center justify-center text-xs">🚪</span>
-      Door Properties
+      {t('properties.doorProperties')}
     </h3>
     <div class="space-y-3">
       <label class="block">
-        <span class="text-xs text-gray-500">Width ({unitLabel()})</span>
+        <span class="text-xs text-gray-500">{t('properties.width')} ({unitLabel()})</span>
         <input type="number" value={displayValue(selectedDoor.width)} onchange={onDoorWidth} min="1" class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Distance from A ({unitLabel()})</span>
+        <span class="text-xs text-gray-500">{t('properties.distanceFromA')} ({unitLabel()})</span>
         <input type="number" value={displayValue(doorDistFromA)} onchange={onDoorDistFromA} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Distance from B ({unitLabel()})</span>
+        <span class="text-xs text-gray-500">{t('properties.distanceFromB')} ({unitLabel()})</span>
         <input type="number" value={displayValue(doorDistFromB)} onchange={onDoorDistFromB} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Height ({unitLabel()})</span>
+        <span class="text-xs text-gray-500">{t('properties.height')} ({unitLabel()})</span>
         <input type="number" value={displayValue(selectedDoor.height ?? 210)} onchange={onDoorHeight} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Type</span>
+        <span class="text-xs text-gray-500">{t('properties.type')}</span>
         <select value={selectedDoor.type} onchange={onDoorType} class="w-full px-2 py-1 border border-gray-200 rounded text-sm">
-          <option value="single">Single</option>
-          <option value="double">Double</option>
-          <option value="sliding">Sliding</option>
-          <option value="french">French</option>
-          <option value="pocket">Pocket</option>
-          <option value="bifold">Bifold</option>
-          <option value="opening">Doorway (no door)</option>
-          <option value="garage">Garage</option>
+          <option value="single">{t('buildPanel.doorSingle')}</option>
+          <option value="double">{t('buildPanel.doorDouble')}</option>
+          <option value="sliding">{t('buildPanel.doorSliding')}</option>
+          <option value="french">{t('buildPanel.doorFrench')}</option>
+          <option value="pocket">{t('buildPanel.doorPocket')}</option>
+          <option value="bifold">{t('buildPanel.doorBifold')}</option>
+          <option value="opening">{t('properties.doorwayNoDoor')}</option>
+          <option value="garage">{t('buildPanel.doorGarage')}</option>
         </select>
       </label>
       {#if selectedDoor.type !== 'opening' && selectedDoor.type !== 'garage'}
       <label class="block">
-        <span class="text-xs text-gray-500">Hinge Side</span>
+        <span class="text-xs text-gray-500">{t('properties.hingeSide')}</span>
         <div class="flex gap-2">
-          <button onclick={() => { if (selectedDoor) updateDoor(selectedDoor.id, { swingDirection: 'left' }); }} class="flex-1 px-2 py-1.5 border rounded text-sm transition-colors {selectedDoor?.swingDirection === 'left' ? 'bg-blue-100 border-blue-400 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}">Left</button>
-          <button onclick={() => { if (selectedDoor) updateDoor(selectedDoor.id, { swingDirection: 'right' }); }} class="flex-1 px-2 py-1.5 border rounded text-sm transition-colors {selectedDoor?.swingDirection === 'right' ? 'bg-blue-100 border-blue-400 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}">Right</button>
+          <button onclick={() => { if (selectedDoor) updateDoor(selectedDoor.id, { swingDirection: 'left' }); }} class="flex-1 px-2 py-1.5 border rounded text-sm transition-colors {selectedDoor?.swingDirection === 'left' ? 'bg-blue-100 border-blue-400 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}">{t('properties.left')}</button>
+          <button onclick={() => { if (selectedDoor) updateDoor(selectedDoor.id, { swingDirection: 'right' }); }} class="flex-1 px-2 py-1.5 border rounded text-sm transition-colors {selectedDoor?.swingDirection === 'right' ? 'bg-blue-100 border-blue-400 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}">{t('properties.right')}</button>
         </div>
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Opens</span>
+        <span class="text-xs text-gray-500">{t('properties.opens')}</span>
         <div class="flex gap-2">
-          <button onclick={() => { if (selectedDoor) updateDoor(selectedDoor.id, { flipSide: false }); }} class="flex-1 px-2 py-1.5 border rounded text-sm transition-colors {!(selectedDoor?.flipSide) ? 'bg-blue-100 border-blue-400 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}">Inward</button>
-          <button onclick={() => { if (selectedDoor) updateDoor(selectedDoor.id, { flipSide: true }); }} class="flex-1 px-2 py-1.5 border rounded text-sm transition-colors {selectedDoor?.flipSide ? 'bg-blue-100 border-blue-400 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}">Outward</button>
+          <button onclick={() => { if (selectedDoor) updateDoor(selectedDoor.id, { flipSide: false }); }} class="flex-1 px-2 py-1.5 border rounded text-sm transition-colors {!(selectedDoor?.flipSide) ? 'bg-blue-100 border-blue-400 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}">{t('properties.inward')}</button>
+          <button onclick={() => { if (selectedDoor) updateDoor(selectedDoor.id, { flipSide: true }); }} class="flex-1 px-2 py-1.5 border rounded text-sm transition-colors {selectedDoor?.flipSide ? 'bg-blue-100 border-blue-400 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}">{t('properties.outward')}</button>
         </div>
       </label>
       {/if}
@@ -513,37 +516,37 @@
   {:else if selectedWindow}
     <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
       <span class="w-6 h-6 bg-cyan-100 rounded flex items-center justify-center text-xs">🪟</span>
-      Window Properties
+      {t('properties.windowProperties')}
     </h3>
     <div class="space-y-3">
       <label class="block">
-        <span class="text-xs text-gray-500">Type</span>
+        <span class="text-xs text-gray-500">{t('properties.type')}</span>
         <select value={selectedWindow.type ?? 'standard'} onchange={onWindowType} class="w-full px-2 py-1 border border-gray-200 rounded text-sm">
-          <option value="standard">Standard</option>
-          <option value="fixed">Fixed</option>
-          <option value="casement">Casement</option>
-          <option value="sliding">Sliding</option>
-          <option value="bay">Bay</option>
+          <option value="standard">{t('buildPanel.windowStandard')}</option>
+          <option value="fixed">{t('buildPanel.windowFixed')}</option>
+          <option value="casement">{t('buildPanel.windowCasement')}</option>
+          <option value="sliding">{t('buildPanel.windowSliding')}</option>
+          <option value="bay">{t('buildPanel.windowBay')}</option>
         </select>
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Width ({unitLabel()})</span>
+        <span class="text-xs text-gray-500">{t('properties.width')} ({unitLabel()})</span>
         <input type="number" value={displayValue(selectedWindow.width)} onchange={onWindowWidth} min="1" class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Distance from A ({unitLabel()})</span>
+        <span class="text-xs text-gray-500">{t('properties.distanceFromA')} ({unitLabel()})</span>
         <input type="number" value={displayValue(windowDistFromA)} onchange={onWindowDistFromA} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Distance from B ({unitLabel()})</span>
+        <span class="text-xs text-gray-500">{t('properties.distanceFromB')} ({unitLabel()})</span>
         <input type="number" value={displayValue(windowDistFromB)} onchange={onWindowDistFromB} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Height ({unitLabel()})</span>
+        <span class="text-xs text-gray-500">{t('properties.height')} ({unitLabel()})</span>
         <input type="number" value={displayValue(selectedWindow.height)} onchange={onWindowHeight} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Sill Height ({unitLabel()})</span>
+        <span class="text-xs text-gray-500">{t('properties.sillHeight')} ({unitLabel()})</span>
         <input type="number" value={displayValue(selectedWindow.sillHeight)} onchange={onWindowSill} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
     </div>
@@ -553,18 +556,18 @@
       <span class="w-6 h-6 bg-purple-100 rounded flex items-center justify-center text-xs">
         {getCatalogItem(selectedFurniture.catalogId)?.icon ?? '🪑'}
       </span>
-      {getCatalogItem(selectedFurniture.catalogId)?.name ?? 'Furniture'} Properties
+      {getCatalogItem(selectedFurniture.catalogId)?.name ? t(`furnitureItem:${getCatalogItem(selectedFurniture.catalogId)!.name}`) : t('layers.furniture')} {t('properties.propertiesSuffix')}
       <button
         onclick={() => { if (selectedFurniture) toggleFurnitureLock(selectedFurniture.id); }}
         class="ml-auto px-1.5 py-0.5 rounded text-xs border transition-colors {selectedFurniture.locked ? 'bg-amber-100 border-amber-400 text-amber-700' : 'border-gray-200 hover:bg-gray-50 text-gray-500'}"
-        title={selectedFurniture.locked ? 'Unlock (Ctrl+L)' : 'Lock (Ctrl+L)'}
-      >{selectedFurniture.locked ? '🔒 Locked' : '🔓'}</button>
+        title={selectedFurniture.locked ? t('properties.unlockShortcut') : t('properties.lockShortcut')}
+      >{selectedFurniture.locked ? `🔒 ${t('properties.locked')}` : '🔓'}</button>
     </h3>
     <div class="space-y-3">
       <!-- Color -->
       <div>
         <div class="flex items-center gap-1 mb-2">
-          <span class="text-xs text-gray-500">Color</span>
+          <span class="text-xs text-gray-500">{t('properties.color')}</span>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-gray-400">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
             <circle cx="9" cy="9" r="2"/>
@@ -576,13 +579,13 @@
             <button
               class="w-6 h-6 rounded border-2 hover:border-gray-300 transition-colors {(selectedFurniture.color ?? getCatalogItem(selectedFurniture.catalogId)?.color) === color ? 'border-blue-500 ring-1 ring-blue-200' : 'border-gray-200'}"
               style="background-color: {color}"
-              title="Color: {color}"
+              title={t('properties.colorLabel', { color })}
               onclick={() => onFurnitureColor(color)}
             ></button>
           {/each}
         </div>
         <div class="flex items-center gap-2">
-          <span class="text-xs text-gray-500">Custom:</span>
+          <span class="text-xs text-gray-500">{t('properties.custom')}:</span>
           <input 
             type="color" 
             value={selectedFurniture.color ?? getCatalogItem(selectedFurniture.catalogId)?.color ?? '#888888'} 
@@ -594,60 +597,60 @@
       
       <!-- Dimensions -->
       <label class="block">
-        <span class="text-xs text-gray-500">Width ({unitLabel()})</span>
-        <input 
-          type="number" 
-          value={displayValue(selectedFurniture.width ?? getCatalogItem(selectedFurniture.catalogId)?.width ?? 100)} 
+        <span class="text-xs text-gray-500">{t('properties.width')} ({unitLabel()})</span>
+        <input
+          type="number"
+          value={displayValue(selectedFurniture.width ?? getCatalogItem(selectedFurniture.catalogId)?.width ?? 100)}
           onchange={onFurnitureWidth} min="1"
-          class="w-full px-2 py-1 border border-gray-200 rounded text-sm" 
+          class="w-full px-2 py-1 border border-gray-200 rounded text-sm"
         />
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Depth ({unitLabel()})</span>
-        <input 
-          type="number" 
-          value={displayValue(selectedFurniture.depth ?? getCatalogItem(selectedFurniture.catalogId)?.depth ?? 80)} 
+        <span class="text-xs text-gray-500">{t('properties.depth')} ({unitLabel()})</span>
+        <input
+          type="number"
+          value={displayValue(selectedFurniture.depth ?? getCatalogItem(selectedFurniture.catalogId)?.depth ?? 80)}
           onchange={onFurnitureDepth} min="1"
-          class="w-full px-2 py-1 border border-gray-200 rounded text-sm" 
+          class="w-full px-2 py-1 border border-gray-200 rounded text-sm"
         />
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Height ({unitLabel()})</span>
-        <input 
-          type="number" 
-          value={displayValue(selectedFurniture.height ?? getCatalogItem(selectedFurniture.catalogId)?.height ?? 80)} 
+        <span class="text-xs text-gray-500">{t('properties.height')} ({unitLabel()})</span>
+        <input
+          type="number"
+          value={displayValue(selectedFurniture.height ?? getCatalogItem(selectedFurniture.catalogId)?.height ?? 80)}
           onchange={onFurnitureHeight} min="1"
-          class="w-full px-2 py-1 border border-gray-200 rounded text-sm" 
+          class="w-full px-2 py-1 border border-gray-200 rounded text-sm"
         />
       </label>
-      
+
       <!-- Material -->
       <label class="block">
-        <span class="text-xs text-gray-500">Material</span>
-        <select 
-          value={selectedFurniture.material ?? 'Wood'} 
-          onchange={onFurnitureMaterial} 
+        <span class="text-xs text-gray-500">{t('properties.material')}</span>
+        <select
+          value={selectedFurniture.material ?? 'Wood'}
+          onchange={onFurnitureMaterial}
           class="w-full px-2 py-1 border border-gray-200 rounded text-sm"
         >
-          <option value="Wood">Wood</option>
-          <option value="Metal">Metal</option>
-          <option value="Fabric">Fabric</option>
-          <option value="Leather">Leather</option>
-          <option value="Glass">Glass</option>
-          <option value="Plastic">Plastic</option>
-          <option value="Stone">Stone</option>
-          <option value="Ceramic">Ceramic</option>
+          <option value="Wood">{t('properties.materialWood')}</option>
+          <option value="Metal">{t('properties.materialMetal')}</option>
+          <option value="Fabric">{t('properties.materialFabric')}</option>
+          <option value="Leather">{t('properties.materialLeather')}</option>
+          <option value="Glass">{t('properties.materialGlass')}</option>
+          <option value="Plastic">{t('properties.materialPlastic')}</option>
+          <option value="Stone">{t('properties.materialStone')}</option>
+          <option value="Ceramic">{t('properties.materialCeramic')}</option>
         </select>
       </label>
-      
+
       <!-- Rotation -->
       <label class="block">
-        <span class="text-xs text-gray-500">Rotation (degrees)</span>
-        <input 
-          type="number" 
-          value={Math.round(selectedFurniture.rotation * 100) / 100} 
-          onchange={onFurnitureRotation} 
-          class="w-full px-2 py-1 border border-gray-200 rounded text-sm" 
+        <span class="text-xs text-gray-500">{t('properties.rotationDegrees')}</span>
+        <input
+          type="number"
+          value={Math.round(selectedFurniture.rotation * 100) / 100}
+          onchange={onFurnitureRotation}
+          class="w-full px-2 py-1 border border-gray-200 rounded text-sm"
         />
       </label>
 
@@ -656,88 +659,88 @@
         <button
           onclick={() => { if (selectedFurniture) updateFurniture(selectedFurniture.id, { rotation: selectedFurniture.rotation - 90 }); }}
           class="flex-1 px-2 py-1.5 border border-gray-200 rounded text-sm hover:bg-gray-50 transition-colors"
-          title="Rotate 90° left"
+          title={t('properties.rotate90Left')}
         >↺ 90°</button>
         <button
           onclick={() => { if (selectedFurniture) updateFurniture(selectedFurniture.id, { rotation: selectedFurniture.rotation + 90 }); }}
           class="flex-1 px-2 py-1.5 border border-gray-200 rounded text-sm hover:bg-gray-50 transition-colors"
-          title="Rotate 90° right"
+          title={t('properties.rotate90Right')}
         >↻ 90°</button>
       </div>
       <div class="flex gap-1">
         <button
           onclick={() => { if (selectedFurniture) { const s = selectedFurniture.scale; updateFurniture(selectedFurniture.id, { scale: { x: s.x * -1, y: s.y, z: s.z } }); } }}
           class="flex-1 px-2 py-1.5 border border-gray-200 rounded text-sm hover:bg-gray-50 transition-colors"
-          title="Flip horizontally"
-        >↔ Flip H</button>
+          title={t('properties.flipHorizontally')}
+        >↔ {t('properties.flipH')}</button>
         <button
           onclick={() => { if (selectedFurniture) { const s = selectedFurniture.scale; updateFurniture(selectedFurniture.id, { scale: { x: s.x, y: s.y * -1, z: s.z } }); } }}
           class="flex-1 px-2 py-1.5 border border-gray-200 rounded text-sm hover:bg-gray-50 transition-colors"
-          title="Flip vertically"
-        >↕ Flip V</button>
+          title={t('properties.flipVertically')}
+        >↕ {t('properties.flipV')}</button>
       </div>
-      
+
       <!-- Reset button -->
       <button
         onclick={resetFurnitureDefaults}
         class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-gray-600 hover:bg-gray-50 transition-colors"
       >
-        Reset to defaults
+        {t('properties.resetDefaults')}
       </button>
     </div>
 
   {:else if selectedRoom}
     <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
       <span class="w-6 h-6 bg-green-100 rounded flex items-center justify-center text-xs">⬜</span>
-      Room Properties
+      {t('properties.roomProperties')}
     </h3>
     <div class="space-y-3">
       <label class="block">
-        <span class="text-xs text-gray-500">Room Type</span>
+        <span class="text-xs text-gray-500">{t('properties.roomType')}</span>
         <select value={selectedRoomType()} onchange={onRoomType} class="w-full px-2 py-1 border border-gray-200 rounded text-sm">
           {#each roomTypes as rt}
-            <option value={rt.id}>{rt.icon} {rt.label}</option>
+            <option value={rt.id}>{rt.icon} {t(rt.labelKey)}</option>
           {/each}
         </select>
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Room Name</span>
+        <span class="text-xs text-gray-500">{t('properties.roomName')}</span>
         <input type="text" value={selectedRoom.name} oninput={onRoomName} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Category</span>
+        <span class="text-xs text-gray-500">{t('properties.category')}</span>
         <select value={selectedRoom.roomType ?? 'indoor'} onchange={(e) => { if (selectedRoom) { const v = (e.target as HTMLSelectElement).value as RoomCategory; updateRoom(selectedRoom.id, { roomType: v }); updateDetectedRoom(selectedRoom.id, { roomType: v } as any); } }} class="w-full px-2 py-1 border border-gray-200 rounded text-sm">
-          <option value="indoor">🏠 Indoor</option>
-          <option value="outdoor">🌳 Outdoor</option>
-          <option value="garage">🚗 Garage</option>
-          <option value="utility">🔧 Utility</option>
+          <option value="indoor">🏠 {t('areaSummary.indoor')}</option>
+          <option value="outdoor">🌳 {t('areaSummary.outdoor')}</option>
+          <option value="garage">🚗 {t('areaSummary.garage')}</option>
+          <option value="utility">🔧 {t('areaSummary.utility')}</option>
         </select>
       </label>
       <div>
-        <span class="text-xs text-gray-500">Area</span>
+        <span class="text-xs text-gray-500">{t('properties.area')}</span>
         <p class="text-sm text-gray-700">{formatArea(selectedRoom.area, settings.units)}</p>
       </div>
       <!-- Room Color -->
       <div>
-        <span class="text-xs text-gray-500 mb-1.5 block">Room Color{selectedRoom.floorTexture === 'none' ? ' (used as floor color)' : ''}</span>
+        <span class="text-xs text-gray-500 mb-1.5 block">{t('properties.roomColor')}{selectedRoom.floorTexture === 'none' ? ` ${t('properties.usedAsFloorColor')}` : ''}</span>
         <div class="grid grid-cols-5 gap-1.5 mb-2">
           {#each roomColorPresets as preset}
             <button
               class="w-7 h-7 rounded-md border-2 hover:border-gray-300 transition-colors {selectedRoom.color === preset.color ? 'border-blue-500 ring-1 ring-blue-200' : 'border-gray-200'}"
               style="background-color: {preset.color}"
-              title={preset.name}
+              title={t(preset.nameKey)}
               onclick={() => onRoomColor(preset.color)}
             ></button>
           {/each}
         </div>
         <div class="flex items-center gap-2">
-          <span class="text-xs text-gray-500">Custom:</span>
+          <span class="text-xs text-gray-500">{t('properties.custom')}:</span>
           <input type="color" value={selectedRoom.color ?? '#ffffff'} oninput={(e) => onRoomColor((e.target as HTMLInputElement).value)} class="w-8 h-6 rounded border border-gray-200 cursor-pointer" />
         </div>
       </div>
       <div>
         <div class="flex items-center gap-1 mb-2">
-          <span class="text-xs text-gray-500">Floor Material</span>
+          <span class="text-xs text-gray-500">{t('properties.floorMaterial')}</span>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-gray-400">
             <path d="M3 3h18v18H3z"/>
             <path d="M8 8h8v8H8z"/>
@@ -746,7 +749,7 @@
         <div class="space-y-3">
           {#each textureGroups as group}
             <div>
-              <span class="text-xs font-medium text-gray-600 mb-1.5 block">{group.label}</span>
+              <span class="text-xs font-medium text-gray-600 mb-1.5 block">{group.icon} {t(group.labelKey)}</span>
               <div class="grid grid-cols-3 gap-1.5">
                 {#each group.ids as matId}
                   {@const mat = floorMaterials.find(m => m.id === matId)}
@@ -775,111 +778,111 @@
   {:else if selectedEntourage}
     <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
       <span class="w-6 h-6 bg-green-100 rounded flex items-center justify-center text-xs">🌳</span>
-      Entourage
+      {t('layers.entourage')}
     </h3>
     <div class="space-y-3">
       <div>
-        <span class="text-xs text-gray-500">Symbol</span>
-        <p class="text-sm text-gray-700">{getEntourageDef(selectedEntourage.defId)?.name ?? 'Custom image'}</p>
+        <span class="text-xs text-gray-500">{t('properties.symbol')}</span>
+        <p class="text-sm text-gray-700">{getEntourageDef(selectedEntourage.defId)?.name ? t(`entourageItem:${getEntourageDef(selectedEntourage.defId)!.name}`) : t('properties.customImage')}</p>
       </div>
       <label class="block">
-        <span class="text-xs text-gray-500">Width ({unitLabel()})</span>
+        <span class="text-xs text-gray-500">{t('properties.width')} ({unitLabel()})</span>
         <input type="number" value={displayValue(Math.round(selectedEntourage.width))} oninput={(e) => { if (selectedEntourage) updateEntourageItem(selectedEntourage.id, { width: Math.max(1, inputToCm(Number((e.target as HTMLInputElement).value)) || 1) }); }} min="1" class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Rotation (°)</span>
+        <span class="text-xs text-gray-500">{t('properties.rotationDeg')}</span>
         <input type="number" value={Math.round(selectedEntourage.rotation || 0)} oninput={(e) => { if (selectedEntourage) updateEntourageItem(selectedEntourage.id, { rotation: Number((e.target as HTMLInputElement).value) || 0 }); }} step="15" class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Opacity ({Math.round((selectedEntourage.opacity ?? 1) * 100)}%)</span>
+        <span class="text-xs text-gray-500">{t('properties.opacity')} ({Math.round((selectedEntourage.opacity ?? 1) * 100)}%)</span>
         <input type="range" min="0.1" max="1" step="0.05" value={selectedEntourage.opacity ?? 1} oninput={(e) => { if (selectedEntourage) updateEntourageItem(selectedEntourage.id, { opacity: Number((e.target as HTMLInputElement).value) }); }} class="w-full" />
       </label>
       <div class="flex gap-2">
-        <button onclick={() => { if (selectedEntourage) updateEntourageItem(selectedEntourage.id, { locked: !selectedEntourage.locked }); }} class="flex-1 px-2 py-1.5 border rounded text-sm transition-colors {selectedEntourage.locked ? 'bg-amber-50 border-amber-300 text-amber-700' : 'border-gray-200 hover:bg-gray-50'}">{selectedEntourage.locked ? '🔒 Locked' : '🔓 Unlocked'}</button>
-        <button onclick={() => { if (selectedEntourage) { removeElement(selectedEntourage.id); selectedElementId.set(null); } }} class="flex-1 px-2 py-1.5 border border-red-200 text-red-600 rounded text-sm hover:bg-red-50 transition-colors">Delete</button>
+        <button onclick={() => { if (selectedEntourage) updateEntourageItem(selectedEntourage.id, { locked: !selectedEntourage.locked }); }} class="flex-1 px-2 py-1.5 border rounded text-sm transition-colors {selectedEntourage.locked ? 'bg-amber-50 border-amber-300 text-amber-700' : 'border-gray-200 hover:bg-gray-50'}">{selectedEntourage.locked ? `🔒 ${t('properties.locked')}` : `🔓 ${t('properties.unlocked')}`}</button>
+        <button onclick={() => { if (selectedEntourage) { removeElement(selectedEntourage.id); selectedElementId.set(null); } }} class="flex-1 px-2 py-1.5 border border-red-200 text-red-600 rounded text-sm hover:bg-red-50 transition-colors">{t('contextMenu.delete')}</button>
       </div>
     </div>
 
   {:else if selectedStair}
     <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
       <span class="w-6 h-6 bg-gray-200 rounded flex items-center justify-center text-xs">🪜</span>
-      Stair Properties
+      {t('properties.stairProperties')}
     </h3>
     <div class="space-y-3">
       <label class="block">
-        <span class="text-xs text-gray-500">Type</span>
+        <span class="text-xs text-gray-500">{t('properties.type')}</span>
         <select value={selectedStair.stairType || 'straight'} onchange={(e) => updateStair(selectedStair!.id, { stairType: (e.target as HTMLSelectElement).value as any })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm">
-          <option value="straight">Straight</option>
-          <option value="l-shaped">L-Shaped</option>
-          <option value="u-shaped">U-Shaped</option>
-          <option value="spiral">Spiral</option>
+          <option value="straight">{t('properties.straight')}</option>
+          <option value="l-shaped">{t('properties.lShaped')}</option>
+          <option value="u-shaped">{t('properties.uShaped')}</option>
+          <option value="spiral">{t('properties.spiral')}</option>
         </select>
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Width ({unitLabel()})</span>
+        <span class="text-xs text-gray-500">{t('properties.width')} ({unitLabel()})</span>
         <input type="number" value={displayValue(selectedStair.width)} oninput={(e) => updateStair(selectedStair!.id, { width: inputToCm(Number((e.target as HTMLInputElement).value)) })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Depth ({unitLabel()})</span>
+        <span class="text-xs text-gray-500">{t('properties.depth')} ({unitLabel()})</span>
         <input type="number" value={displayValue(selectedStair.depth)} oninput={(e) => updateStair(selectedStair!.id, { depth: inputToCm(Number((e.target as HTMLInputElement).value)) })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Risers</span>
+        <span class="text-xs text-gray-500">{t('properties.risers')}</span>
         <input type="number" value={selectedStair.riserCount} min="3" max="30" oninput={(e) => updateStair(selectedStair!.id, { riserCount: Number((e.target as HTMLInputElement).value) })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Direction</span>
+        <span class="text-xs text-gray-500">{t('properties.direction')}</span>
         <div class="flex gap-2">
-          <button onclick={() => updateStair(selectedStair!.id, { direction: 'up' })} class="flex-1 px-2 py-1.5 border rounded text-sm transition-colors {selectedStair.direction === 'up' ? 'bg-blue-100 border-blue-400 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}">Up ↑</button>
-          <button onclick={() => updateStair(selectedStair!.id, { direction: 'down' })} class="flex-1 px-2 py-1.5 border rounded text-sm transition-colors {selectedStair.direction === 'down' ? 'bg-blue-100 border-blue-400 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}">Down ↓</button>
+          <button onclick={() => updateStair(selectedStair!.id, { direction: 'up' })} class="flex-1 px-2 py-1.5 border rounded text-sm transition-colors {selectedStair.direction === 'up' ? 'bg-blue-100 border-blue-400 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}">{t('properties.up')} ↑</button>
+          <button onclick={() => updateStair(selectedStair!.id, { direction: 'down' })} class="flex-1 px-2 py-1.5 border rounded text-sm transition-colors {selectedStair.direction === 'down' ? 'bg-blue-100 border-blue-400 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}">{t('properties.down')} ↓</button>
         </div>
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Rotation (degrees)</span>
+        <span class="text-xs text-gray-500">{t('properties.rotationDegrees')}</span>
         <input type="number" value={selectedStair.rotation} oninput={(e) => updateStair(selectedStair!.id, { rotation: Number((e.target as HTMLInputElement).value) })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
     </div>
   {:else if selectedColumn}
     <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
       <span class="w-6 h-6 bg-gray-200 rounded flex items-center justify-center text-xs">🏛️</span>
-      Column Properties
+      {t('properties.columnProperties')}
     </h3>
     <div class="space-y-3">
       <label class="block">
-        <span class="text-xs text-gray-500">Shape</span>
+        <span class="text-xs text-gray-500">{t('properties.shape')}</span>
         <div class="flex gap-2">
-          <button onclick={() => updateColumn(selectedColumn!.id, { shape: 'round' })} class="flex-1 px-2 py-1.5 border rounded text-sm transition-colors {selectedColumn.shape === 'round' ? 'bg-blue-100 border-blue-400 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}">⭕ Round</button>
-          <button onclick={() => updateColumn(selectedColumn!.id, { shape: 'square' })} class="flex-1 px-2 py-1.5 border rounded text-sm transition-colors {selectedColumn.shape === 'square' ? 'bg-blue-100 border-blue-400 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}">⬜ Square</button>
+          <button onclick={() => updateColumn(selectedColumn!.id, { shape: 'round' })} class="flex-1 px-2 py-1.5 border rounded text-sm transition-colors {selectedColumn.shape === 'round' ? 'bg-blue-100 border-blue-400 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}">⭕ {t('properties.round')}</button>
+          <button onclick={() => updateColumn(selectedColumn!.id, { shape: 'square' })} class="flex-1 px-2 py-1.5 border rounded text-sm transition-colors {selectedColumn.shape === 'square' ? 'bg-blue-100 border-blue-400 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}">⬜ {t('properties.square')}</button>
         </div>
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">{selectedColumn.shape === 'round' ? 'Diameter' : 'Side Length'} ({unitLabel()})</span>
+        <span class="text-xs text-gray-500">{selectedColumn.shape === 'round' ? t('properties.diameter') : t('properties.sideLength')} ({unitLabel()})</span>
         <input type="number" value={displayValue(selectedColumn.diameter)} min="10" max="200" oninput={(e) => updateColumn(selectedColumn!.id, { diameter: inputToCm(Number((e.target as HTMLInputElement).value)) })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Height ({unitLabel()})</span>
+        <span class="text-xs text-gray-500">{t('properties.height')} ({unitLabel()})</span>
         <input type="number" value={displayValue(selectedColumn.height)} min="50" max="1000" oninput={(e) => updateColumn(selectedColumn!.id, { height: inputToCm(Number((e.target as HTMLInputElement).value)) })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <div>
-        <span class="text-xs text-gray-500 mb-1.5 block">Color</span>
+        <span class="text-xs text-gray-500 mb-1.5 block">{t('properties.color')}</span>
         <div class="grid grid-cols-5 gap-1.5 mb-2">
           {#each columnColorPresets as preset}
             <button
               class="w-7 h-7 rounded-md border-2 hover:border-gray-300 transition-colors {selectedColumn.color === preset.color ? 'border-blue-500 ring-1 ring-blue-200' : 'border-gray-200'}"
               style="background-color: {preset.color}"
-              title={preset.name}
+              title={t(preset.nameKey)}
               onclick={() => updateColumn(selectedColumn!.id, { color: preset.color })}
             ></button>
           {/each}
         </div>
         <div class="flex items-center gap-2">
-          <span class="text-xs text-gray-500">Custom:</span>
+          <span class="text-xs text-gray-500">{t('properties.custom')}:</span>
           <input type="color" value={selectedColumn.color} oninput={(e) => updateColumn(selectedColumn!.id, { color: (e.target as HTMLInputElement).value })} class="w-8 h-6 rounded border border-gray-200 cursor-pointer" />
         </div>
       </div>
       {#if selectedColumn.shape === 'square'}
         <label class="block">
-          <span class="text-xs text-gray-500">Rotation (degrees)</span>
+          <span class="text-xs text-gray-500">{t('properties.rotationDegrees')}</span>
           <input type="number" value={selectedColumn.rotation} oninput={(e) => updateColumn(selectedColumn!.id, { rotation: Number((e.target as HTMLInputElement).value) })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
         </label>
       {/if}
@@ -888,25 +891,25 @@
     <div class="space-y-3">
       <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
         <span class="w-6 h-6 bg-emerald-100 rounded flex items-center justify-center text-xs">🏷️</span>
-        Text Annotation
+        {t('properties.textAnnotation')}
       </h3>
       <label class="block">
-        <span class="text-xs text-gray-500">Text</span>
+        <span class="text-xs text-gray-500">{t('properties.text')}</span>
         <input type="text" value={selectedTextAnnotation.text} oninput={(e) => updateTextAnnotation(selectedTextAnnotation!.id, { text: (e.target as HTMLInputElement).value })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Font Size</span>
+        <span class="text-xs text-gray-500">{t('properties.fontSize')}</span>
         <input type="number" value={selectedTextAnnotation.fontSize} min="8" max="72" oninput={(e) => updateTextAnnotation(selectedTextAnnotation!.id, { fontSize: Number((e.target as HTMLInputElement).value) })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Color</span>
+        <span class="text-xs text-gray-500">{t('properties.color')}</span>
         <div class="flex items-center gap-2">
           <input type="color" value={selectedTextAnnotation.color} oninput={(e) => updateTextAnnotation(selectedTextAnnotation!.id, { color: (e.target as HTMLInputElement).value })} class="w-8 h-6 rounded border border-gray-200 cursor-pointer" />
           <span class="text-xs text-gray-400">{selectedTextAnnotation.color}</span>
         </div>
       </label>
       <label class="block">
-        <span class="text-xs text-gray-500">Rotation (°)</span>
+        <span class="text-xs text-gray-500">{t('properties.rotationDeg')}</span>
         <input type="number" value={selectedTextAnnotation.rotation} oninput={(e) => updateTextAnnotation(selectedTextAnnotation!.id, { rotation: Number((e.target as HTMLInputElement).value) })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
@@ -925,36 +928,37 @@
     <div class="mt-4 pt-3 border-t border-gray-200">
       <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
         <span class="w-6 h-6 bg-blue-100 rounded flex items-center justify-center text-xs">🖼️</span>
-        Background Image
+        {t('properties.backgroundImage')}
       </h3>
       <div class="space-y-3">
         <label class="block">
-          <span class="text-xs text-gray-500">Opacity</span>
+          <span class="text-xs text-gray-500">{t('properties.opacity')}</span>
           <input type="range" min="0.05" max="1" step="0.05" value={floor.backgroundImage.opacity} oninput={(e) => updateBackgroundImage({ opacity: Number((e.target as HTMLInputElement).value) })} class="w-full" />
         </label>
         <label class="block">
-          <span class="text-xs text-gray-500">Scale</span>
+          <span class="text-xs text-gray-500">{t('properties.scale')}</span>
           <input type="range" min="0.1" max="5" step="0.05" value={floor.backgroundImage.scale} oninput={(e) => updateBackgroundImage({ scale: Number((e.target as HTMLInputElement).value) })} class="w-full" />
         </label>
         <label class="block">
-          <span class="text-xs text-gray-500">Rotation</span>
+          <span class="text-xs text-gray-500">{t('properties.rotation')}</span>
           <input type="number" value={floor.backgroundImage.rotation} oninput={(e) => updateBackgroundImage({ rotation: Number((e.target as HTMLInputElement).value) })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
         </label>
         <div class="flex gap-2">
           <button
             onclick={() => updateBackgroundImage({ locked: !floor!.backgroundImage!.locked })}
             class="flex-1 px-2 py-1.5 border rounded text-sm {floor.backgroundImage.locked ? 'bg-amber-100 border-amber-400 text-amber-700' : 'border-gray-200 hover:bg-gray-50'}"
-          >{floor.backgroundImage.locked ? '🔒 Locked' : '🔓 Unlocked'}</button>
+          >{floor.backgroundImage.locked ? `🔒 ${t('properties.locked')}` : `🔓 ${t('properties.unlocked')}`}</button>
           <button
             onclick={() => { calibrationPoints.set([]); calibrationMode.set(true); }}
             class="flex-1 px-2 py-1.5 border rounded text-sm border-gray-200 hover:bg-gray-50"
-          >📏 Set Scale</button>
+          >📏 {t('properties.setScale')}</button>
         </div>
         <button
           onclick={() => setBackgroundImage(undefined)}
           class="w-full px-2 py-1.5 border border-red-300 rounded text-sm text-red-600 hover:bg-red-50"
-        >Remove Image</button>
+        >{t('properties.removeImage')}</button>
       </div>
     </div>
   {/if}
+  {/key}
 </div>
