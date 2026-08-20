@@ -69,6 +69,21 @@
   let draggingDoorId: string | null = $state(null);
   let draggingWindowId: string | null = $state(null);
 
+  // Click-vs-drag threshold: a plain click to select shouldn't move the element.
+  // Movement only applies once the mouse has traveled past this many screen px
+  // since mousedown (latched via dragEngaged for the rest of the drag).
+  const DRAG_THRESHOLD_PX = 4;
+  let dragMouseDownScreenPos: { x: number; y: number } | null = null;
+  let dragEngaged = false;
+  function checkDragEngaged(e: MouseEvent): boolean {
+    if (dragEngaged) return true;
+    if (!dragMouseDownScreenPos) return true;
+    if (Math.hypot(e.clientX - dragMouseDownScreenPos.x, e.clientY - dragMouseDownScreenPos.y) > DRAG_THRESHOLD_PX) {
+      dragEngaged = true;
+    }
+    return dragEngaged;
+  }
+
   // Guide lines
   let selectedGuideId: string | null = $state(null);
   let draggingGuideId: string | null = $state(null);
@@ -2338,13 +2353,21 @@
       const door = findDoorAt(wp);
       if (door) {
         selectElement(door.id, e.shiftKey);
-        if (!e.shiftKey) draggingDoorId = door.id;
+        if (!e.shiftKey) {
+          draggingDoorId = door.id;
+          dragMouseDownScreenPos = { x: e.clientX, y: e.clientY };
+          dragEngaged = false;
+        }
         return;
       }
       const win = findWindowAt(wp);
       if (win) {
         selectElement(win.id, e.shiftKey);
-        if (!e.shiftKey) draggingWindowId = win.id;
+        if (!e.shiftKey) {
+          draggingWindowId = win.id;
+          dragMouseDownScreenPos = { x: e.clientX, y: e.clientY };
+          dragEngaged = false;
+        }
         return;
       }
       // Check columns
@@ -2354,6 +2377,8 @@
         if (!e.shiftKey) {
           draggingColumnId = col.id;
           columnDragOffset = { x: wp.x - col.position.x, y: wp.y - col.position.y };
+          dragMouseDownScreenPos = { x: e.clientX, y: e.clientY };
+          dragEngaged = false;
           commitFurnitureMove(); // snapshot before drag for undo
         }
         return;
@@ -2393,6 +2418,8 @@
           dragOffset = { x: wp.x - fi.position.x, y: wp.y - fi.position.y };
           dragStartRotation = fi.rotation;
           dragWasWallSnapped = false;
+          dragMouseDownScreenPos = { x: e.clientX, y: e.clientY };
+          dragEngaged = false;
         }
         return;
       }
@@ -2404,6 +2431,8 @@
           draggingEntourageId = ent.id;
           commitFurnitureMove(); // snapshot before drag for undo
           dragOffset = { x: wp.x - ent.position.x, y: wp.y - ent.position.y };
+          dragMouseDownScreenPos = { x: e.clientX, y: e.clientY };
+          dragEngaged = false;
         }
         return;
       }
@@ -2721,7 +2750,7 @@
         editingTextAnnotationPos = { x: sp.x, y: sp.y };
       }
     }
-    if (draggingColumnId && currentFloor?.columns) {
+    if (draggingColumnId && currentFloor?.columns && checkDragEngaged(e)) {
       const basePos = { x: mousePos.x - columnDragOffset.x, y: mousePos.y - columnDragOffset.y };
       moveColumn(draggingColumnId, { x: snap(basePos.x), y: snap(basePos.y) });
     }
@@ -2729,7 +2758,7 @@
       const basePos = { x: mousePos.x - stairDragOffset.x, y: mousePos.y - stairDragOffset.y };
       moveStair(draggingStairId, { x: snap(basePos.x), y: snap(basePos.y) });
     }
-    if (draggingEntourageId) {
+    if (draggingEntourageId && checkDragEngaged(e)) {
       const basePos = { x: mousePos.x - dragOffset.x, y: mousePos.y - dragOffset.y };
       moveEntourage(draggingEntourageId, { x: snap(basePos.x), y: snap(basePos.y) });
     }
@@ -2744,7 +2773,7 @@
         resizeEntourage(it.id, Math.max(10, Math.max(lx * 2, (ly * 2) / entAspect)));
       }
     }
-    if (draggingFurnitureId) {
+    if (draggingFurnitureId && checkDragEngaged(e)) {
       const basePos = { x: mousePos.x - dragOffset.x, y: mousePos.y - dragOffset.y };
       const fi = currentFloor?.furniture.find(f => f.id === draggingFurnitureId);
       if (fi) {
@@ -2778,7 +2807,7 @@
         }
       }
     }
-    if (draggingDoorId && currentFloor) {
+    if (draggingDoorId && currentFloor && checkDragEngaged(e)) {
       const door = currentFloor.doors.find(d => d.id === draggingDoorId);
       if (door) {
         const wall = currentFloor.walls.find(w => w.id === door.wallId);
@@ -2788,7 +2817,7 @@
         }
       }
     }
-    if (draggingWindowId && currentFloor) {
+    if (draggingWindowId && currentFloor && checkDragEngaged(e)) {
       const win = currentFloor.windows.find(w => w.id === draggingWindowId);
       if (win) {
         const wall = currentFloor.walls.find(w => w.id === win.wallId);
@@ -2928,6 +2957,8 @@
     draggingWallEndpoint = null;
     draggingConnectedEndpoints = [];
     wallSnapInfo = null;
+    dragMouseDownScreenPos = null;
+    dragEngaged = false;
     if (measuring && measureStart && measureEnd) {
       // Keep measurement visible until next click
     }

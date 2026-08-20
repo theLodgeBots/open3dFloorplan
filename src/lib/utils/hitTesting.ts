@@ -49,7 +49,7 @@ export function positionOnWall(p: Point, w: Wall): number {
 
 export function findWallAt(p: Point, walls: Wall[], zoom: number): Wall | null {
   const threshold = 15 / zoom;
-  for (const w of walls) {
+  for (const w of [...walls].reverse()) {
     if (w.curvePoint) {
       for (let i = 0; i <= 20; i++) {
         const pt = wallPointAt(w, i / 20);

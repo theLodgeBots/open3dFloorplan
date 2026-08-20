@@ -334,11 +334,11 @@
       </label>
       <label class="block">
         <span class="text-xs text-gray-500">Thickness ({unitLabel()})</span>
-        <input type="number" value={displayValue(selectedWall.thickness)} oninput={onWallThickness} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        <input type="number" value={displayValue(selectedWall.thickness)} onchange={onWallThickness} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
         <span class="text-xs text-gray-500">Height ({unitLabel()})</span>
-        <input type="number" value={displayValue(selectedWall.height)} oninput={onWallHeight} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        <input type="number" value={displayValue(selectedWall.height)} onchange={onWallHeight} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <button
         class="w-full py-1.5 text-sm rounded-md bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors flex items-center justify-center gap-1.5"
@@ -465,19 +465,19 @@
     <div class="space-y-3">
       <label class="block">
         <span class="text-xs text-gray-500">Width ({unitLabel()})</span>
-        <input type="number" value={displayValue(selectedDoor.width)} oninput={onDoorWidth} min="1" class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        <input type="number" value={displayValue(selectedDoor.width)} onchange={onDoorWidth} min="1" class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
         <span class="text-xs text-gray-500">Distance from A ({unitLabel()})</span>
-        <input type="number" value={displayValue(doorDistFromA)} oninput={onDoorDistFromA} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        <input type="number" value={displayValue(doorDistFromA)} onchange={onDoorDistFromA} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
         <span class="text-xs text-gray-500">Distance from B ({unitLabel()})</span>
-        <input type="number" value={displayValue(doorDistFromB)} oninput={onDoorDistFromB} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        <input type="number" value={displayValue(doorDistFromB)} onchange={onDoorDistFromB} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
         <span class="text-xs text-gray-500">Height ({unitLabel()})</span>
-        <input type="number" value={displayValue(selectedDoor.height ?? 210)} oninput={onDoorHeight} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        <input type="number" value={displayValue(selectedDoor.height ?? 210)} onchange={onDoorHeight} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
         <span class="text-xs text-gray-500">Type</span>
@@ -528,23 +528,23 @@
       </label>
       <label class="block">
         <span class="text-xs text-gray-500">Width ({unitLabel()})</span>
-        <input type="number" value={displayValue(selectedWindow.width)} oninput={onWindowWidth} min="1" class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        <input type="number" value={displayValue(selectedWindow.width)} onchange={onWindowWidth} min="1" class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
         <span class="text-xs text-gray-500">Distance from A ({unitLabel()})</span>
-        <input type="number" value={displayValue(windowDistFromA)} oninput={onWindowDistFromA} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        <input type="number" value={displayValue(windowDistFromA)} onchange={onWindowDistFromA} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
         <span class="text-xs text-gray-500">Distance from B ({unitLabel()})</span>
-        <input type="number" value={displayValue(windowDistFromB)} oninput={onWindowDistFromB} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        <input type="number" value={displayValue(windowDistFromB)} onchange={onWindowDistFromB} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
         <span class="text-xs text-gray-500">Height ({unitLabel()})</span>
-        <input type="number" value={displayValue(selectedWindow.height)} oninput={onWindowHeight} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        <input type="number" value={displayValue(selectedWindow.height)} onchange={onWindowHeight} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
         <span class="text-xs text-gray-500">Sill Height ({unitLabel()})</span>
-        <input type="number" value={displayValue(selectedWindow.sillHeight)} oninput={onWindowSill} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        <input type="number" value={displayValue(selectedWindow.sillHeight)} onchange={onWindowSill} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
     </div>
 
@@ -598,7 +598,7 @@
         <input 
           type="number" 
           value={displayValue(selectedFurniture.width ?? getCatalogItem(selectedFurniture.catalogId)?.width ?? 100)} 
-          oninput={onFurnitureWidth} min="1"
+          onchange={onFurnitureWidth} min="1"
           class="w-full px-2 py-1 border border-gray-200 rounded text-sm" 
         />
       </label>
@@ -607,7 +607,7 @@
         <input 
           type="number" 
           value={displayValue(selectedFurniture.depth ?? getCatalogItem(selectedFurniture.catalogId)?.depth ?? 80)} 
-          oninput={onFurnitureDepth} min="1"
+          onchange={onFurnitureDepth} min="1"
           class="w-full px-2 py-1 border border-gray-200 rounded text-sm" 
         />
       </label>
@@ -616,7 +616,7 @@
         <input 
           type="number" 
           value={displayValue(selectedFurniture.height ?? getCatalogItem(selectedFurniture.catalogId)?.height ?? 80)} 
-          oninput={onFurnitureHeight} min="1"
+          onchange={onFurnitureHeight} min="1"
           class="w-full px-2 py-1 border border-gray-200 rounded text-sm" 
         />
       </label>
@@ -646,7 +646,7 @@
         <input 
           type="number" 
           value={Math.round(selectedFurniture.rotation * 100) / 100} 
-          oninput={onFurnitureRotation} 
+          onchange={onFurnitureRotation} 
           class="w-full px-2 py-1 border border-gray-200 rounded text-sm" 
         />
       </label>
