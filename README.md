@@ -46,6 +46,9 @@ Design floor plans in an intuitive 2D editor, then instantly preview them in a f
 - **Undo/Redo** — Full history with grouped operations
 - **Version history** — Auto-saved snapshots you can restore
 
+### 🌐 Language
+- **English and Português** — switch instantly from Settings, no reload required
+
 ### 📤 Export
 - **SVG** — Scalable vector graphics
 - **DXF** — AutoCAD-compatible format
