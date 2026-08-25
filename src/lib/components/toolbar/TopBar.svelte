@@ -31,6 +31,9 @@
   // Mobile (< md) overflow menu for secondary actions
   let moreOpen = $state(false);
   let moreRef: HTMLDivElement | undefined = $state();
+  // Floor-seed menu on the desktop + button
+  let floorMenuOpen = $state(false);
+  let floorMenuRef: HTMLDivElement | undefined = $state();
 
   currentProject.subscribe((p) => {
     if (p) {
@@ -89,6 +92,8 @@
 
   function onAddFloor(seed: FloorSeed = 'outer') {
     addFloor(undefined, seed);
+    floorMenuOpen = false;
+    moreOpen = false;
   }
 
   function onRemoveFloor(id: string) {
@@ -207,10 +212,14 @@
       if (moreOpen && moreRef && !moreRef.contains(e.target as Node)) {
         moreOpen = false;
       }
+      if (floorMenuOpen && floorMenuRef && !floorMenuRef.contains(e.target as Node)) {
+        floorMenuOpen = false;
+      }
     }
     function handleKeydown(e: KeyboardEvent) {
       if (exportOpen) exportOpen = false;
       if (e.key === 'Escape' && moreOpen) moreOpen = false;
+      if (e.key === 'Escape' && floorMenuOpen) floorMenuOpen = false;
       if (e.key === 'Escape' && versionHistoryOpen) versionHistoryOpen = false;
       if (e.key === 'Escape' && areaOpen) areaOpen = false;
     }
@@ -310,12 +319,30 @@
         title={fl.id === activeFloorId ? 'Active floor (dbl-click to remove)' : 'Click to switch, dbl-click to remove'}
       >{fl.name}</button>
     {/each}
-    <button
-      onclick={(e) => onAddFloor(e.altKey ? 'empty' : 'outer')}
-      class="text-white/80 hover:text-white text-xs hover:bg-white/10 px-1.5 py-0.5 rounded transition-colors"
-      title="Add floor above — starts from this floor's outer walls (Alt-click for an empty floor)"
-      aria-label="Add Floor"
-    >+</button>
+    <div class="relative" bind:this={floorMenuRef}>
+      <button
+        onclick={() => floorMenuOpen = !floorMenuOpen}
+        class="text-white/80 hover:text-white text-xs hover:bg-white/10 px-1.5 py-0.5 rounded transition-colors"
+        title="Add Floor"
+        aria-label="Add Floor"
+        aria-haspopup="menu"
+        aria-expanded={floorMenuOpen}
+      >+</button>
+      {#if floorMenuOpen}
+        <div class="absolute left-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 w-64 z-50">
+          <div class="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">Add Floor Above</div>
+          <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => onAddFloor('outer')}>
+            Outer walls <span class="text-gray-400">— same footprint</span>
+          </button>
+          <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => onAddFloor('copy')}>
+            Full copy <span class="text-gray-400">— all walls</span>
+          </button>
+          <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => onAddFloor('empty')}>
+            Empty floor
+          </button>
+        </div>
+      {/if}
+    </div>
     <span class="text-white/40 text-[10px] ml-1">{floors.length}F</span>
   </div>
 
