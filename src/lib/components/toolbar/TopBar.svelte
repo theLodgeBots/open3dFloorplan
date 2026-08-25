@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { base } from '$app/paths';
+  import type { FloorSeed } from '$lib/stores/project';
   import { currentProject, viewMode, undo, redo, addFloor, removeFloor, setActiveFloor, updateProjectName, loadProject, createDefaultProject, snapEnabled, canvasZoom, panMode, showFurnitureStore, layerVisibility, importFloorIntoCurrentProject, activeFloor, selectedElementId, elevationWallId, elevationPickMode } from '$lib/stores/project';
   import { localStore } from '$lib/services/datastore';
   import { get } from 'svelte/store';
@@ -86,8 +87,8 @@
     if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
   }
 
-  function onAddFloor() {
-    addFloor(`Floor ${floors.length}`);
+  function onAddFloor(seed: FloorSeed = 'outer') {
+    addFloor(undefined, seed);
   }
 
   function onRemoveFloor(id: string) {
@@ -310,9 +311,9 @@
       >{fl.name}</button>
     {/each}
     <button
-      onclick={onAddFloor}
+      onclick={(e) => onAddFloor(e.altKey ? 'empty' : 'outer')}
       class="text-white/80 hover:text-white text-xs hover:bg-white/10 px-1.5 py-0.5 rounded transition-colors"
-      title="Add Floor"
+      title="Add floor above — starts from this floor's outer walls (Alt-click for an empty floor)"
       aria-label="Add Floor"
     >+</button>
     <span class="text-white/40 text-[10px] ml-1">{floors.length}F</span>
@@ -486,7 +487,9 @@
               {fl.name}{fl.id === activeFloorId ? ' ✓' : ''}
             </button>
           {/each}
-          <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => { onAddFloor(); }}>+ Add Floor</button>
+          <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => { onAddFloor('outer'); }}>+ Add Floor <span class="text-gray-400">(outer walls)</span></button>
+          <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => { onAddFloor('copy'); }}>+ Add Floor <span class="text-gray-400">(full copy)</span></button>
+          <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => { onAddFloor('empty'); }}>+ Add Floor <span class="text-gray-400">(empty)</span></button>
           <div class="h-px bg-gray-100 my-1"></div>
         {/if}
         {#if mode === '2d'}

@@ -1,5 +1,6 @@
 import { writable, derived, get } from 'svelte/store';
 import type { Project, Floor, Wall, Door, Window as Win, FurnitureItem, Point, Stair, Column, BackgroundImage, GuideLine, ElementGroup, EntourageItem } from '$lib/models/types';
+import { getOuterWalls } from '$lib/utils/outerWalls';
 
 
 function uid(): string {
@@ -556,16 +557,32 @@ export function updateRoom(id: string, updates: Partial<{ name: string; floorTex
   }, undefined, coalesceKeyFor('room', id, updates));
 }
 
-export function addFloor(name?: string, copyCurrentLayout = false) {
+/**
+ * What a newly added storey starts from.
+ * - `outer`  — the envelope of the current floor, so the storey sits on the
+ *              same footprint and its exterior lines up with the floor below.
+ * - `copy`   — every wall of the current floor, partitions included.
+ * - `empty`  — a blank floor.
+ */
+export type FloorSeed = 'empty' | 'outer' | 'copy';
+
+export function addFloor(name?: string, seed: FloorSeed = 'outer') {
   const p = get(currentProject);
   if (!p) return;
   snapshot('Added floor');
-  const level = p.floors.length;
+  // Levels drive the 3D stacking order, so derive from the highest existing
+  // level rather than the floor count — removing a middle floor would
+  // otherwise hand the next storey a level that is already taken.
+  const level = p.floors.reduce((max, f) => Math.max(max, f.level), -1) + 1;
   const floor: Floor = { id: uid(), name: name ?? `Floor ${level}`, level, walls: [], rooms: [], doors: [], windows: [], furniture: [], stairs: [], columns: [], guides: [], measurements: [], annotations: [], textAnnotations: [], groups: [] };
-  if (copyCurrentLayout) {
+  if (seed !== 'empty') {
     const cur = p.floors.find(f => f.id === p.activeFloorId);
     if (cur) {
-      floor.walls = cur.walls.map(w => ({ ...w, id: uid() }));
+      // Walls only — doors and windows belong to the storey they were placed
+      // on (a front door does not repeat upstairs) and carry wall ids that no
+      // longer resolve once the walls are re-issued.
+      const source = seed === 'outer' ? getOuterWalls(cur.walls) : cur.walls;
+      floor.walls = source.map(w => ({ ...w, id: uid() }));
     }
   }
   p.floors.push(floor);
@@ -875,8 +892,9 @@ export function moveTextAnnotation(id: string, position: { x: number; y: number 
 }
 
 // Layer visibility store (used by LayersPanel and FloorPlanCanvas)
-export const layerVisibility = writable<{ walls: boolean; doors: boolean; windows: boolean; furniture: boolean; stairs: boolean; columns: boolean; guides: boolean; measurements: boolean; annotations: boolean; entourage: boolean }>({
-  walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true, entourage: true,
+/** `floorBelow` is the dimmed reference underlay of the storey beneath the active one. */
+export const layerVisibility = writable<{ walls: boolean; doors: boolean; windows: boolean; furniture: boolean; stairs: boolean; columns: boolean; guides: boolean; measurements: boolean; annotations: boolean; entourage: boolean; floorBelow: boolean }>({
+  walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true, entourage: true, floorBelow: true,
 });
 
 // --- Lock ---

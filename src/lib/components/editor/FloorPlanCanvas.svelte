@@ -4,6 +4,7 @@
   import type { Point, Wall, Door, Window as Win, FurnitureItem, Stair, Column, GuideLine, Measurement, Annotation, TextAnnotation, CustomEntourageDef } from '$lib/models/types';
   import type { Floor, Room } from '$lib/models/types';
   import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
+  import { detectOuterWalls } from '$lib/utils/outerWalls';
   import { getMaterial } from '$lib/utils/materials';
   import { getCatalogItem } from '$lib/utils/furnitureCatalog';
   import { drawFurnitureIcon } from '$lib/utils/furnitureIcons';
@@ -14,7 +15,7 @@
   import { projectSettings, formatLength, formatArea } from '$lib/stores/settings';
   import type { ProjectSettings } from '$lib/stores/settings';
   import type { CanvasState } from '$lib/utils/canvasInteraction';
-  import { drawWall as _drawWall, drawDoorOnWall as _drawDoorOnWall, drawWindowOnWall as _drawWindowOnWall, drawDoorDistanceDimensions as _drawDoorDistanceDimensions, drawWindowDistanceDimensions as _drawWindowDistanceDimensions, drawFurnitureItem, drawStair as _drawStair, drawColumn as _drawColumn, drawGuides as _drawGuides, drawPersistedMeasurements as _drawPersistedMeasurements, drawTextAnnotations as _drawTextAnnotations, drawAnnotation as _drawAnnotation, drawAnnotations as _drawAnnotations, drawRooms as _drawRooms, drawWallJoints as _drawWallJoints, drawSnapPoints as _drawSnapPoints, drawMinimap as _drawMinimap, drawEntourageItems as _drawEntourageItems, drawEntourageGhost as _drawEntourageGhost, entourageAspect } from '$lib/utils/canvasRenderer';
+  import { drawWall as _drawWall, drawDoorOnWall as _drawDoorOnWall, drawWindowOnWall as _drawWindowOnWall, drawDoorDistanceDimensions as _drawDoorDistanceDimensions, drawWindowDistanceDimensions as _drawWindowDistanceDimensions, drawFurnitureItem, drawStair as _drawStair, drawColumn as _drawColumn, drawGuides as _drawGuides, drawPersistedMeasurements as _drawPersistedMeasurements, drawTextAnnotations as _drawTextAnnotations, drawAnnotation as _drawAnnotation, drawAnnotations as _drawAnnotations, drawRooms as _drawRooms, drawWallJoints as _drawWallJoints, drawSnapPoints as _drawSnapPoints, drawMinimap as _drawMinimap, drawEntourageItems as _drawEntourageItems, drawEntourageGhost as _drawEntourageGhost, drawFloorBelowGhost as _drawFloorBelowGhost, entourageAspect } from '$lib/utils/canvasRenderer';
   import { getEntourageDef } from '$lib/utils/entourageCatalog';
   import { pointInPolygon, positionOnWall, findWallAt as _findWallAt, findHandleAt as _findHandleAt, findFurnitureAt as _findFurnitureAt, findColumnAt as _findColumnAt, findStairAt as _findStairAt, findDoorAt as _findDoorAt, findWindowAt as _findWindowAt, findRoomAt as _findRoomAt, hitTestMeasurement as _hitTestMeasurement, hitTestAnnotation as _hitTestAnnotation, hitTestTextAnnotation as _hitTestTextAnnotation, findEntourageAt } from '$lib/utils/hitTesting';
 
@@ -100,7 +101,7 @@
   let showRulers = $state(true);
 
   // Layer visibility toggles
-  let layerVis = $state({ walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true, entourage: true });
+  let layerVis = $state({ walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true, entourage: true, floorBelow: true });
   // Sync showFurnitureStore ↔ layerVisibility.furniture
   let showFurniture = $derived(layerVis.furniture);
   $effect(() => { showFurnitureStore.set(layerVis.furniture); });
@@ -127,6 +128,12 @@
   // Detected rooms
   let detectedRooms: Room[] = $state([]);
   let lastWallHash = '';
+  // Storey directly beneath the active one, drawn as a dim reference underlay.
+  let floorBelow: Floor | null = $state(null);
+  // Its envelope walls. Cached because detection runs room detection, which is
+  // far too costly for the per-frame redraws that dragging triggers.
+  let floorBelowOuterIds = new Set<string>();
+  let lastFloorBelowHash = '';
 
   const GRID = 20;
   const SNAP = 10;
@@ -839,6 +846,16 @@
     ctx.setLineDash([]);
   }
 
+  /** Envelope wall ids for the ghost underlay, recomputed only when its geometry changes. */
+  function getFloorBelowOuterIds(floor: Floor): Set<string> {
+    const hash = floor.id + JSON.stringify(floor.walls.map(w => [w.id, w.start, w.end]));
+    if (hash !== lastFloorBelowHash) {
+      lastFloorBelowHash = hash;
+      floorBelowOuterIds = detectOuterWalls(floor.walls);
+    }
+    return floorBelowOuterIds;
+  }
+
   function updateDetectedRooms() {
     if (!currentFloor) return;
     // Keyed on the floor too: two storeys can share identical wall geometry
@@ -1133,6 +1150,13 @@
     function isSelected(id: string) { return id === selId || multiIds.has(id); }
 
     drawRooms();
+    // Above the room fills, below this floor's own walls. Room floor textures
+    // are opaque, so an underlay drawn before them vanishes the moment the
+    // storey encloses a room — which is immediately, now that a new floor
+    // starts from the envelope below.
+    if (layerVis.floorBelow && floorBelow) {
+      _drawFloorBelowGhost(getCS(), floorBelow, getFloorBelowOuterIds(floorBelow));
+    }
     drawSnapPoints();
 
     if (layerVis.walls) {
@@ -1783,7 +1807,18 @@
     const unsub_snapgrid = projectSettings.subscribe((s) => { currentSnapToGrid = s.snapToGrid; currentGridSize = s.gridSize; markDirty(); });
     const unsub11 = placingStair.subscribe((v) => { isPlacingStair = v; markDirty(); });
     const unsubEnt1 = placingEntourageId.subscribe((id) => { currentEntourageDefId = id; markDirty(); });
-    const unsubEnt2 = currentProject.subscribe((pr) => { customEntourageDefs = pr?.customEntourage; markDirty(); });
+    const unsubEnt2 = currentProject.subscribe((pr) => {
+      customEntourageDefs = pr?.customEntourage;
+      // Highest storey below the active one — floors need not be contiguous or
+      // stored in level order, so pick by level rather than by array position.
+      const active = pr?.floors.find((f) => f.id === pr.activeFloorId);
+      floorBelow = active
+        ? (pr?.floors ?? [])
+            .filter((f) => f.level < active.level)
+            .sort((a, b) => b.level - a.level)[0] ?? null
+        : null;
+      markDirty();
+    });
     const unsub_layers = layerVisibility.subscribe((v) => { layerVis = v; markDirty(); });
     const unsub_col = placingColumn.subscribe((v) => { isPlacingColumn = v; markDirty(); });
     const unsub_cols = placingColumnShape.subscribe((v) => { placingColShape = v; markDirty(); });
@@ -3877,6 +3912,10 @@
         </label>
       {/each}
       <hr class="my-1 border-gray-100" />
+      <label class="flex items-center gap-2 py-0.5 cursor-pointer hover:bg-gray-50 rounded px-1" class:opacity-40={!floorBelow}>
+        <input type="checkbox" checked={layerVis.floorBelow} disabled={!floorBelow} onchange={() => layerVisibility.update(v => ({ ...v, floorBelow: !v.floorBelow }))} class="accent-blue-500" />
+        <span>{floorBelow ? `Floor Below (${floorBelow.name})` : 'Floor Below'}</span>
+      </label>
       <label class="flex items-center gap-2 py-0.5 cursor-pointer hover:bg-gray-50 rounded px-1">
         <input type="checkbox" bind:checked={showRoomLabels} class="accent-blue-500" />
         <span>Room Labels</span>

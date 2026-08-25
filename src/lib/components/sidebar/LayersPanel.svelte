@@ -10,7 +10,7 @@
   let selId: string | null = $state(null);
   selectedElementId.subscribe(id => { selId = id; });
 
-  let vis = $state({ walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true, entourage: true });
+  let vis = $state({ walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true, entourage: true, floorBelow: true });
   layerVisibility.subscribe(v => { vis = v; });
 
   // Collapsed state per category
