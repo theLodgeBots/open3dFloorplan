@@ -96,6 +96,7 @@
     dimensionLineColor: '#1e293b',
     wallMeasureMode: 'centerline',
     snapToGrid: true,
+    snapToWalls: true,
     gridSize: 25,
   });
 
@@ -180,6 +181,20 @@
           </div>
 
         {:else if activeTab === 'dimensions'}
+          <!-- Snapping controls -->
+          <div class="bg-gray-50 dark:bg-gray-700/50 rounded-xl divide-y divide-gray-200 dark:divide-gray-600 mb-5">
+            <label class="flex items-center justify-between px-4 py-3.5 cursor-pointer">
+              <span class="text-sm text-gray-700 dark:text-gray-300" title="Furniture automatically aligns its back edge with nearby walls">Wall snapping</span>
+              <input
+                type="checkbox"
+                checked={settings.snapToWalls}
+                onchange={(e) => updateSetting('snapToWalls', (e.target as HTMLInputElement).checked)}
+                class="w-10 h-5 rounded-full appearance-none cursor-pointer bg-gray-300 checked:bg-slate-700 relative transition-colors
+                  before:content-[''] before:absolute before:w-4 before:h-4 before:rounded-full before:bg-white before:top-0.5 before:left-0.5 before:transition-transform checked:before:translate-x-5"
+              />
+            </label>
+          </div>
+
           <!-- Metrics Unit Toggle -->
           <div class="flex items-center justify-between mb-5">
             <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Metrics unit</span>
