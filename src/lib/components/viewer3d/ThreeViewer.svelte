@@ -2143,7 +2143,7 @@
   });
 </script>
 
-<div bind:this={container} class="w-full h-full relative">
+<div bind:this={container} class="w-full h-full relative" role="region" aria-label="3D floor plan viewer">
   <!-- 3D Toolbar Row -->
   <div class="absolute top-4 right-4 z-50 flex gap-1.5">
     <!-- Multi-Floor Stacking Toggle -->
