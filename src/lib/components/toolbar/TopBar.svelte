@@ -223,6 +223,7 @@
       }
     }
     function handleKeydown(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return;
       if (exportOpen) exportOpen = false;
       if (e.key === 'Escape' && moreOpen) moreOpen = false;
       if (e.key === 'Escape' && floorMenuOpen) floorMenuOpen = false;

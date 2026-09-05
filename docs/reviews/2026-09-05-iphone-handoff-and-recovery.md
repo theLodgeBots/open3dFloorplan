@@ -39,8 +39,15 @@ The format and remaining fidelity limits are documented in
   four walls/four doors/two windows/one object on Entry, 27.5 cm wall thickness,
   273.5 cm wall height, 91.5 × 203.5 cm door, fixed window with 73.5 cm sill,
   angled Loft wall, Save/reload and stacked 3D.
-- Post-merge live verification and final browser error-path results are recorded
-  on the release PR. No physical device, LiDAR, Files/AirDrop delivery or live
+- Final local browser checks also pass for malformed-file errors leaving the
+  active project/floor intact, dismiss and valid retry, sidebar defaults, toolbar
+  keyboard activation, raw ZIP import, and edited ZIP recovery guidance. Repeated
+  2D/3D switches produce no console warnings or errors.
+- Native simulator UI verified the failed-load screen, Retry, Recover Original
+  Scan, successful Save and exact original-file backup retention. Recovery mode
+  exposes only recovery actions to accessibility; editor controls are disabled
+  and hidden until a complete plan loads.
+- Post-merge live verification is recorded on the release PR. No physical device, LiDAR, Files/AirDrop delivery or live
   Firebase upload was exercised; no App Store/TestFlight release is included.
 
 ## Costs and remaining scope
