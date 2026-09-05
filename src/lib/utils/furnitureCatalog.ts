@@ -1,3 +1,5 @@
+import type { FurnitureItem } from '$lib/models/types';
+
 export interface FurnitureDef {
   id: string;
   name: string;
@@ -247,6 +249,20 @@ export const furnitureCatalog: FurnitureDef[] = [
 
 export function getCatalogItem(id: string): FurnitureDef | undefined {
   return furnitureCatalog.find(f => f.id === id);
+}
+
+/**
+ * Effective footprint of a placed item in cm — per-item overrides applied over the
+ * catalog defaults, then multiplied by scale. Use this wherever geometry is derived
+ * from a FurnitureItem.
+ */
+export function getFurnitureSize(fi: FurnitureItem): { width: number; depth: number; height: number } {
+  const cat = getCatalogItem(fi.catalogId);
+  return {
+    width: (fi.width ?? cat?.width ?? 50) * Math.abs(fi.scale?.x ?? 1),
+    depth: (fi.depth ?? cat?.depth ?? 50) * Math.abs(fi.scale?.y ?? 1),
+    height: (fi.height ?? cat?.height ?? 50) * Math.abs(fi.scale?.z ?? 1),
+  };
 }
 
 export const furnitureCategories = [...new Set(furnitureCatalog.map(f => f.category))];

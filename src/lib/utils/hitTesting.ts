@@ -5,7 +5,7 @@
  */
 import type { Point, Wall, Door, Window as Win, FurnitureItem, Stair, Column, Floor, Measurement, Annotation, TextAnnotation, EntourageItem } from '$lib/models/types';
 import type { Room } from '$lib/models/types';
-import { getCatalogItem } from '$lib/utils/furnitureCatalog';
+import { getCatalogItem, getFurnitureSize } from '$lib/utils/furnitureCatalog';
 import { getRoomPolygon } from '$lib/utils/roomDetection';
 import { wallPointAt } from '$lib/utils/canvasRenderer';
 import type { HandleType } from '$lib/utils/canvasInteraction';
@@ -78,8 +78,9 @@ export function findHandleAt(
   const angle = -(fi.rotation * Math.PI) / 180;
   const rx = dx * Math.cos(angle) - dy * Math.sin(angle);
   const ry = dx * Math.sin(angle) + dy * Math.cos(angle);
-  const hw = cat.width * Math.abs(fi.scale?.x ?? 1) / 2;
-  const hd = cat.depth * Math.abs(fi.scale?.y ?? 1) / 2;
+  const size = getFurnitureSize(fi);
+  const hw = size.width / 2;
+  const hd = size.depth / 2;
   const ht = 8 / zoom;
 
   const rotHandleDist = 18 / zoom;
@@ -108,8 +109,9 @@ export function findFurnitureAt(p: Point, furniture: FurnitureItem[]): Furniture
     const angle = -(fi.rotation * Math.PI) / 180;
     const rx = dx * Math.cos(angle) - dy * Math.sin(angle);
     const ry = dx * Math.sin(angle) + dy * Math.cos(angle);
-    const hw = cat.width * Math.abs(fi.scale?.x ?? 1) / 2;
-    const hd = cat.depth * Math.abs(fi.scale?.y ?? 1) / 2;
+    const size = getFurnitureSize(fi);
+    const hw = size.width / 2;
+    const hd = size.depth / 2;
     if (Math.abs(rx) < hw && Math.abs(ry) < hd) return fi;
   }
   return null;
