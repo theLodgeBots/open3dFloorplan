@@ -1,19 +1,22 @@
 <script lang="ts">
+  import ImportError from '$lib/components/ImportError.svelte';
   import { onMount, onDestroy } from 'svelte';
   import { base } from '$app/paths';
   import { orderedFloors } from '$lib/utils/floors';
   import type { FloorSeed } from '$lib/stores/project';
-  import { currentProject, viewMode, undo, redo, addFloor, removeFloor, setActiveFloor, updateProjectName, loadProject, createDefaultProject, snapEnabled, canvasZoom, panMode, showFurnitureStore, layerVisibility, importFloorIntoCurrentProject, activeFloor, selectedElementId, elevationWallId, elevationPickMode } from '$lib/stores/project';
+  import { currentProject, viewMode, undo, redo, addFloor, removeFloor, setActiveFloor, updateProjectName, loadProject, createDefaultProject, snapEnabled, canvasZoom, panMode, showFurnitureStore, layerVisibility, activeFloor, selectedElementId, elevationWallId, elevationPickMode } from '$lib/stores/project';
   import { get } from 'svelte/store';
   import type { Floor, Project } from '$lib/models/types';
   import { exportAsPNG, exportAsJSON, exportAsSVG, exportPDF } from '$lib/utils/export';
   import { exportDXF, exportDWG } from '$lib/utils/cadExport';
-  import { importRoomPlan } from '$lib/utils/roomplanImport';
+  import { createProjectFromRoomPlan, extractRoomJsonFromZip, isRoomPlanJson } from '$lib/utils/roomplanImport';
   import SettingsDialog from './SettingsDialog.svelte';
   import AreaSummaryPanel from '$lib/components/sidebar/AreaSummaryPanel.svelte';
   import { saveState, saveError, lastSavedAt, manualSave, autoSave, initAutoSave } from '$lib/stores/saveStatus';
   import { initVersionHistory, stopVersionHistory, snapshotOnAction } from '$lib/stores/versionHistory';
   import VersionHistoryPanel from './VersionHistoryPanel.svelte';
+
+  let importError = $state<string | null>(null);
 
   let settingsOpen = $state(false);
   let areaOpen = $state(false);
@@ -220,6 +223,7 @@
       }
     }
     function handleKeydown(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return;
       if (exportOpen) exportOpen = false;
       if (e.key === 'Escape' && moreOpen) moreOpen = false;
       if (e.key === 'Escape' && floorMenuOpen) floorMenuOpen = false;
@@ -239,6 +243,7 @@
   });
 
   function onImportJSON() {
+    importError = null;
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json,.zip';
@@ -246,22 +251,20 @@
       const file = input.files?.[0];
       if (!file) return;
       try {
-        const text = await file.text();
-        const data = JSON.parse(text);
-        // Detect RoomPlan format (has walls array with dimensions, or rooms/doors/windows at top level)
-        if (data.walls && Array.isArray(data.walls) && data.walls[0]?.dimensions) {
-          // RoomPlan JSON — import into current project
-          const floor = importRoomPlan(data, { straighten: true, orthogonal: true });
-          importFloorIntoCurrentProject(floor);
+        const data = /\.zip$/i.test(file.name)
+          ? await extractRoomJsonFromZip(file)
+          : JSON.parse(await file.text());
+        if (isRoomPlanJson(data)) {
+          loadProject(createProjectFromRoomPlan(data, file.name.replace(/\.(json|zip)$/i, '')));
         } else if (data.floors && data.id) {
           // Validate project structure
           if (!Array.isArray(data.floors) || data.floors.length === 0) {
-            alert('Invalid project file: "floors" must be a non-empty array.');
+            importError = 'Invalid project file: "floors" must be a non-empty array.';
             return;
           }
           for (const fl of data.floors) {
             if (!fl.id || !Array.isArray(fl.walls)) {
-              alert('Invalid project file: each floor must have an "id" and "walls" array.');
+              importError = 'Invalid project file: each floor must have an "id" and "walls" array.';
               return;
             }
           }
@@ -273,10 +276,10 @@
           if (data.updatedAt) data.updatedAt = new Date(data.updatedAt);
           loadProject(data as Project);
         } else {
-          alert('Unrecognized file format. Expected a project file or Apple RoomPlan JSON.');
+          importError = 'Unrecognized file format. Expected a project file or Apple RoomPlan JSON.';
         }
       } catch (e: any) {
-        alert('Failed to import: ' + e.message);
+        importError = e.message;
       }
     };
     input.click();
@@ -625,4 +628,8 @@
     </div>
   </div>
 </div>
+{/if}
+
+{#if importError}
+  <ImportError message={importError} onDismiss={() => importError = null} />
 {/if}

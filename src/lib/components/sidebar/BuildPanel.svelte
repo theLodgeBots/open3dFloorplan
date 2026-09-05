@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ImportError from '$lib/components/ImportError.svelte';
   import { onDestroy } from 'svelte';
   import { activateMeasurementTool, selectedTool, placingFurnitureId, placingDoorType, placingWindowType, placingStair, addStair, placingColumn, placingColumnShape, activeFloor, setBackgroundImage, canvasCamX, canvasCamY, placingEntourageId, addCustomEntourage } from '$lib/stores/project';
   import type { Tool } from '$lib/stores/project';
@@ -9,8 +10,10 @@
   import { furnitureCatalog, furnitureCategories } from '$lib/utils/furnitureCatalog';
   import type { FurnitureDef } from '$lib/utils/furnitureCatalog';
   import FurnitureThumbnail from './FurnitureThumbnail.svelte';
-  import { createProjectFromRoomPlan, extractRoomJsonFromZip, ORTHO_VERSION } from '$lib/utils/roomplanImport';
+  import { createProjectFromRoomPlan, extractRoomJsonFromZip, roomPlanImportOptions, validateRoomPlan, ORTHO_VERSION } from '$lib/utils/roomplanImport';
   import { currentProject, loadProject } from '$lib/stores/project';
+
+  let importError = $state<string | null>(null);
 
   // AreaSummaryPanel moved to top bar dialog
   let activeTab = $state<'draw' | 'rooms' | 'objects'>('draw');
@@ -221,6 +224,7 @@
   }
 
   async function onImportRoomPlan() {
+    importError = null;
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json,.zip';
@@ -229,17 +233,22 @@
       if (!file) return;
       try {
         let jsonData: any;
-        if (file.name.endsWith('.zip')) {
+        if (/\.zip$/i.test(file.name)) {
           jsonData = await extractRoomJsonFromZip(file);
         } else {
           const text = await file.text();
           jsonData = JSON.parse(text);
         }
+        validateRoomPlan(jsonData);
+        const options = roomPlanImportOptions(jsonData);
+        optStraighten = options.straighten ?? true;
+        optOrthogonal = options.orthogonal ?? true;
+        optMergeDistance = options.mergeDistance ?? 15;
         importJsonData = jsonData;
         importFileName = file.name.replace(/\.(json|zip)$/, '');
         showImportDialog = true;
       } catch (e: any) {
-        alert('Failed to read RoomPlan file: ' + e.message);
+        importError = e.message;
       }
     };
     input.click();
@@ -257,7 +266,7 @@
       });
       loadProject(newProject);
     } catch (e: any) {
-      alert('Failed to import RoomPlan: ' + e.message);
+      importError = e.message;
     }
     showImportDialog = false;
     importJsonData = null;
@@ -787,4 +796,8 @@
       </div>
     </div>
   </div>
+{/if}
+
+{#if importError}
+  <ImportError message={importError} onDismiss={() => importError = null} />
 {/if}

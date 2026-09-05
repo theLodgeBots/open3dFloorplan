@@ -9,19 +9,15 @@
 import type { Floor, Wall, Door, Window, FurnitureItem, Room, Point, Project } from '$lib/models/types';
 import { createDefaultProject, createDefaultFloor } from '$lib/stores/project';
 import { detectRooms, getRoomPolygon } from '$lib/utils/roomDetection';
+import { validateRoomPlan } from './roomplanValidation';
+export { validateRoomPlan } from './roomplanValidation';
 
 function uid(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
-interface RPTransform extends Array<number> { length: 16; }
-
 function getPosition(t: number[]): { x: number; y: number; z: number } {
   return { x: t[12], y: t[13], z: t[14] };
-}
-
-function getYRotation(t: number[]): number {
-  return Math.atan2(t[8], t[0]);
 }
 
 /** Convert RoomPlan meters (XZ ground plane) to our cm (XY) */
@@ -56,6 +52,10 @@ interface RPDoorWindow {
   category: any;
   parentIdentifier: string | null;
   story?: number;
+  style?: string;
+  hingeLeft?: boolean;
+  opensInward?: boolean;
+  sillHeight?: number;
 }
 
 interface RPObject {
@@ -177,7 +177,7 @@ function projectOntoWall(wall: Wall, pt: Point): number {
   const lenSq = dx * dx + dy * dy;
   if (lenSq === 0) return 0.5;
   const t = ((pt.x - wall.start.x) * dx + (pt.y - wall.start.y) * dy) / lenSq;
-  return Math.max(0.01, Math.min(0.99, t));
+  return Math.max(0, Math.min(1, t));
 }
 
 /**
@@ -572,9 +572,23 @@ export interface RoomPlanImportOptions {
   mergeDistance?: number;     // cm, default 15
 }
 
-export function importRoomPlan(jsonData: any, options: RoomPlanImportOptions = {}): Floor {
+/** Shared defaults for file, ZIP and hosted capture imports. Explicit choices win. */
+export function roomPlanImportOptions(data: any): RoomPlanImportOptions {
+  const sent = data?.openplanImportOptions;
+  if (sent) return { straighten: sent.straighten, orthogonal: sent.orthogonal,
+    mergeDistance: sent.straighten || sent.orthogonal ? 15 : 0 };
+  return data?.openplanPrepared
+    ? { straighten: false, orthogonal: false, mergeDistance: 0 }
+    : { ...DEFAULT_ROOMPLAN_OPTIONS };
+}
+
+const centimetres = (metres: number) => Math.round(metres * 100 * 1e8) / 1e8;
+
+export function importRoomPlan(jsonData: any, options: RoomPlanImportOptions = roomPlanImportOptions(jsonData)): Floor {
+  validateRoomPlan(jsonData);
   const rpWalls: RPWall[] = jsonData.walls ?? [];
-  const rpDoors: RPDoorWindow[] = jsonData.doors ?? [];
+  const rpDoors: RPDoorWindow[] = [...(jsonData.doors ?? []), ...(jsonData.openings ?? [])];
+  const passageIds = new Set((jsonData.openings ?? []).map((opening: RPDoorWindow) => opening.identifier));
   const rpWindows: RPDoorWindow[] = jsonData.windows ?? [];
   const rpObjects: RPObject[] = jsonData.objects ?? [];
   const rpSections: RPSection[] = jsonData.sections ?? [];
@@ -594,24 +608,12 @@ export function importRoomPlan(jsonData: any, options: RoomPlanImportOptions = {
     if (!rw.dimensions || rw.dimensions.length < 2 || !rw.transform || rw.transform.length < 16) continue;
     if (!isFinite(rw.dimensions[0]) || !isFinite(rw.dimensions[1])) continue;
     const pos = getPosition(rw.transform);
-    const angle = getYRotation(rw.transform);
-    const halfWidth = (rw.dimensions[0] / 2) * 100; // cm
-    const height = rw.dimensions[1] * 100; // cm
-
+    const halfWidth = (rw.dimensions[0] / 2) * 100;
+    const height = centimetres(rw.dimensions[1]);
     const center = toOurPoint(pos.x, pos.z);
-    // Wall direction from rotation (in XZ plane)
-    const dirX = Math.cos(angle);
-    const dirY = Math.sin(angle); // sin maps to our Y (roomplan Z direction component)
-
-    // Actually: rotation is around Y axis. cos(angle) affects X, sin(angle) affects Z.
-    // transform[0]=cos, transform[8]=sin for column-major Y rotation
-    // So wall extends along direction (cos(angle), sin(angle)) in roomplan XZ
-    // In our coords: dirX = cos(angle), dirY = sin(angle) [since rpZ → ourY... wait]
-    // rpX→ourX, rpZ→ourY. The rotation angle from atan2(t[8],t[0]) gives rotation in XZ plane.
-    // Wall local X-axis direction in world: (t[0], t[8]) = (cos(a), sin(a)) in XZ
-    // So in our 2D: direction = (t[0], t[8]) which is (cos(a), sin(a))
-    const wallDirX = rw.transform[0]; // col0[0]: local X axis in world X
-    const wallDirZ = rw.transform[2]; // col0[2]: local X axis in world Z
+    const norm = Math.hypot(rw.transform[0], rw.transform[2]);
+    const wallDirX = rw.transform[0] / norm;
+    const wallDirZ = rw.transform[2] / norm;
 
     const start: Point = {
       x: center.x - wallDirX * halfWidth,
@@ -622,15 +624,16 @@ export function importRoomPlan(jsonData: any, options: RoomPlanImportOptions = {
       y: center.y + wallDirZ * halfWidth,
     };
 
-    const wallId = uid();
+    const wallId = rw.identifier;
     wallIdMap.set(rw.identifier, wallId);
 
     walls.push({
       id: wallId,
       start,
       end,
-      thickness: 15,
-      height: Math.round(height),
+      // Apple scans often report zero depth; edited iOS plans supply the actual thickness.
+      thickness: rw.dimensions[2] > 0 ? centimetres(rw.dimensions[2]) : 15,
+      height,
       color: '#444444',
     });
   }
@@ -649,14 +652,17 @@ export function importRoomPlan(jsonData: any, options: RoomPlanImportOptions = {
     const position = projectOntoWall(wall, doorPoint);
 
     doors.push({
-      id: uid(),
+      id: rd.identifier,
       wallId: parentWallId,
       position,
-      width: Math.round(rd.dimensions[0] * 100),
-      height: Math.round(rd.dimensions[1] * 100),
-      type: mapDoorType(rd.category),
-      swingDirection: 'left',
-      flipSide: false,
+      width: centimetres(rd.dimensions[0]),
+      height: centimetres(rd.dimensions[1]),
+      type: passageIds.has(rd.identifier) ? 'opening'
+        : rd.style === 'patio' ? 'sliding'
+        : rd.style as Door['type'] ?? mapDoorType(rd.category),
+      // Web 'right' places the hinge at the wall-start jamb; iOS calls this hingeLeft.
+      swingDirection: (rd.hingeLeft ?? (jsonData.openplanPrepared ? true : false)) ? 'right' : 'left',
+      flipSide: !(rd.opensInward ?? true),
     });
   }
 
@@ -673,14 +679,17 @@ export function importRoomPlan(jsonData: any, options: RoomPlanImportOptions = {
     const winPoint = toOurPoint(pos.x, pos.z);
     const position = projectOntoWall(wall, winPoint);
 
+    const sourceWall = rpWalls.find(w => w.identifier === rw.parentIdentifier)!;
+    const floorY = sourceWall.transform[13] - sourceWall.dimensions[1] / 2;
+
     windows.push({
-      id: uid(),
+      id: rw.identifier,
       wallId: parentWallId,
       position,
-      width: Math.round(rw.dimensions[0] * 100),
-      height: Math.round(rw.dimensions[1] * 100),
-      sillHeight: 90,
-      type: mapWindowType(rw.category),
+      width: centimetres(rw.dimensions[0]),
+      height: centimetres(rw.dimensions[1]),
+      sillHeight: centimetres(rw.sillHeight ?? Math.max(0, pos.y - rw.dimensions[1] / 2 - floorY)),
+      type: rw.style as Window['type'] ?? mapWindowType(rw.category),
     });
   }
 
@@ -698,14 +707,14 @@ export function importRoomPlan(jsonData: any, options: RoomPlanImportOptions = {
     const catalogId = mapFurnitureCatalogId(ro.category, ro.dimensions);
 
     furniture.push({
-      id: uid(),
+      id: ro.identifier,
       catalogId,
       position: toOurPoint(pos.x, pos.z),
       rotation: (angle2d * 180) / Math.PI,
       scale: { x: 1, y: 1, z: 1 },
-      width: Math.round(ro.dimensions[0] * 100),
-      depth: Math.round(ro.dimensions[2] * 100),
-      height: Math.round(ro.dimensions[1] * 100),
+      width: centimetres(ro.dimensions[0]),
+      depth: centimetres(ro.dimensions[2]),
+      height: centimetres(ro.dimensions[1]),
     });
   }
 
@@ -793,25 +802,21 @@ export async function extractRoomJsonFromZip(zipFile: File): Promise<any> {
   const JSZip = (await import('jszip')).default;
   const zip = await JSZip.loadAsync(zipFile);
 
-  // Find room.json in the zip
-  let roomJsonFile: any = null;
-  zip.forEach((relativePath, file) => {
-    if (relativePath.endsWith('room.json') && !file.dir) {
-      roomJsonFile = file;
-    }
-  });
-
-  if (!roomJsonFile) {
-    throw new Error('No room.json found in zip file');
+  const files = Object.values(zip.files).filter(file => !file.dir);
+  if (files.some(file => /(^|\/)plan\.json$/i.test(file.name))) {
+    throw new Error('This dataset contains an edited iPhone plan. On iPhone, choose Export Editable Plan (JSON) to import its edits; the room.json in this ZIP is the original scan.');
   }
-
-  const content = await roomJsonFile.async('string');
-  return JSON.parse(content);
+  const captures = files.filter(file => /(^|\/)room\.json$/i.test(file.name));
+  if (captures.length !== 1) {
+    throw new Error('The ZIP must contain exactly one room.json capture.');
+  }
+  return JSON.parse(await captures[0].async('string'));
 }
 
 /** Quick structural check that data looks like an Apple RoomPlan JSON export */
 export function isRoomPlanJson(data: any): boolean {
-  return !!data && Array.isArray(data.walls) && data.walls.length > 0 && !!data.walls[0]?.dimensions;
+  return !!data && (data.openplanPrepared === true || data.openplanHandoffVersion !== undefined ||
+    (Array.isArray(data.walls) && data.walls.some((wall: any) => wall?.dimensions !== undefined)));
 }
 
 /** Default import options — same defaults the import options dialog starts with */
@@ -842,12 +847,14 @@ function storyName(index: number, stories: RPStory[]): string {
  */
 export function importRoomPlanFloors(
   jsonData: any,
-  options: RoomPlanImportOptions = DEFAULT_ROOMPLAN_OPTIONS
+  options: RoomPlanImportOptions = roomPlanImportOptions(jsonData)
 ): Floor[] {
+  validateRoomPlan(jsonData);
   const stories: RPStory[] = jsonData.stories ?? [];
   const tagged: { story?: number }[] = [
     ...(jsonData.walls ?? []),
     ...(jsonData.doors ?? []),
+    ...(jsonData.openings ?? []),
     ...(jsonData.windows ?? []),
     ...(jsonData.objects ?? []),
     ...(jsonData.sections ?? []),
@@ -866,6 +873,7 @@ export function importRoomPlanFloors(
         ...jsonData,
         walls: (jsonData.walls ?? []).filter((w: any) => storyOf(w) === index),
         doors: (jsonData.doors ?? []).filter((d: any) => storyOf(d) === index),
+        openings: (jsonData.openings ?? []).filter((d: any) => storyOf(d) === index),
         windows: (jsonData.windows ?? []).filter((w: any) => storyOf(w) === index),
         objects: (jsonData.objects ?? []).filter((o: any) => storyOf(o) === index),
         sections: (jsonData.sections ?? []).filter((s: any) => storyOf(s) === index),
@@ -874,9 +882,7 @@ export function importRoomPlanFloors(
       floor.level = index;
       floor.name = storyName(index, stories);
       return floor;
-    })
-    // A storey listed in `stories` but with nothing on it isn't worth a tab.
-    .filter(floor => floor.walls.length > 0 || floor.level === 0);
+    });
 }
 
 /**
@@ -887,7 +893,7 @@ export function importRoomPlanFloors(
 export function createProjectFromRoomPlan(
   jsonData: any,
   name: string,
-  options: RoomPlanImportOptions = DEFAULT_ROOMPLAN_OPTIONS
+  options: RoomPlanImportOptions = roomPlanImportOptions(jsonData)
 ): Project {
   const floors = importRoomPlanFloors(jsonData, options);
   const project = createDefaultProject(name || 'RoomPlan Import');
