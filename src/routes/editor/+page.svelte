@@ -2,6 +2,9 @@
   import { onMount } from 'svelte';
   import { get } from 'svelte/store';
   import { base } from '$app/paths';
+  import { replaceState } from '$app/navigation';
+  import { page } from '$app/state';
+  import { reportLoadingFailure } from '$lib/services/deployment';
   import { currentProject, viewMode, selectedElementId, selectedRoomId, createDefaultProject, loadProject, selectedTool, placingFurnitureId, elevationWallId, elevationPickMode } from '$lib/stores/project';
   import { localStore, storageErrorMessage, downloadLibraryBackup } from '$lib/services/datastore';
   import { autoSave, markClean, saveState } from '$lib/stores/saveStatus';
@@ -28,7 +31,10 @@
   let ThreeViewer: any = $state(null);
   $effect(() => {
     if (mode === '3d' && !ThreeViewer) {
-      import('$lib/components/viewer3d/ThreeViewer.svelte').then(m => { ThreeViewer = m.default; });
+      import('$lib/components/viewer3d/ThreeViewer.svelte').then(m => { ThreeViewer = m.default; }).catch(() => {
+        viewMode.set('2d');
+        reportLoadingFailure();
+      });
     }
   });
 
@@ -97,7 +103,7 @@
       // A storage failure must not discard a successfully downloaded capture.
       await autoSave();
       // Remove ?import=CODE so a refresh doesn't re-import
-      history.replaceState(null, '', `${base}/editor?id=${project.id}`);
+      replaceState(`${base}/editor?id=${project.id}`, page.state);
       return true;
     } catch (e: any) {
       importError = e?.message ?? 'Failed to import capture.';
@@ -152,13 +158,13 @@
           const p = createDefaultProject();
           loadProject(p);
           await autoSave();
-          history.replaceState(null, '', `${base}/editor?id=${p.id}`);
+          replaceState(`${base}/editor?id=${p.id}`, page.state);
         }
       } else {
         const p = createDefaultProject();
         loadProject(p);
         await autoSave();
-        history.replaceState(null, '', `${base}/editor?id=${p.id}`);
+        replaceState(`${base}/editor?id=${p.id}`, page.state);
       }
       ready = true;
     } catch (error) {
@@ -176,7 +182,7 @@
       if (url.searchParams.get('id') === project.id) return;
       url.searchParams.delete('import');
       url.searchParams.set('id', project.id);
-      history.replaceState(history.state, '', url);
+      replaceState(url, page.state);
     });
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       if (get(saveState) !== 'saved') {

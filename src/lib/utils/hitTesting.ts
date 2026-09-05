@@ -7,7 +7,7 @@ import type { Point, Wall, Door, Window as Win, FurnitureItem, Stair, Column, Fl
 import type { Room } from '$lib/models/types';
 import { getCatalogItem, getFurnitureSize } from '$lib/utils/furnitureCatalog';
 import { getRoomPolygon } from '$lib/utils/roomDetection';
-import { wallPointAt } from '$lib/utils/canvasRenderer';
+import { wallPointAt, wallTangentAt } from '$lib/utils/canvasRenderer';
 import type { HandleType } from '$lib/utils/canvasInteraction';
 
 export function pointInPolygon(p: Point, poly: Point[]): boolean {
@@ -147,22 +147,34 @@ export function findStairAt(p: Point, stairs: Stair[] | undefined): Stair | null
   return null;
 }
 
+/** Match the wall-aligned gap drawn by the opening renderer, with a 5px pick margin. */
+function hitsOpening(p: Point, opening: Door | Win, wall: Wall, zoom: number): boolean {
+  if (!Number.isFinite(zoom) || zoom <= 0 || !Number.isFinite(opening.width) || opening.width <= 0) return false;
+  const center = wallPointAt(wall, opening.position);
+  const tangent = wallTangentAt(wall, opening.position);
+  if (Math.hypot(tangent.x, tangent.y) < 0.5) return false;
+  const dx = p.x - center.x, dy = p.y - center.y;
+  const along = dx * tangent.x + dy * tangent.y;
+  const across = -dx * tangent.y + dy * tangent.x;
+  const margin = 5 / zoom;
+  return Math.abs(along) <= opening.width / 2 + margin
+    && Math.abs(across) <= Math.max(wall.thickness, 4 / zoom) / 2 + margin;
+}
+
 export function findDoorAt(p: Point, doors: Door[], walls: Wall[], zoom: number): Door | null {
-  for (const d of doors) {
+  for (const d of [...doors].reverse()) {
     const wall = walls.find(w => w.id === d.wallId);
     if (!wall) continue;
-    const cp = wallPointAt(wall, d.position);
-    if (Math.hypot(p.x - cp.x, p.y - cp.y) < (d.width / 2 + 5) / zoom) return d;
+    if (hitsOpening(p, d, wall, zoom)) return d;
   }
   return null;
 }
 
 export function findWindowAt(p: Point, windows: Win[], walls: Wall[], zoom: number): Win | null {
-  for (const w of windows) {
+  for (const w of [...windows].reverse()) {
     const wall = walls.find(wl => wl.id === w.wallId);
     if (!wall) continue;
-    const cp = wallPointAt(wall, w.position);
-    if (Math.hypot(p.x - cp.x, p.y - cp.y) < (w.width / 2 + 5) / zoom) return w;
+    if (hitsOpening(p, w, wall, zoom)) return w;
   }
   return null;
 }

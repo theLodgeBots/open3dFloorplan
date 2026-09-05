@@ -1,0 +1,104 @@
+{
+  "id": "qa-openings-20260905",
+  "name": "QA opening selection",
+  "floors": [
+    {
+      "id": "qa-floor",
+      "name": "Interaction tests",
+      "level": 0,
+      "walls": [
+        {
+          "id": "qa-wall-0",
+          "start": {
+            "x": 0,
+            "y": 0
+          },
+          "end": {
+            "x": 600,
+            "y": 0
+          },
+          "thickness": 20,
+          "height": 250,
+          "color": "#94a3b8"
+        },
+        {
+          "id": "qa-wall-1",
+          "start": {
+            "x": 600,
+            "y": 0
+          },
+          "end": {
+            "x": 600,
+            "y": 400
+          },
+          "thickness": 20,
+          "height": 250,
+          "color": "#94a3b8"
+        },
+        {
+          "id": "qa-wall-2",
+          "start": {
+            "x": 600,
+            "y": 400
+          },
+          "end": {
+            "x": 0,
+            "y": 400
+          },
+          "thickness": 20,
+          "height": 250,
+          "color": "#94a3b8"
+        },
+        {
+          "id": "qa-wall-3",
+          "start": {
+            "x": 0,
+            "y": 400
+          },
+          "end": {
+            "x": 0,
+            "y": 0
+          },
+          "thickness": 20,
+          "height": 250,
+          "color": "#94a3b8"
+        }
+      ],
+      "rooms": [],
+      "doors": [
+        {
+          "id": "qa-door",
+          "wallId": "qa-wall-0",
+          "position": 0.5,
+          "width": 300,
+          "height": 210,
+          "type": "opening",
+          "swingDirection": "left",
+          "opensInward": true
+        }
+      ],
+      "windows": [
+        {
+          "id": "qa-window",
+          "wallId": "qa-wall-1",
+          "position": 0.5,
+          "width": 300,
+          "height": 120,
+          "sillHeight": 90,
+          "type": "standard"
+        }
+      ],
+      "furniture": [],
+      "stairs": [],
+      "columns": [],
+      "guides": [],
+      "measurements": [],
+      "annotations": [],
+      "textAnnotations": [],
+      "groups": []
+    }
+  ],
+  "activeFloorId": "qa-floor",
+  "createdAt": "2026-09-05T00:00:00.000Z",
+  "updatedAt": "2026-09-05T00:00:00.000Z"
+}

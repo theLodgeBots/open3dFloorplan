@@ -1,3 +1,4 @@
+import { catalogAssetUrl } from '$lib/utils/catalogAssetUrl';
 /**
  * Furniture Model Loader
  * Loads GLB models from /models/ for furniture items, with procedural fallback.
@@ -5,7 +6,6 @@
  */
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { base } from '$app/paths';
 import { createFurnitureModel } from './furnitureModels3d';
 import type { FurnitureDef } from './furnitureCatalog';
 
@@ -176,7 +176,7 @@ function loadGLBModel(catalogId: string): Promise<THREE.Group | null> {
 
   const promise = new Promise<THREE.Group | null>((resolve) => {
     loader.load(
-      `${base}/models/${mapping.file}.glb`,
+      catalogAssetUrl(`/models/${mapping.file}.glb`),
       (gltf) => {
         const group = new THREE.Group();
         // Clone the scene into our group

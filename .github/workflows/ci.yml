@@ -20,6 +20,9 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+        env:
+          NODE_ENV: production
+          NPM_CONFIG_INCLUDE: dev
       - run: npm audit --audit-level=high
       - run: npm run check
       - run: npm test

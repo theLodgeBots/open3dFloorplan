@@ -7,8 +7,7 @@
   import { roomTemplates, placeRoomTemplate } from '$lib/utils/roomTemplates';
   import { furnitureCatalog, furnitureCategories } from '$lib/utils/furnitureCatalog';
   import type { FurnitureDef } from '$lib/utils/furnitureCatalog';
-  import { getModelFile, generateThumbnail, getThumbnail, preloadThumbnails } from '$lib/utils/furnitureThumbnails';
-  import { onMount } from 'svelte';
+  import FurnitureThumbnail from './FurnitureThumbnail.svelte';
   import { createProjectFromRoomPlan, extractRoomJsonFromZip, ORTHO_VERSION } from '$lib/utils/roomplanImport';
   import { currentProject, loadProject } from '$lib/stores/project';
 
@@ -16,16 +15,6 @@
   let activeTab = $state<'draw' | 'rooms' | 'objects'>('draw');
   let constructionOpen = $state(true);
   let selectedCategory = $state<string>('All');
-  let thumbsReady = $state(0); // increment to trigger reactivity
-
-  onMount(() => {
-    // Preload thumbnails, re-render as each completes
-    const files = new Set(furnitureCatalog.map(f => getModelFile(f.id)).filter(Boolean) as string[]);
-    for (const file of files) {
-      generateThumbnail(file).then(() => { thumbsReady++; });
-    }
-  });
-
   // RoomPlan import dialog state
   let showImportDialog = $state(false);
   let importFileName = $state('');
@@ -640,13 +629,7 @@
                     onkeydown={(e: KeyboardEvent) => { if (e.key === 'Enter') { e.stopPropagation(); toggleFavorite(item.id); } }}
                     title={favoriteIds.includes(item.id) ? 'Remove from favorites' : 'Add to favorites'}
                   >{favoriteIds.includes(item.id) ? '♥' : '♡'}</span>
-                  {#if thumbsReady >= 0 && getModelFile(item.id) && getThumbnail(getModelFile(item.id)!)}
-                    <img src={getThumbnail(getModelFile(item.id)!)} alt={item.name} class="w-10 h-10 object-contain" />
-                  {:else}
-                    <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background-color: {item.color}20">
-                      <div class="w-4 h-4 rounded-sm" style="background-color: {item.color}; opacity: 0.7"></div>
-                    </div>
-                  {/if}
+                  <div class="w-10 h-10"><FurnitureThumbnail catalogId={item.id} name={item.name} color={item.color} /></div>
                   <span class="text-[10px] font-medium text-gray-600 leading-tight text-center">{item.name}</span>
                 </button>
               {/each}
@@ -677,13 +660,7 @@
                 onkeydown={(e: KeyboardEvent) => { if (e.key === 'Enter') { e.stopPropagation(); toggleFavorite(item.id); } }}
                 title={favoriteIds.includes(item.id) ? 'Remove from favorites' : 'Add to favorites'}
               >{favoriteIds.includes(item.id) ? '♥' : '♡'}</span>
-              {#if thumbsReady >= 0 && getModelFile(item.id) && getThumbnail(getModelFile(item.id)!)}
-                <img src={getThumbnail(getModelFile(item.id)!)} alt={item.name} class="w-12 h-12 object-contain" />
-              {:else}
-                <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background-color: {item.color}20">
-                  <div class="w-5 h-5 rounded-sm" style="background-color: {item.color}; opacity: 0.7"></div>
-                </div>
-              {/if}
+              <div class="w-12 h-12"><FurnitureThumbnail catalogId={item.id} name={item.name} color={item.color} /></div>
               {#if s && item.name.toLowerCase().includes(s)}
                 {@const idx = item.name.toLowerCase().indexOf(s)}
                 <span class="text-xs font-medium text-gray-600">{item.name.slice(0, idx)}<mark class="bg-yellow-200 text-gray-800 rounded-sm px-0.5">{item.name.slice(idx, idx + s.length)}</mark>{item.name.slice(idx + s.length)}</span>
@@ -755,13 +732,7 @@
   >
     <div class="bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden" style="width: 220px;">
       <div class="w-full h-[120px] bg-gray-50 flex items-center justify-center p-3">
-        {#if thumbsReady >= 0 && getModelFile(item.id) && getThumbnail(getModelFile(item.id)!)}
-          <img src={getThumbnail(getModelFile(item.id)!)} alt={item.name} class="max-w-full max-h-full object-contain" style="image-rendering: auto;" />
-        {:else}
-          <div class="w-16 h-16 rounded-xl flex items-center justify-center" style="background-color: {item.color}20">
-            <div class="w-10 h-10 rounded-md" style="background-color: {item.color}; opacity: 0.7"></div>
-          </div>
-        {/if}
+        <div class="w-full h-full"><FurnitureThumbnail catalogId={item.id} name={item.name} color={item.color} /></div>
       </div>
       <div class="p-3 space-y-1.5">
         <div class="flex items-center gap-2">
