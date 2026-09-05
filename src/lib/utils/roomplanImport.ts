@@ -10,7 +10,7 @@ import type { Floor, Wall, Door, Window, FurnitureItem, Room, Point, Project } f
 import { createDefaultProject, createDefaultFloor } from '$lib/stores/project';
 import { detectRooms, getRoomPolygon } from '$lib/utils/roomDetection';
 import { validateRoomPlan } from './roomplanValidation';
-export { validateRoomPlan } from './roomplanValidation';
+export { validateRoomPlan, isRoomPlanJson } from './roomplanValidation';
 
 function uid(): string {
   return Math.random().toString(36).slice(2, 10);
@@ -811,12 +811,6 @@ export async function extractRoomJsonFromZip(zipFile: File): Promise<any> {
     throw new Error('The ZIP must contain exactly one room.json capture.');
   }
   return JSON.parse(await captures[0].async('string'));
-}
-
-/** Quick structural check that data looks like an Apple RoomPlan JSON export */
-export function isRoomPlanJson(data: any): boolean {
-  return !!data && (data.openplanPrepared === true || data.openplanHandoffVersion !== undefined ||
-    (Array.isArray(data.walls) && data.walls.some((wall: any) => wall?.dimensions !== undefined)));
 }
 
 /** Default import options — same defaults the import options dialog starts with */

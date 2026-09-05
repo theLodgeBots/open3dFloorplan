@@ -14,8 +14,8 @@ content-hashed asset pipeline. Per-file measurements are in
 
 The converted oak and detailed porcelain images were visually inspected. The
 local production browser also rendered the imported furnished plan in 3D without
-console warnings/errors. Production cache/header verification follows rollout
-and is recorded on the release PR.
+console warnings/errors. The live hashed oak GET matched all 99,336 bytes and returned a CDN hit with
+one-year immutable caching after rollout.
 
 ## Browser CI
 
@@ -99,7 +99,7 @@ necessary. Budget alerts do not enforce a spending cap.
 
 ## Validation
 
-- 180 web unit tests pass, including 18 new admission/transport tests.
+- 182 web unit tests pass, including 20 admission/transport cases.
 - Three production-browser CI checks pass; zero type errors and 25 existing
   Svelte warnings; production build succeeds; dependency audit finds zero
   vulnerabilities.

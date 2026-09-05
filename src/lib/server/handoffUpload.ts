@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { validateRoomPlan } from '$lib/utils/roomplanValidation';
+import { isRoomPlanJson, validateRoomPlan } from '$lib/utils/roomplanValidation';
 import { HANDOFF_LIMITS, HandoffError, reserveHandoff, type QuotaStore } from './handoffQuota';
 
 export interface HandoffSink extends QuotaStore {
@@ -32,7 +32,11 @@ export async function readCapture(request: Request): Promise<Uint8Array> {
       chunks.push(chunk.value);
     }
     const bytes = Buffer.concat(chunks);
-    try { validateRoomPlan(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))); }
+    try {
+      const capture = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+      if (!isRoomPlanJson(capture)) throw new Error('Unrecognized RoomPlan export');
+      validateRoomPlan(capture);
+    }
     catch { throw new HandoffError(422, 'This capture cannot be shared. Check it using Export Editable Plan (JSON).'); }
     return bytes;
   } finally {
