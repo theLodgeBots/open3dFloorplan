@@ -2011,8 +2011,24 @@
 
   // pointInPolygon, pointToSegmentDist, positionOnWall imported from hitTesting.ts
 
+  /** True while a press that began on the canvas is still in progress. */
+  let canvasGestureActive = false;
+
+  // A press that starts on the canvas can end somewhere else: the selection toolbar appears
+  // over the element the moment it is selected, and a drag can also leave the canvas
+  // entirely. Finishing the gesture from the window keeps the release from being lost, which
+  // would otherwise leave the element following the pointer with no way to drop it.
+  function onWindowMouseMove(e: MouseEvent) {
+    if (canvasGestureActive && e.target !== canvas) onMouseMove(e);
+  }
+
+  function onWindowMouseUp(e: MouseEvent) {
+    if (canvasGestureActive && e.target !== canvas) onMouseUp(e);
+  }
+
   function onMouseDown(e: MouseEvent) {
     markDirty();
+    canvasGestureActive = true;
     if (e.button === 1 || (e.button === 0 && (spaceDown || $panMode || (e.shiftKey && currentTool === 'select')))) {
       isPanning = true;
       panStartX = e.clientX;
@@ -2825,6 +2841,7 @@
 
   function onMouseUp(e: MouseEvent) {
     markDirty();
+    canvasGestureActive = false;
     isPanning = false;
     draggingGuideId = null;
 
@@ -3693,7 +3710,7 @@
   );
 </script>
 
-<svelte:window on:keydown={onKeyDown} on:keyup={onKeyUp} />
+<svelte:window on:keydown={onKeyDown} on:keyup={onKeyUp} onmousemove={onWindowMouseMove} onmouseup={onWindowMouseUp} />
 
 <div class="w-full h-full relative overflow-hidden" role="application">
   <canvas
