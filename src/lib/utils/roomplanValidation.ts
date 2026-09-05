@@ -1,3 +1,9 @@
+/** Shared format recognition for file imports and link admission. */
+export function isRoomPlanJson(data: any): boolean {
+  return !!data && (data.openplanPrepared === true || data.openplanHandoffVersion !== undefined ||
+    (Array.isArray(data.walls) && data.walls.some((wall: any) => wall?.dimensions !== undefined)));
+}
+
 /** Validate a complete capture before constructing or replacing a project. */
 export function validateRoomPlan(data: any): void {
   function fail(path: string, reason: string): never {

@@ -80,6 +80,10 @@ access for `inbox/` and the ledger. App Hosting already supplies its service
 identity; do not add service-account key files to the repository or browser.
 The OpenPlan3D backend's existing identity already has these permissions; this
 release does not expand IAM access. Browser CI explicitly disables cloud sharing.
+The token requests `devstorage.full_control`: the Storage JSON API's
+`objects.patch` method requires that scope even for custom metadata updates;
+`devstorage.read_write` allows inserts but fails subsequent quota updates.
+See the method scopes in the [official API definition](https://storage.googleapis.com/$discovery/rest?version=v1).
 
 After the new client is distributed and the compatibility decision is confirmed:
 

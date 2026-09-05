@@ -1,7 +1,10 @@
 import { GoogleAuth } from 'google-auth-library';
 import { parseQuotaState, type QuotaSnapshot, type QuotaState, type QuotaStore } from './handoffQuota';
 
-const auth = new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/devstorage.read_write'] });
+// objects.patch requires full_control even for custom metadata only. The
+// read_write scope permits the first insert, but rejects subsequent ledger CAS.
+// IAM still limits this token to the existing runtime identity's permissions.
+const auth = new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/devstorage.full_control'] });
 const ledgerName = '_system/handoff-admission-v1';
 
 export class HandoffStorageFailure extends Error {

@@ -66,14 +66,14 @@ it('fails closed for unavailable, damaged or persistently contended ledgers', as
 
 it('validates body bytes before touching the ledger, including a dishonest length', async () => {
   const store = new MemorySink();
-  const body = '{"walls":[]}' + ' '.repeat(HANDOFF_LIMITS.maxBytes);
+  const body = '{"openplanHandoffVersion":1,"walls":[]}' + ' '.repeat(HANDOFF_LIMITS.maxBytes);
   await expect(uploadHandoff(request(body, { 'Content-Length': '1' }), store, now)).rejects.toMatchObject({ status: 413 });
   expect(store.read).not.toHaveBeenCalled();
   expect(store.create).not.toHaveBeenCalled();
 });
 
 it('accepts exactly the byte limit and preserves a valid empty edited plan', async () => {
-  const json = '{"walls":[]}';
+  const json = '{"openplanHandoffVersion":1,"walls":[]}';
   const body = json + ' '.repeat(HANDOFF_LIMITS.maxBytes - Buffer.byteLength(json));
   expect((await readCapture(request(body))).byteLength).toBe(HANDOFF_LIMITS.maxBytes);
 });
@@ -82,8 +82,9 @@ it.each([
   ['broken JSON', '{"walls":[', {}, 422],
   ['invalid elements', '{"walls":[{}]}', {}, 422],
   ['no walls', '{}', {}, 422],
-  ['wrong media type', '{"walls":[]}', { 'Content-Type': 'text/plain' }, 415],
-  ['compressed payload', '{"walls":[]}', { 'Content-Encoding': 'gzip' }, 415],
+  ['unrecognized empty document', '{"walls":[]}', {}, 422],
+  ['wrong media type', '{"openplanHandoffVersion":1,"walls":[]}', { 'Content-Type': 'text/plain' }, 415],
+  ['compressed payload', '{"openplanHandoffVersion":1,"walls":[]}', { 'Content-Encoding': 'gzip' }, 415],
 ] as const)('rejects %s before admission', async (_, body, headers, status) => {
   const store = new MemorySink();
   await expect(uploadHandoff(request(body, headers), store, now)).rejects.toMatchObject({ status });
@@ -107,21 +108,21 @@ it('uploads only after reservation, retains failed reservations, and bounds coll
     expect(store.snapshot!.state.uploads).toBe(1);
     throw new Error('Uncertain upload');
   });
-  await expect(uploadHandoff(request('{"walls":[]}'), store, now)).rejects.toThrow('Uncertain upload');
+  await expect(uploadHandoff(request('{"openplanHandoffVersion":1,"walls":[]}'), store, now)).rejects.toThrow('Uncertain upload');
   expect(store.snapshot!.state.uploads).toBe(1);
   store.create.mockResolvedValue(false);
-  await expect(uploadHandoff(request('{"walls":[]}'), store, now)).rejects.toMatchObject({ status: 503 });
+  await expect(uploadHandoff(request('{"openplanHandoffVersion":1,"walls":[]}'), store, now)).rejects.toMatchObject({ status: 503 });
   expect(store.create).toHaveBeenCalledTimes(4);
   expect(store.snapshot!.state.uploads).toBe(2);
 });
 
 it('returns a random code and expiry while storing the original validated bytes', async () => {
   const store = new MemorySink();
-  const result = await uploadHandoff(request('{"walls":[]}'), store, now);
+  const result = await uploadHandoff(request('{"openplanHandoffVersion":1,"walls":[]}'), store, now);
   expect(result.code).toMatch(/^[A-HJ-NP-Z2-9]{8}$/);
   expect(result.reuseUntil).toBe('2026-09-06T12:00:30.000Z');
   expect(store.captures[0].name).toBe(`inbox/${result.code}.json`);
-  expect(Buffer.from(store.captures[0].bytes).toString()).toBe('{"walls":[]}');
+  expect(Buffer.from(store.captures[0].bytes).toString()).toBe('{"openplanHandoffVersion":1,"walls":[]}');
 });
 
 it('uses generation AND metageneration preconditions for quota metadata updates', async () => {
