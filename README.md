@@ -201,7 +201,7 @@ Access is controlled by [`storage.rules`](storage.rules): public **read** and **
    firebase deploy --only storage
    ```
 
-3. **Auto-delete stale captures** — set a lifecycle rule that deletes objects under the `inbox/` prefix after 1 day (prefix-scoped lifecycle uses `matchesPrefix`). Save this as `lifecycle.json`:
+3. **Auto-delete stale captures** — set a lifecycle rule that makes objects under the `inbox/` prefix eligible for deletion at age 1 day (prefix-scoped lifecycle uses `matchesPrefix`; deletion is asynchronous). Save this as `lifecycle.json`:
 
    ```json
    {
@@ -221,6 +221,14 @@ Access is controlled by [`storage.rules`](storage.rules): public **read** and **
    # or
    gsutil lifecycle set lifecycle.json gs://openplan3d.firebasestorage.app
    ```
+
+   Review the bucket's soft-delete, versioning, and retention settings as well.
+   Deleted objects can remain billable during soft-delete retention; a one-day
+   lifecycle does not guarantee one day of billed storage. Consider disabling
+   recovery only for a bucket dedicated to reproducible temporary transfers,
+   after confirming originals remain safely stored on-device. See the
+   [live configuration audit and cost plan](docs/reviews/2026-09-05-firebase-cost-audit.md)
+   and [Cloud Storage soft-delete guidance](https://docs.cloud.google.com/storage/docs/soft-delete).
 
 4. **CORS** — the editor downloads captures from the browser, so the bucket must allow
    cross-origin GETs (without this the import fails with a CORS error in the console).

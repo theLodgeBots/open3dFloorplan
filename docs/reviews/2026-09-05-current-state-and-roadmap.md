@@ -222,5 +222,30 @@ type checks report **zero errors and 25 existing warnings**, and the production 
 Desktop interaction checks, phone-width tools/measurement, save/reopen, and 3D smoke checks were
 performed in browsers. Download completion and the Firefox/real-device matrix remain unverified.
 See the [batch report and repeatable browser checklist](2026-09-05-security-and-interactions.md)
-for exact coverage, dependency details, cost impact, and remaining work. These changes are on a
-review branch and have not been deployed. No new Firebase Storage traffic is introduced.
+for exact coverage, dependency details, cost impact, and remaining work. These changes were
+subsequently merged and deployed, as recorded below. No new Firebase Storage traffic is introduced.
+
+### Release and live Firebase audit
+
+PRs [#27](https://github.com/laanlabs/openPlan3D/pull/27) and
+[#28](https://github.com/laanlabs/openPlan3D/pull/28) are merged. The contributor
+commits from #17, #20, #22, and #26 are preserved and those PRs are also marked
+merged. Issues #16, #19, #21, #24, and #25 are closed. The merged implementation
+branches have been removed. Main CI passed all 82 tests, type checks, audit, and
+build; live browser checks covered import, furniture selection/resizing,
+Undo/Redo, Save/reload, and 3D.
+
+Firebase confirms successful deployment of `5d530e2`. A browser left open across
+a rollout encountered a stale dynamic module; reloading recovered the editor.
+[Issue #29](https://github.com/laanlabs/openPlan3D/issues/29) tracks production-build
+and navigation hardening. Download completion and physical-device coverage remain
+outstanding.
+
+The previously blocked read-only Firebase audit now confirms the one-day inbox
+lifecycle, seven-day soft delete, disabled versioning, and deployed rules matching
+the repository. App Hosting accounts for most currently reported project cost,
+so prioritize asset transfer and caching alongside temporary-file retention.
+Budget settings remain inaccessible to the available account. See the
+[live audit and prioritized cost follow-up](2026-09-05-firebase-cost-audit.md) for
+evidence, measurement limits, and the proposed retention decision. No cloud policy
+or capture content was changed.
