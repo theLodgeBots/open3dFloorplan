@@ -1,39 +1,58 @@
 import { writable, get } from 'svelte/store';
 import { currentProject } from './project';
-import { localStore } from '$lib/services/datastore';
+import { localStore, storageErrorMessage } from '$lib/services/datastore';
 import { saveSnapshot } from '$lib/stores/versionHistory';
 
 export type SaveState = 'saved' | 'unsaved' | 'saving';
 
 export const saveState = writable<SaveState>('saved');
 export const lastSavedAt = writable<Date | null>(null);
+export const saveError = writable<string | null>(null);
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-let initialized = false;
-let skipNext = false;
+let stopWatching: (() => void) | null = null;
+let revision = 0;
+let saveAttempt = 0;
+let lastProjectId: string | undefined;
 
-/** Call once to start watching project changes */
+/** One autosave owner per mounted editor. The caller must dispose on unmount. */
 export function initAutoSave() {
-  if (initialized) return;
-  initialized = true;
+  stopWatching?.();
 
   let first = true;
-  currentProject.subscribe((_p) => {
-    // Skip the initial subscription fire and loadProject calls
+  let projectId = get(currentProject)?.id;
+  const unsubscribe = currentProject.subscribe((_p) => {
     if (first) { first = false; return; }
-    if (skipNext) { skipNext = false; return; }
     if (!_p) return;
+    if (_p.id !== projectId) {
+      projectId = _p.id;
+      lastSavedAt.set(null);
+      saveError.set(null);
+    }
     markDirty();
   });
+  const stop = () => {
+    unsubscribe();
+    clearSaveTimer();
+    if (stopWatching === stop) stopWatching = null;
+  };
+  stopWatching = stop;
+  return stop;
+}
+
+function clearSaveTimer() {
+  if (debounceTimer) clearTimeout(debounceTimer);
+  debounceTimer = null;
 }
 
 /** Mark project as dirty (unsaved). */
 export function markDirty() {
+  revision++;
   saveState.set('unsaved');
-  if (debounceTimer) clearTimeout(debounceTimer);
+  clearSaveTimer();
   debounceTimer = setTimeout(() => {
-    autoSave();
-  }, 5000);
+    void autoSave();
+  }, 1000);
 }
 
 function captureThumbnail(projectId: string) {
@@ -52,43 +71,51 @@ function captureThumbnail(projectId: string) {
   } catch {}
 }
 
-async function autoSave() {
+/** Saves remain local; failures leave the current project available for export. */
+async function persist(manual: boolean): Promise<boolean> {
+  clearSaveTimer();
   const p = get(currentProject);
-  if (!p) return;
+  if (!p) return false;
+  if (lastProjectId !== p.id) {
+    lastSavedAt.set(null);
+    saveError.set(null);
+    lastProjectId = p.id;
+  }
+  const savingRevision = revision;
+  const attempt = ++saveAttempt;
   saveState.set('saving');
   try {
     await localStore.save(p);
-    captureThumbnail(p.id);
-    saveState.set('saved');
-    lastSavedAt.set(new Date());
+    // A completed write must not mark newer edits or another project as saved.
+    if (attempt === saveAttempt && savingRevision === revision && get(currentProject) === p) {
+      captureThumbnail(p.id);
+      if (manual) saveSnapshot(p, 'Manual save');
+      saveState.set('saved');
+      saveError.set(null);
+      lastSavedAt.set(new Date());
+    }
+    return true;
   } catch (e) {
-    console.error('[AutoSave] Failed:', e);
-    saveState.set('unsaved');
+    if (attempt === saveAttempt && get(currentProject) === p) {
+      saveState.set('unsaved');
+      saveError.set(storageErrorMessage(e));
+    }
+    return false;
   }
 }
+
+export function autoSave() { return persist(false); }
 
 /** Manual save */
-export async function manualSave() {
-  if (debounceTimer) clearTimeout(debounceTimer);
-  const p = get(currentProject);
-  if (!p) return;
-  saveState.set('saving');
-  try {
-    await localStore.save(p);
-    captureThumbnail(p.id);
-    saveSnapshot(p, 'Manual save');
-    saveState.set('saved');
-    lastSavedAt.set(new Date());
-  } catch (e) {
-    console.error('[Save] Failed:', e);
-    saveState.set('unsaved');
-    throw e;
-  }
-}
+export function manualSave() { return persist(true); }
 
-/** Mark as saved without triggering dirty (e.g. after loadProject) */
+/** Call after loading a project that is already persisted. */
 export function markClean() {
-  if (debounceTimer) clearTimeout(debounceTimer);
+  clearSaveTimer();
+  revision++;
+  saveAttempt++;
   saveState.set('saved');
-  skipNext = true;
+  saveError.set(null);
+  lastSavedAt.set(null);
+  lastProjectId = get(currentProject)?.id;
 }

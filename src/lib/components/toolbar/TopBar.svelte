@@ -2,7 +2,6 @@
   import { onMount } from 'svelte';
   import { base } from '$app/paths';
   import { currentProject, viewMode, undo, redo, addFloor, removeFloor, setActiveFloor, updateProjectName, loadProject, createDefaultProject, snapEnabled, canvasZoom, panMode, showFurnitureStore, layerVisibility, importFloorIntoCurrentProject, activeFloor, selectedElementId, elevationWallId, elevationPickMode } from '$lib/stores/project';
-  import { localStore } from '$lib/services/datastore';
   import { get } from 'svelte/store';
   import type { Floor, Project } from '$lib/models/types';
   import { exportAsPNG, exportAsJSON, exportAsSVG, exportPDF } from '$lib/utils/export';
@@ -10,8 +9,8 @@
   import { importRoomPlan } from '$lib/utils/roomplanImport';
   import SettingsDialog from './SettingsDialog.svelte';
   import AreaSummaryPanel from '$lib/components/sidebar/AreaSummaryPanel.svelte';
-  import { saveState, lastSavedAt, manualSave, initAutoSave } from '$lib/stores/saveStatus';
-  import { initVersionHistory, snapshotOnAction } from '$lib/stores/versionHistory';
+  import { saveState, saveError, lastSavedAt, manualSave, autoSave, initAutoSave } from '$lib/stores/saveStatus';
+  import { initVersionHistory, stopVersionHistory, snapshotOnAction } from '$lib/stores/versionHistory';
   import VersionHistoryPanel from './VersionHistoryPanel.svelte';
 
   let settingsOpen = $state(false);
@@ -188,12 +187,15 @@
 
   function newProject() {
     if (!confirm('Create a new project? Unsaved changes will be lost.')) return;
-    currentProject.set(createDefaultProject());
+    const project = createDefaultProject();
+    loadProject(project);
+    history.replaceState(null, '', `${base}/editor?id=${project.id}`);
+    void autoSave();
     exportOpen = false;
   }
 
   onMount(() => {
-    initAutoSave();
+    const stopAutoSave = initAutoSave();
     initVersionHistory();
 
     // Update relative timestamp every 15s
@@ -216,6 +218,9 @@
     document.addEventListener('click', handleClickOutside, true);
     document.addEventListener('keydown', handleKeydown, true);
     return () => {
+      if (get(saveState) === 'unsaved') void autoSave();
+      stopAutoSave();
+      stopVersionHistory();
       document.removeEventListener('click', handleClickOutside, true);
       document.removeEventListener('keydown', handleKeydown, true);
       clearInterval(interval);
@@ -584,6 +589,14 @@
     Save
   </button>
 </div>
+
+{#if $saveError}
+  <div role="alert" class="flex flex-wrap items-center gap-3 bg-red-50 border-b border-red-200 px-4 py-3 text-sm text-red-900">
+    <span class="flex-1 min-w-48">Changes are not saved. {$saveError}</span>
+    <button class="font-semibold underline" onclick={save}>Retry save</button>
+    <button class="font-semibold underline" onclick={onExportJSON}>Download JSON backup</button>
+  </div>
+{/if}
 
 <SettingsDialog bind:open={settingsOpen} />
 <VersionHistoryPanel bind:open={versionHistoryOpen} />

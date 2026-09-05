@@ -3,7 +3,7 @@
   import { activeFloor, selectedTool, selectedElementId, selectedElementIds, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall, moveWallParallel, splitWall, snapEnabled, placingStair, addStair, moveStair, updateStair, placingColumn, placingColumnShape, addColumn, moveColumn, updateColumn, calibrationMode, calibrationPoints, updateBackgroundImage, setBackgroundImage, canvasZoom, canvasCamX, canvasCamY, panMode, showFurnitureStore, addGuide, moveGuide, removeGuide, beginUndoGroup, endUndoGroup, layerVisibility, updateRoom, addMeasurement, removeMeasurement, addAnnotation, removeAnnotation, updateAnnotation, addTextAnnotation, removeTextAnnotation, updateTextAnnotation, moveTextAnnotation, toggleFurnitureLock, createGroup, ungroupElements, findGroupForElement, placingEntourageId, addEntourageItem, moveEntourage, resizeEntourage, currentProject, elevationWallId, elevationPickMode } from '$lib/stores/project';
   import type { Point, Wall, Door, Window as Win, FurnitureItem, Stair, Column, GuideLine, Measurement, Annotation, TextAnnotation, CustomEntourageDef } from '$lib/models/types';
   import type { Floor, Room } from '$lib/models/types';
-  import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
+  import { resolveRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
   import { getMaterial } from '$lib/utils/materials';
   import { getCatalogItem } from '$lib/utils/furnitureCatalog';
   import { drawFurnitureIcon } from '$lib/utils/furnitureIcons';
@@ -73,16 +73,29 @@
   let selectedGuideId: string | null = $state(null);
   let draggingGuideId: string | null = $state(null);
 
+  let currentTool: string = $state('select');
+
   // Measurement tool
   let measureStart: Point | null = $state(null);
   let measureEnd: Point | null = $state(null);
-  let measuring = $state(false);
+  let measuring = $derived(currentTool === 'measure');
   let selectedMeasurementId: string | null = $state(null);
 
   // Annotation tool (dimension annotations)
-  let annotating = $state(false);
+  let annotating = $derived(currentTool === 'annotate');
   let annotationStart: Point | null = $state(null);
   let selectedAnnotationId: string | null = $state(null);
+  let editingDimensionId: string | null = $state(null);
+  let dimensionLabel = $state('');
+
+  function finishDimensionLabel() {
+    if (editingDimensionId && dimensionLabel.trim()) {
+      updateAnnotation(editingDimensionId, { label: dimensionLabel.trim() });
+    }
+    editingDimensionId = null;
+  }
+
+  function focusDimensionLabel(node: HTMLInputElement) { node.focus(); }
 
   // Text annotation tool
   let textAnnotationMode = $state(false);
@@ -127,6 +140,7 @@
   // Detected rooms
   let detectedRooms: Room[] = $state([]);
   let lastWallHash = '';
+  let lastRoomFloorId = '';
 
   const GRID = 20;
   const SNAP = 10;
@@ -139,7 +153,6 @@
   let currentSelectedRoomId: string | null = $state(null);
   let currentPlacingId: string | null = $state(null);
   let currentPlacingRotation: number = $state(0);
-  let currentTool: string = $state('select');
   let currentDoorType: Door['type'] = $state('single');
   let currentWindowType: Win['type'] = $state('standard');
   let currentSnapEnabled: boolean = $state(true);
@@ -841,36 +854,12 @@
 
   function updateDetectedRooms() {
     if (!currentFloor) return;
-    // Keyed on the floor too: two storeys can share identical wall geometry
-    // (a duplicated or stacked floor), and without the id the cache would
-    // skip re-detection and leave the previous floor's rooms on screen.
-    const hash = currentFloor.id + JSON.stringify(currentFloor.walls.map(w => [w.start, w.end]));
+    const hash = currentFloor.id + JSON.stringify([currentFloor.walls, currentFloor.rooms]);
     if (hash === lastWallHash) return;
     lastWallHash = hash;
-    const newRooms = detectRooms(currentFloor.walls);
-    const savedRooms = currentFloor.rooms || [];
-    for (const nr of newRooms) {
-      const nrWalls = new Set(nr.walls);
-      const existing = detectedRooms.find(old => {
-        const oldWalls = new Set(old.walls);
-        return oldWalls.size === nrWalls.size && [...nrWalls].every(w => oldWalls.has(w));
-      });
-      if (existing) {
-        nr.id = existing.id;
-        nr.name = existing.name;
-        nr.floorTexture = existing.floorTexture;
-      } else {
-        const saved = savedRooms.find(sr => {
-          const srWalls = new Set(sr.walls);
-          return srWalls.size === nrWalls.size && [...nrWalls].every(w => srWalls.has(w));
-        });
-        if (saved) {
-          nr.id = saved.id;
-          nr.name = saved.name;
-          if (saved.floorTexture) nr.floorTexture = saved.floorTexture;
-        }
-      }
-    }
+    const previous = lastRoomFloorId === currentFloor.id ? detectedRooms : [];
+    const newRooms = resolveRooms(currentFloor, previous);
+    lastRoomFloorId = currentFloor.id;
     detectedRooms = newRooms;
     detectedRoomsStore.set(newRooms);
   }
@@ -1771,6 +1760,15 @@
     const unsub4 = placingFurnitureId.subscribe((id) => { currentPlacingId = id; markDirty(); });
     const unsub5 = placingRotation.subscribe((r) => { currentPlacingRotation = r; markDirty(); });
     const unsub6 = selectedTool.subscribe((t) => {
+      if (t !== currentTool) {
+        measureStart = null;
+        measureEnd = null;
+        annotationStart = null;
+        editingDimensionId = null;
+        wallStart = null;
+        wallSequenceFirst = null;
+        typedWallLength = '';
+      }
       currentTool = t;
       textAnnotationMode = t === 'text';
       if (t !== 'text') { editingTextAnnotationId = null; }
@@ -2073,19 +2071,24 @@
       return;
     }
 
+    if (measuring) {
+      placeMeasurementPoint(wp);
+      return;
+    }
+
     // Annotation tool: click first point, then second point
     if (annotating) {
       const snapped = magneticSnap(wp);
       if (!annotationStart) {
         annotationStart = { x: snapped.x, y: snapped.y };
       } else {
+        // Keep the canvas's default mousedown focus from immediately blurring
+        // the inline label field that is about to open.
+        e.preventDefault();
         const id = addAnnotation(annotationStart.x, annotationStart.y, snapped.x, snapped.y, 40);
-        // Prompt for custom label
-        const customLabel = prompt('Annotation label (leave empty for auto dimension):');
-        if (customLabel) {
-          updateAnnotation(id, { label: customLabel });
-        }
         annotationStart = null;
+        dimensionLabel = '';
+        editingDimensionId = id;
       }
       return;
     }
@@ -2928,9 +2931,6 @@
     draggingWallEndpoint = null;
     draggingConnectedEndpoints = [];
     wallSnapInfo = null;
-    if (measuring && measureStart && measureEnd) {
-      // Keep measurement visible until next click
-    }
   }
 
   function onWheel(e: WheelEvent) {
@@ -3184,10 +3184,8 @@
       placingRotation.set(0);
       editingTextAnnotationId = null;
       textAnnotationMode = false;
-      measuring = false;
       measureStart = null;
       measureEnd = null;
-      annotating = false;
       annotationStart = null;
       marqueeStart = null;
       marqueeEnd = null;
@@ -3336,16 +3334,6 @@
     if (e.key === 'g' || e.key === 'G') {
       showGrid = !showGrid;
     }
-    if (e.key === 'm' || e.key === 'M') {
-      measuring = !measuring;
-      if (!measuring) { measureStart = null; measureEnd = null; }
-      if (measuring) { annotating = false; annotationStart = null; }
-    }
-    if (e.key === 'n' || e.key === 'N') {
-      annotating = !annotating;
-      if (!annotating) { annotationStart = null; }
-      if (annotating) { measuring = false; measureStart = null; measureEnd = null; }
-    }
     if (e.key === 'f' || e.key === 'F') {
       zoomToFit();
     }
@@ -3455,22 +3443,27 @@
     }
   }
 
+  function placeMeasurementPoint(point: Point) {
+    if (!measureStart) {
+      measureStart = point;
+      measureEnd = null;
+    } else {
+      if (Math.hypot(point.x - measureStart.x, point.y - measureStart.y) > 0) {
+        addMeasurement(measureStart.x, measureStart.y, point.x, point.y);
+      }
+      measureStart = null;
+      measureEnd = null;
+    }
+    markDirty();
+  }
+
   function onContextMenu(e: MouseEvent) {
     e.preventDefault();
 
-    // If in measurement mode, use old behaviour
+    // Keep right-click measurement available alongside clicks and taps.
     if (measuring) {
       const rect = canvas.getBoundingClientRect();
-      const wp = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
-      if (!measureStart || measureEnd) {
-        measureStart = wp;
-        measureEnd = null;
-      } else {
-        measureEnd = wp;
-        addMeasurement(measureStart.x, measureStart.y, wp.x, wp.y);
-        measureStart = null;
-        measureEnd = null;
-      }
+      placeMeasurementPoint(screenToWorld(e.clientX - rect.left, e.clientY - rect.top));
       return;
     }
 
@@ -3754,6 +3747,23 @@
       autofocus
     />
   {/if}
+  {#if editingDimensionId}
+    <div class="absolute top-14 left-1/2 -translate-x-1/2 z-20 rounded-lg border border-blue-300 bg-white p-3 shadow-lg">
+      <label class="block text-xs text-gray-600" for="dimension-label">Dimension label (optional)</label>
+      <input
+        id="dimension-label"
+        class="mt-1 w-60 max-w-[70vw] rounded border border-gray-300 px-2 py-1 text-sm outline-blue-500"
+        placeholder="Leave empty for measured distance"
+        bind:value={dimensionLabel}
+        use:focusDimensionLabel
+        onkeydown={(event) => {
+          if (event.key === 'Enter') { event.preventDefault(); finishDimensionLabel(); }
+          if (event.key === 'Escape') { event.preventDefault(); editingDimensionId = null; }
+        }}
+        onblur={finishDimensionLabel}
+      />
+    </div>
+  {/if}
   <!-- Inline text annotation editor -->
   {#if editingTextAnnotationId}
     <input
@@ -4001,7 +4011,7 @@
   {/if}
   {#if measuring}
     <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-red-600 text-white px-3 py-1 rounded-full text-xs shadow">
-      Right-click two points to measure · M to exit · Esc to cancel
+      Click or tap two points to measure · M to exit · Esc to cancel
     </div>
   {/if}
   {#if textAnnotationMode}

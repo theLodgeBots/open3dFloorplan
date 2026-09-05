@@ -1,6 +1,6 @@
 import type { Project, Floor } from '$lib/models/types';
 import { getCatalogItem } from '$lib/utils/furnitureCatalog';
-import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
+import { resolveRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
 import { drawDoorOnWall, drawWindowOnWall, drawEntourageItems } from '$lib/utils/canvasRenderer';
 import type { CanvasState } from '$lib/utils/canvasInteraction';
 import { projectSettings, formatArea } from '$lib/stores/settings';
@@ -106,7 +106,7 @@ export function exportAsPNG(canvas: HTMLCanvasElement, project?: Project) {
 
       // Draw room fills
       const ROOM_COLORS = ['#bfdbfe', '#fde68a', '#bbf7d0', '#fecaca', '#ddd6fe', '#a5f3fc', '#fed7aa'];
-      const rooms = detectRooms(floor.walls);
+      const rooms = resolveRooms(floor);
       for (let ri = 0; ri < rooms.length; ri++) {
         const room = rooms[ri];
         const poly = getRoomPolygon(room, floor.walls);
@@ -234,7 +234,7 @@ export function exportAsSVG(project: Project) {
 
   // Room fills
   const ROOM_COLORS_SVG = ['#bfdbfe', '#fde68a', '#bbf7d0', '#fecaca', '#ddd6fe', '#a5f3fc', '#fed7aa'];
-  const rooms = detectRooms(floor.walls);
+  const rooms = resolveRooms(floor);
   for (let ri = 0; ri < rooms.length; ri++) {
     const room = rooms[ri];
     const poly = getRoomPolygon(room, floor.walls);
@@ -577,7 +577,7 @@ export function exportPDF(project: Project) {
 
   // Room fills
   const ROOM_COLORS = ['#bfdbfe', '#fde68a', '#bbf7d0', '#fecaca', '#ddd6fe', '#a5f3fc', '#fed7aa'];
-  const rooms = detectRooms(floor.walls);
+  const rooms = resolveRooms(floor);
   for (let ri = 0; ri < rooms.length; ri++) {
     const room = rooms[ri];
     const poly = getRoomPolygon(room, floor.walls);
@@ -706,8 +706,6 @@ export function exportPDF(project: Project) {
     let totalArea = 0;
     for (let ri = 0; ri < rooms.length; ri++) {
       const room = rooms[ri];
-      // Merge with stored room data for texture info
-      const storedRoom = floor.rooms.find(r => r.name === room.name);
       totalArea += room.area;
 
       // Alternating row background
@@ -724,9 +722,9 @@ export function exportPDF(project: Project) {
       const rowData = [
         String(ri + 1),
         room.name,
-        storedRoom?.roomType || 'indoor',
+        room.roomType || 'indoor',
         formatArea(room.area, settings.units),
-        storedRoom?.floorTexture || '—'
+        room.floorTexture || '—'
       ];
       for (let i = 0; i < rowData.length; i++) {
         pdf.text(rowData[i].substring(0, 30), cx + 3, tY + 5.5);

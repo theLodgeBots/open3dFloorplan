@@ -30,8 +30,20 @@ export const activeFloor = derived(currentProject, ($p) => {
   return $p.floors.find((f) => f.id === $p.activeFloorId) ?? $p.floors[0] ?? null;
 });
 
-export type Tool = 'select' | 'wall' | 'door' | 'window' | 'furniture' | 'text';
+export type Tool = 'select' | 'wall' | 'door' | 'window' | 'furniture' | 'text' | 'measure' | 'annotate';
 export const selectedTool = writable<Tool>('select');
+
+/** Shared activation for the sidebar and keyboard measurement tools. */
+export function activateMeasurementTool(tool: 'measure' | 'annotate') {
+  panMode.set(false);
+  placingFurnitureId.set(null);
+  placingStair.set(false);
+  placingColumn.set(false);
+  placingEntourageId.set(null);
+  calibrationMode.set(false);
+  elevationPickMode.set(false);
+  selectedTool.set(tool);
+}
 export const snapEnabled = writable<boolean>(true);
 /** When true, left-click drag pans the canvas instead of selecting */
 export const panMode = writable<boolean>(false);
@@ -940,4 +952,3 @@ export const canvasZoom = writable<number>(1);
 // Camera position stores for 2D canvas — used to compute viewport center
 export const canvasCamX = writable<number>(0);
 export const canvasCamY = writable<number>(0);
-
