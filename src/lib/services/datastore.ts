@@ -13,35 +13,48 @@ export interface DataStore {
 const KEY = 'floorplan_projects';
 
 function getAll(): Record<string, string> {
+  const raw = localStorage.getItem(KEY);
   try {
-    return JSON.parse(localStorage.getItem(KEY) || '{}');
+    const all = JSON.parse(raw ?? '{}');
+    if (!all || typeof all !== 'object' || Array.isArray(all) ||
+        Object.values(all).some(value => typeof value !== 'string')) {
+      throw new Error('Invalid project library');
+    }
+    return all;
   } catch {
-    return {};
+    throw new Error('The saved project library could not be read. Download a backup before attempting recovery.');
   }
+}
+
+export function storageErrorMessage(error: unknown): string {
+  const e = error as { name?: string; code?: number; message?: string } | null;
+  if (e?.name === 'QuotaExceededError' || e?.code === 22 || e?.code === 1014) {
+    return 'Browser storage is full. Download your project as JSON, then free space by deleting projects you have backed up.';
+  }
+  if (e?.name === 'SecurityError') {
+    return 'Browser storage is unavailable. Allow site storage or download your project as JSON.';
+  }
+  return e?.message || 'Could not save to browser storage. Download your project as JSON to keep a copy.';
+}
+
+/** Preserve the original bytes, including a damaged library, for manual recovery. */
+export function downloadLibraryBackup() {
+  const raw = localStorage.getItem(KEY);
+  if (raw === null) throw new Error('No saved project library was found.');
+  const url = URL.createObjectURL(new Blob([raw], { type: 'application/json' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'openplan3d-library-backup.json';
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 export const localStore: DataStore = {
   async save(project) {
     const all = getAll();
     all[project.id] = JSON.stringify(project);
-    try {
-      localStorage.setItem(KEY, JSON.stringify(all));
-    } catch (e: any) {
-      if (e?.name === 'QuotaExceededError' || e?.code === 22 || e?.code === 1014) {
-        console.warn('[DataStore] localStorage quota exceeded');
-        // Attempt to save just this project by removing others if needed
-        const minimal: Record<string, string> = {};
-        minimal[project.id] = all[project.id];
-        try {
-          localStorage.setItem(KEY, JSON.stringify(minimal));
-          alert('Storage quota exceeded. Other projects were removed to save this one. Consider exporting important projects as JSON.');
-        } catch {
-          alert('Storage quota exceeded. Please export your project as JSON and clear browser data.');
-        }
-      } else {
-        throw e;
-      }
-    }
+    // setItem is atomic on failure. Never evict another project to make space.
+    localStorage.setItem(KEY, JSON.stringify(all));
   },
 
   async load(id) {

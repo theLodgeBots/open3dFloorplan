@@ -77,7 +77,7 @@ Scan a room with your iPhone and get an editable floor plan in seconds. The Open
 
 The easiest way to try openplan3d is the hosted version at **[app.openplan3d.com](https://app.openplan3d.com/)** — no install needed.
 
-To run it locally:
+To run it locally, use Node.js 24 (see `.nvmrc`) and npm:
 
 ```bash
 # Clone the repository
@@ -85,13 +85,26 @@ git clone https://github.com/laanlabs/openPlan3D.git
 cd openPlan3D
 
 # Install dependencies
-npm install
+npm ci
 
 # Start the development server
 npm run dev
 ```
 
 Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+### Development Checks
+
+```bash
+npm test
+npm run check
+npm run build
+```
+
+GitHub Actions runs these checks for pull requests and pushes to `main`.
+The regression suite covers local storage failures, autosave status, room metadata
+and exports, and keyboard tools. Use `npm run test:watch` while working on a fix.
+Browser smoke checks remain manual; the unit suite does not simulate drawing or touch gestures.
 
 ### Production Build
 
@@ -139,7 +152,7 @@ Contributions are welcome! Here's how to get started:
 
 1. **Fork** the repository
 2. **Create a branch** for your feature: `git checkout -b feature/my-feature`
-3. **Make your changes** and ensure the build passes: `npm run build`
+3. **Make your changes** and run `npm test`, `npm run check`, and `npm run build`
 4. **Submit a pull request** with a clear description of your changes
 
 Please keep PRs focused and include screenshots for UI changes.

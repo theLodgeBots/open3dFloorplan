@@ -1,7 +1,6 @@
-import { selectedTool, undo, redo, viewMode, selectedElementId, selectedElementIds, removeElement, panMode, beginUndoGroup, endUndoGroup } from '$lib/stores/project';
+import { selectedTool, activateMeasurementTool, undo, redo, viewMode, selectedElementId, selectedElementIds, removeElement, panMode, beginUndoGroup, endUndoGroup } from '$lib/stores/project';
 import { get } from 'svelte/store';
-import { localStore } from '$lib/services/datastore';
-import { currentProject } from '$lib/stores/project';
+import { manualSave } from '$lib/stores/saveStatus';
 
 export interface ShortcutContext {
   rotateFurniture?: () => void;
@@ -27,16 +26,22 @@ export function handleGlobalShortcut(e: KeyboardEvent, ctx: ShortcutContext = {}
   if (mod && e.key === 's') {
     e.preventDefault();
     if (ctx.save) ctx.save();
-    else {
-      const p = get(currentProject);
-      if (p) localStore.save(p);
-    }
+    else void manualSave();
     return true;
   }
 
   // Don't handle single-key shortcuts if user is typing in an input
   const tag = (e.target as HTMLElement)?.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return false;
+  if ((e.target as HTMLElement)?.isContentEditable || mod || e.altKey) return false;
+
+  if (e.key.toLowerCase() === 'm' || e.key.toLowerCase() === 'n') {
+    const tool = e.key.toLowerCase() === 'm' ? 'measure' : 'annotate';
+    if (get(selectedTool) === tool) selectedTool.set('select');
+    else activateMeasurementTool(tool);
+    e.preventDefault();
+    return true;
+  }
 
   if (e.key === 'Escape') {
     selectedTool.set('select');

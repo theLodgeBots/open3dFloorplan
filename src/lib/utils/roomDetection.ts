@@ -1,4 +1,4 @@
-import type { Wall, Point, Room } from '$lib/models/types';
+import type { Wall, Point, Room, Floor } from '$lib/models/types';
 
 const EPSILON = 5; // snap distance for matching endpoints
 
@@ -235,6 +235,20 @@ export function detectRooms(walls: Wall[]): Room[] {
   }
 
   return rooms;
+}
+
+/** Recompute geometry while retaining user metadata by boundary identity, never name. */
+export function resolveRooms(floor: Pick<Floor, 'walls' | 'rooms'>, previousRooms: Room[] = []): Room[] {
+  const key = (room: Room) => JSON.stringify([...new Set(room.walls)].sort());
+  const saved = new Map((floor.rooms ?? []).map(room => [key(room), room]));
+  const previous = new Map(previousRooms.map(room => [key(room), room]));
+  return detectRooms(floor.walls).map(room => {
+    const metadata = saved.get(key(room));
+    if (metadata) return { ...room, ...metadata, walls: room.walls, area: room.area };
+    // Only the transient ID survives. Falling back to old metadata would undo
+    // an intentional metadata removal (e.g. undoing a room rename).
+    return { ...room, id: previous.get(key(room))?.id ?? room.id };
+  });
 }
 
 function shoelace(pts: Point[]): number {

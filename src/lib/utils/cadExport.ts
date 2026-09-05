@@ -1,7 +1,7 @@
 import Drawing from 'dxf-writer';
 import type { Project } from '$lib/models/types';
 import { getCatalogItem } from '$lib/utils/furnitureCatalog';
-import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
+import { resolveRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
 import { projectSettings, formatArea } from '$lib/stores/settings';
 import { get } from 'svelte/store';
 
@@ -41,7 +41,7 @@ export function exportDXF(project: Project) {
 
   // Draw rooms (labels)
   d.setActiveLayer('ROOMS');
-  const rooms = detectRooms(floor.walls);
+  const rooms = resolveRooms(floor);
   for (const room of rooms) {
     const poly = getRoomPolygon(room, floor.walls);
     if (poly.length < 3) continue;

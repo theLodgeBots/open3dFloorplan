@@ -1,7 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { get } from 'svelte/store';
+  import { base } from '$app/paths';
   import { currentProject, viewMode, selectedElementId, selectedRoomId, createDefaultProject, loadProject, selectedTool, placingFurnitureId, elevationWallId, elevationPickMode } from '$lib/stores/project';
-  import { localStore } from '$lib/services/datastore';
+  import { localStore, storageErrorMessage, downloadLibraryBackup } from '$lib/services/datastore';
+  import { autoSave, markClean, saveState } from '$lib/stores/saveStatus';
   import { createProjectFromRoomPlan, isRoomPlanJson } from '$lib/utils/roomplanImport';
   import TopBar from '$lib/components/toolbar/TopBar.svelte';
   import BuildPanel from '$lib/components/sidebar/BuildPanel.svelte';
@@ -43,6 +46,12 @@
   // iOS capture handoff (?import=CODE → fetch RoomPlan JSON from Firebase Storage inbox)
   let importingCapture = $state(false);
   let importError = $state<string | null>(null);
+  let loadError = $state<string | null>(null);
+
+  function backupLibrary() {
+    try { downloadLibraryBackup(); }
+    catch (error) { loadError = storageErrorMessage(error); }
+  }
 
   /** Fetch a RoomPlan capture uploaded by the iOS app and open it as a new project. Returns true on success. */
   async function importCaptureFromCode(code: string): Promise<boolean> {
@@ -85,9 +94,10 @@
           : undefined;
       const project = createProjectFromRoomPlan(data, `Room Capture ${code}`, options);
       loadProject(project);
-      await localStore.save(project);
+      // A storage failure must not discard a successfully downloaded capture.
+      await autoSave();
       // Remove ?import=CODE so a refresh doesn't re-import
-      history.replaceState(null, '', `/editor?id=${project.id}`);
+      history.replaceState(null, '', `${base}/editor?id=${project.id}`);
       return true;
     } catch (e: any) {
       importError = e?.message ?? 'Failed to import capture.';
@@ -109,8 +119,9 @@
     }
   });
 
-  onMount(() => {
-    (async () => {
+  async function initializeEditor() {
+    loadError = null;
+    try {
       const url = new URL(window.location.href);
 
       // iOS capture handoff: ?import=CODE
@@ -130,32 +141,49 @@
 
       const id = url.searchParams.get('id');
       if (id) {
+        // A new/imported project may exist only in memory if its first save failed.
+        const pending = get(currentProject);
+        if (pending?.id === id && get(saveState) !== 'saved') { ready = true; return; }
         const project = await localStore.load(id);
         if (project) {
-          currentProject.set(project);
+          loadProject(project);
+          markClean();
         } else {
           const p = createDefaultProject();
-          currentProject.set(p);
-          await localStore.save(p);
-          history.replaceState(null, '', `/editor?id=${p.id}`);
+          loadProject(p);
+          await autoSave();
+          history.replaceState(null, '', `${base}/editor?id=${p.id}`);
         }
       } else {
         const p = createDefaultProject();
-        currentProject.set(p);
-        await localStore.save(p);
-        history.replaceState(null, '', `/editor?id=${p.id}`);
+        loadProject(p);
+        await autoSave();
+        history.replaceState(null, '', `${base}/editor?id=${p.id}`);
       }
       ready = true;
-    })();
+    } catch (error) {
+      loadError = storageErrorMessage(error);
+    }
+  }
 
-    // Auto-save on every project change (debounced)
-    let saveTimeout: ReturnType<typeof setTimeout>;
-    const unsub = currentProject.subscribe((p) => {
-      if (!p) return;
-      clearTimeout(saveTimeout);
-      saveTimeout = setTimeout(() => localStore.save(p), 500);
-    });
-    return () => { unsub(); clearTimeout(saveTimeout); };
+  onMount(() => {
+    void initializeEditor();
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (get(saveState) !== 'saved') {
+        void autoSave();
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    };
+    const onVisibilityChange = () => {
+      if (document.hidden && get(saveState) === 'unsaved') void autoSave();
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
   });
 </script>
 
@@ -425,7 +453,12 @@
   <OnboardingTooltip />
 {:else}
   <div class="h-screen flex flex-col items-center justify-center gap-3">
-    {#if importingCapture}
+    {#if loadError}
+      <p role="alert" class="max-w-lg px-6 text-center text-red-700">{loadError}</p>
+      <button class="text-blue-700 underline" onclick={initializeEditor}>Retry loading</button>
+      <button class="text-blue-700 underline" onclick={backupLibrary}>Download library backup</button>
+      <a class="text-blue-700 underline" href={`${base}/`}>Back to projects</a>
+    {:else if importingCapture}
       <div class="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
       <p class="text-gray-400">Importing capture from iOS app…</p>
     {:else}

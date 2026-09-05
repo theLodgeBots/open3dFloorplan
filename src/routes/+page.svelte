@@ -2,8 +2,9 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { base } from '$app/paths';
-  import { localStore } from '$lib/services/datastore';
-  import { createDefaultProject, currentProject } from '$lib/stores/project';
+  import { localStore, storageErrorMessage, downloadLibraryBackup } from '$lib/services/datastore';
+  import { autoSave } from '$lib/stores/saveStatus';
+  import { createDefaultProject, loadProject } from '$lib/stores/project';
   import WelcomeScreen from '$lib/components/WelcomeScreen.svelte';
   import { houseTemplates } from '$lib/utils/houseTemplates';
 
@@ -16,7 +17,19 @@
   let contextMenuId = $state<string | null>(null);
   let showTemplateModal = $state(false);
 
-  onMount(async () => {
+  let libraryError = $state<string | null>(null);
+
+  async function withLibraryError(action: () => Promise<void>) {
+    try { await action(); libraryError = null; }
+    catch (error) { libraryError = storageErrorMessage(error); }
+  }
+
+  function backupLibrary() {
+    try { downloadLibraryBackup(); }
+    catch (error) { libraryError = storageErrorMessage(error); }
+  }
+
+  async function refreshProjects() {
     projects = await localStore.list();
     // Sort by most recent
     projects.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
@@ -26,41 +39,51 @@
       thumbs[p.id] = localStore.getThumbnail(p.id);
     }
     thumbnails = thumbs;
-    const seen = localStorage.getItem('hasSeenWelcome');
-    if (!seen && projects.length === 0) {
-      showWelcome = true;
-    }
+  }
+
+  onMount(() => {
+    void withLibraryError(async () => {
+      await refreshProjects();
+      const seen = localStorage.getItem('hasSeenWelcome');
+      if (!seen && projects.length === 0) {
+        showWelcome = true;
+      }
+    });
   });
 
   async function createFromTemplate(index: number) {
     const template = houseTemplates[index];
     const p = template.create();
-    currentProject.set(p);
-    await localStore.save(p);
+    loadProject(p);
+    await autoSave();
     showTemplateModal = false;
     goto(`${base}/editor?id=${p.id}`);
   }
 
   async function newProject() {
     const p = createDefaultProject('Untitled Project');
-    currentProject.set(p);
-    await localStore.save(p);
+    loadProject(p);
+    await autoSave();
     goto(`${base}/editor?id=${p.id}`);
   }
 
   async function deleteProject(id: string) {
-    await localStore.delete(id);
-    confirmDeleteId = null;
-    projects = (await localStore.list()).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    await withLibraryError(async () => {
+      await localStore.delete(id);
+      confirmDeleteId = null;
+      projects = (await localStore.list()).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    });
   }
 
   async function duplicateProject(id: string) {
-    const dup = await localStore.duplicate(id);
-    if (dup) {
-      projects = (await localStore.list()).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-      thumbnails = { ...thumbnails, [dup.id]: localStore.getThumbnail(dup.id) };
-    }
-    contextMenuId = null;
+    await withLibraryError(async () => {
+      const dup = await localStore.duplicate(id);
+      if (dup) {
+        projects = (await localStore.list()).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+        thumbnails = { ...thumbnails, [dup.id]: localStore.getThumbnail(dup.id) };
+      }
+      contextMenuId = null;
+    });
   }
 
   async function startRename(id: string, currentName: string) {
@@ -74,16 +97,18 @@
   }
 
   async function commitRename(id: string) {
-    if (renameValue.trim()) {
-      const p = await localStore.load(id);
-      if (p) {
-        p.name = renameValue.trim();
-        p.updatedAt = new Date();
-        await localStore.save(p);
-        projects = (await localStore.list()).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    await withLibraryError(async () => {
+      if (renameValue.trim()) {
+        const p = await localStore.load(id);
+        if (p) {
+          p.name = renameValue.trim();
+          p.updatedAt = new Date();
+          await localStore.save(p);
+          projects = (await localStore.list()).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+        }
       }
-    }
-    renamingId = null;
+      renamingId = null;
+    });
   }
 
   function formatDate(d: string) {
@@ -104,7 +129,7 @@
 <svelte:window onclick={() => { contextMenuId = null; }} />
 
 {#if showWelcome}
-  <WelcomeScreen onDismiss={() => { showWelcome = false; localStore.list().then(p => { projects = p.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()); }); }} />
+  <WelcomeScreen onDismiss={() => { showWelcome = false; void withLibraryError(refreshProjects); }} />
 {/if}
 
 <div class="min-h-screen bg-gray-50">
@@ -135,7 +160,16 @@
   </div>
 
   <div class="max-w-5xl mx-auto px-6 py-8">
-    {#if projects.length === 0}
+    {#if libraryError}
+      <div role="alert" class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+        <p>{libraryError}</p>
+        <div class="mt-3 flex gap-4">
+          <button class="font-semibold underline" onclick={() => withLibraryError(refreshProjects)}>Retry loading</button>
+          <button class="font-semibold underline" onclick={backupLibrary}>Download library backup</button>
+        </div>
+      </div>
+    {/if}
+    {#if projects.length === 0 && !libraryError}
       <div class="text-center py-24">
         <div class="w-16 h-16 bg-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-gray-400"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>

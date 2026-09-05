@@ -1,8 +1,8 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { base } from '$app/paths';
-  import { localStore } from '$lib/services/datastore';
-  import { createDefaultProject, currentProject } from '$lib/stores/project';
+  import { autoSave } from '$lib/stores/saveStatus';
+  import { createDefaultProject, loadProject } from '$lib/stores/project';
   import { houseTemplates } from '$lib/utils/houseTemplates';
 
   let { onDismiss }: { onDismiss: () => void } = $props();
@@ -18,14 +18,14 @@
   ];
 
   function markSeen() {
-    localStorage.setItem('hasSeenWelcome', 'true');
+    try { localStorage.setItem('hasSeenWelcome', 'true'); } catch {}
     onDismiss();
   }
 
   async function startFromScratch() {
     const p = createDefaultProject('Untitled Project');
-    currentProject.set(p);
-    await localStore.save(p);
+    loadProject(p);
+    await autoSave();
     markSeen();
     goto(`${base}/editor?id=${p.id}`);
   }
@@ -33,8 +33,8 @@
   async function useHouseTemplate(index: number) {
     const template = houseTemplates[index];
     const p = template.create();
-    currentProject.set(p);
-    await localStore.save(p);
+    loadProject(p);
+    await autoSave();
     markSeen();
     goto(`${base}/editor?id=${p.id}`);
   }
@@ -58,8 +58,8 @@
       // If it looks like a project, load it
       if (data.id && data.floors) {
         data.updatedAt = new Date();
-        currentProject.set(data);
-        await localStore.save(data);
+        loadProject(data);
+        await autoSave();
         markSeen();
         goto(`${base}/editor?id=${data.id}`);
       } else {
