@@ -1,10 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { activeFloor, selectedTool, selectedElementId, selectedElementIds, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall, moveWallParallel, splitWall, snapEnabled, placingStair, addStair, moveStair, updateStair, placingColumn, placingColumnShape, addColumn, moveColumn, updateColumn, calibrationMode, calibrationPoints, updateBackgroundImage, setBackgroundImage, canvasZoom, canvasCamX, canvasCamY, panMode, showFurnitureStore, addGuide, moveGuide, removeGuide, beginUndoGroup, endUndoGroup, layerVisibility, updateRoom, addMeasurement, removeMeasurement, addAnnotation, removeAnnotation, updateAnnotation, addTextAnnotation, removeTextAnnotation, updateTextAnnotation, moveTextAnnotation, toggleFurnitureLock, createGroup, ungroupElements, findGroupForElement, placingEntourageId, addEntourageItem, moveEntourage, resizeEntourage, currentProject, elevationWallId, elevationPickMode } from '$lib/stores/project';
+  import { activeFloor, selectedTool, selectedElementId, selectedElementIds, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, transformFurnitureDuringDrag, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall, moveWallParallel, splitWall, snapEnabled, placingStair, addStair, moveStair, updateStair, placingColumn, placingColumnShape, addColumn, moveColumn, updateColumn, calibrationMode, calibrationPoints, updateBackgroundImage, setBackgroundImage, canvasZoom, canvasCamX, canvasCamY, panMode, showFurnitureStore, addGuide, moveGuide, removeGuide, beginUndoGroup, endUndoGroup, layerVisibility, updateRoom, addMeasurement, removeMeasurement, addAnnotation, removeAnnotation, updateAnnotation, addTextAnnotation, removeTextAnnotation, updateTextAnnotation, moveTextAnnotation, toggleFurnitureLock, createGroup, ungroupElements, findGroupForElement, placingEntourageId, addEntourageItem, moveEntourage, resizeEntourage, currentProject, elevationWallId, elevationPickMode } from '$lib/stores/project';
   import type { Point, Wall, Door, Window as Win, FurnitureItem, Stair, Column, GuideLine, Measurement, Annotation, TextAnnotation, CustomEntourageDef } from '$lib/models/types';
   import type { Floor, Room } from '$lib/models/types';
   import { resolveRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
   import { getMaterial } from '$lib/utils/materials';
+  import { snapFurnitureToWalls } from '$lib/utils/furnitureGeometry';
   import { getCatalogItem, getFurnitureSize, type FurnitureDef } from '$lib/utils/furnitureCatalog';
   import { drawFurnitureIcon } from '$lib/utils/furnitureIcons';
   import { handleGlobalShortcut } from '$lib/utils/shortcuts';
@@ -13,7 +14,7 @@
   import { getWallTextureCanvas, getFloorTextureCanvas, setTextureLoadCallback } from '$lib/utils/textureGenerator';
   import { projectSettings, formatLength, formatArea } from '$lib/stores/settings';
   import type { ProjectSettings } from '$lib/stores/settings';
-  import { WALL_SNAP_DIST, resizeFurnitureFromHandle, type CanvasState } from '$lib/utils/canvasInteraction';
+  import { resizeFurnitureFromHandle, type CanvasState } from '$lib/utils/canvasInteraction';
   import { drawWall as _drawWall, drawDoorOnWall as _drawDoorOnWall, drawWindowOnWall as _drawWindowOnWall, drawDoorDistanceDimensions as _drawDoorDistanceDimensions, drawWindowDistanceDimensions as _drawWindowDistanceDimensions, drawFurnitureItem, drawStair as _drawStair, drawColumn as _drawColumn, drawGuides as _drawGuides, drawPersistedMeasurements as _drawPersistedMeasurements, drawTextAnnotations as _drawTextAnnotations, drawAnnotation as _drawAnnotation, drawAnnotations as _drawAnnotations, drawRooms as _drawRooms, drawWallJoints as _drawWallJoints, drawSnapPoints as _drawSnapPoints, drawMinimap as _drawMinimap, drawEntourageItems as _drawEntourageItems, drawEntourageGhost as _drawEntourageGhost, entourageAspect } from '$lib/utils/canvasRenderer';
   import { getEntourageDef } from '$lib/utils/entourageCatalog';
   import { pointInPolygon, positionOnWall, findWallAt as _findWallAt, findHandleAt as _findHandleAt, findFurnitureAt as _findFurnitureAt, findColumnAt as _findColumnAt, findStairAt as _findStairAt, findDoorAt as _findDoorAt, findWindowAt as _findWindowAt, findRoomAt as _findRoomAt, hitTestMeasurement as _hitTestMeasurement, hitTestAnnotation as _hitTestAnnotation, hitTestTextAnnotation as _hitTestTextAnnotation, findEntourageAt } from '$lib/utils/hitTesting';
@@ -254,77 +255,10 @@
    * Snap furniture position so its edge is flush against the nearest wall.
    * Returns adjusted position and rotation, or null if no wall is close enough.
    */
-  function snapFurnitureToWall(pos: Point, furniture: FurnitureItem | FurnitureDef, currentRotation: number): { position: Point; rotation: number; wallId: string; side: 'normal' | 'anti'; wallAngle: number } | null {
+  function snapFurnitureToWall(pos: Point, furniture: FurnitureItem | FurnitureDef): { position: Point; rotation: number; wallId: string; side: 'normal' | 'anti'; wallAngle: number } | null {
     if (!currentFloor || !currentSnapToWalls) return null;
 
-    // A placed item carries per-item size overrides; a bare catalog def (placement
-    // preview, before the item exists) is already its own effective size.
-    const size = 'catalogId' in furniture ? getFurnitureSize(furniture) : furniture;
-
-    // Furniture half-depth (the "back" dimension that goes against the wall)
-    const halfDepth = size.depth / 2;
-    const halfWidth = size.width / 2;
-
-    let bestDist = WALL_SNAP_DIST;
-    let bestResult: { position: Point; rotation: number; wallId: string; side: 'normal' | 'anti'; wallAngle: number } | null = null;
-
-    for (const wall of currentFloor.walls) {
-      const wx = wall.end.x - wall.start.x;
-      const wy = wall.end.y - wall.start.y;
-      const wLen = Math.hypot(wx, wy);
-      if (wLen < 1) continue;
-
-      // Unit vectors along wall and perpendicular (normal)
-      const ux = wx / wLen, uy = wy / wLen;
-      const nx = -uy, ny = ux; // normal pointing "left" of wall direction
-
-      // Project furniture center onto wall line
-      const dx = pos.x - wall.start.x;
-      const dy = pos.y - wall.start.y;
-      const along = dx * ux + dy * uy; // projection along wall
-      const perp = dx * nx + dy * ny;  // signed distance from wall center-line
-
-      // Check if projection falls within wall segment (with some margin)
-      if (along < -halfWidth || along > wLen + halfWidth) continue;
-
-      const wallHalfThickness = wall.thickness / 2;
-      // Distance from furniture center to wall surface on the side the furniture is on
-      const absDist = Math.abs(perp) - wallHalfThickness;
-
-      // We want the furniture edge to touch the wall, so target distance = halfDepth
-      const snapDist = Math.abs(absDist - halfDepth);
-
-      if (snapDist < bestDist) {
-        bestDist = snapDist;
-        const side: 'normal' | 'anti' = perp >= 0 ? 'normal' : 'anti';
-        const sign = perp >= 0 ? 1 : -1;
-        // Position: push center so edge is flush with wall surface
-        const targetPerp = sign * (wallHalfThickness + halfDepth);
-        const clampedAlong = Math.max(halfWidth, Math.min(wLen - halfWidth, along));
-
-        // Grid-snap the position, then keep only the part of that movement that runs along
-        // the wall, so the distance to the wall stays exact and the item sits flush.
-        const gx = snap(wall.start.x + ux * clampedAlong + nx * targetPerp);
-        const gy = snap(wall.start.y + uy * clampedAlong + ny * targetPerp);
-        const gridAlong = (gx - wall.start.x) * ux + (gy - wall.start.y) * uy;
-        const finalAlong = Math.max(halfWidth, Math.min(wLen - halfWidth, gridAlong));
-        const newX = wall.start.x + ux * finalAlong + nx * targetPerp;
-        const newY = wall.start.y + uy * finalAlong + ny * targetPerp;
-        // Align rotation: furniture "front" faces away from wall
-        const wallAngle = Math.atan2(wy, wx) * 180 / Math.PI;
-        // Furniture at 0° has depth along Y axis, so align perpendicular
-        const targetRotation = perp >= 0 ? wallAngle : wallAngle + 180;
-
-        bestResult = {
-          position: { x: newX, y: newY },
-          rotation: ((targetRotation % 360) + 360) % 360,
-          wallId: wall.id,
-          side,
-          wallAngle: wallAngle
-        };
-      }
-    }
-    return bestResult;
+    return snapFurnitureToWalls(pos, furniture, currentFloor.walls, snap);
   }
 
   function snap(v: number): number {
@@ -548,7 +482,7 @@
     const cat = getCatalogItem(currentPlacingId);
     if (!cat) return;
 
-    const wallSnap = snapFurnitureToWall(mousePos, cat, currentPlacingRotation);
+    const wallSnap = snapFurnitureToWall(mousePos, cat);
     placementWallSnap = wallSnap;
 
     const pos = wallSnap ? wallSnap.position : mousePos;
@@ -1771,6 +1705,7 @@
     const unsub5 = placingRotation.subscribe((r) => { currentPlacingRotation = r; markDirty(); });
     const unsub6 = selectedTool.subscribe((t) => {
       if (t !== currentTool) {
+        finishCanvasGesture();
         measureStart = null;
         measureEnd = null;
         annotationStart = null;
@@ -2023,6 +1958,18 @@
 
   /** True while a press that began on the canvas is still in progress. */
   let canvasGestureActive = false;
+  let canvasPressPosition: Point = { x: 0, y: 0 };
+  let furnitureGestureStarted = false;
+
+  function finishCanvasGesture() {
+    if (canvasGestureActive) onMouseUp(new MouseEvent('mouseup'));
+  }
+
+  function onWindowBlur() {
+    finishCanvasGesture();
+    spaceDown = false;
+    shiftDown = false;
+  }
 
   // A press that starts on the canvas can end somewhere else: the selection toolbar appears
   // over the element the moment it is selected, and a drag can also leave the canvas
@@ -2038,7 +1985,10 @@
 
   function onMouseDown(e: MouseEvent) {
     markDirty();
+    if (e.button !== 0 && e.button !== 1) return;
+    finishCanvasGesture();
     canvasGestureActive = true;
+    canvasPressPosition = { x: e.clientX, y: e.clientY };
     if (e.button === 1 || (e.button === 0 && (spaceDown || $panMode || (e.shiftKey && currentTool === 'select')))) {
       isPanning = true;
       panStartX = e.clientX;
@@ -2234,7 +2184,7 @@
 
     if (tool === 'furniture' && currentPlacingId) {
       const placingCat = getCatalogItem(currentPlacingId);
-      const wallSnap = placingCat ? snapFurnitureToWall(wp, placingCat, currentPlacingRotation) : null;
+      const wallSnap = placingCat ? snapFurnitureToWall(wp, placingCat) : null;
       const pos = wallSnap ? wallSnap.position : { x: snap(wp.x), y: snap(wp.y) };
       const rot = wallSnap ? wallSnap.rotation : currentPlacingRotation;
       const id = addFurniture(currentPlacingId, pos);
@@ -2340,7 +2290,6 @@
           const scaleY = Math.abs(handleOrigScale.y) || 1;
           const size = getFurnitureSize(fi);
           handleOrigBaseSize = { width: size.width / scaleX, depth: size.depth / scaleY };
-          commitFurnitureMove(); // snapshot for undo
           return;
         }
       }
@@ -2411,7 +2360,6 @@
         selectElement(fi.id, e.shiftKey, e.ctrlKey || e.metaKey);
         if (!e.shiftKey && !fi.locked) {
           draggingFurnitureId = fi.id;
-          commitFurnitureMove(); // snapshot before drag for undo
           dragOffset = { x: wp.x - fi.position.x, y: wp.y - fi.position.y };
           dragStartRotation = fi.rotation;
           dragWasWallSnapped = false;
@@ -2576,9 +2524,18 @@
   }
 
   function onMouseMove(e: MouseEvent) {
+    // Recover if a release outside the window was never delivered to this page.
+    if (canvasGestureActive && e.buttons === 0) finishCanvasGesture();
     markDirty();
     const rect = canvas.getBoundingClientRect();
     mousePos = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+
+    if ((draggingFurnitureId || draggingHandle) && !furnitureGestureStarted) {
+      // Treat small pointer movement during a click as selection, not a snapped move.
+      if (Math.hypot(e.clientX - canvasPressPosition.x, e.clientY - canvasPressPosition.y) < 3) return;
+      beginUndoGroup();
+      furnitureGestureStarted = true;
+    }
 
     // Drag room label
     if (draggingRoomLabelId) {
@@ -2709,7 +2666,7 @@
           if (shiftDown) {
             angle = Math.round(angle / 15) * 15;
           }
-          setFurnitureRotation(currentSelectedId, ((angle % 360) + 360) % 360);
+          transformFurnitureDuringDrag(currentSelectedId, { rotation: ((angle % 360) + 360) % 360 });
         } else {
           const resized = resizeFurnitureFromHandle({
             position: handleOrigPosition,
@@ -2721,8 +2678,10 @@
             pointer: mousePos,
             preserveAspectRatio: shiftDown,
           });
-          moveFurniture(currentSelectedId, resized.position);
-          scaleFurniture(currentSelectedId, resized.scale);
+          transformFurnitureDuringDrag(currentSelectedId, {
+            position: resized.position,
+            scale: { ...resized.scale, z: fi.scale?.z ?? 1 },
+          });
         }
       }
     }
@@ -2762,10 +2721,9 @@
       const basePos = { x: mousePos.x - dragOffset.x, y: mousePos.y - dragOffset.y };
       const fi = currentFloor?.furniture.find(f => f.id === draggingFurnitureId);
       if (fi) {
-        const wallSnap = snapFurnitureToWall(basePos, fi, fi.rotation);
+        const wallSnap = snapFurnitureToWall(basePos, fi);
         if (wallSnap) {
-          moveFurniture(draggingFurnitureId, wallSnap.position);
-          setFurnitureRotation(draggingFurnitureId, wallSnap.rotation);
+          transformFurnitureDuringDrag(draggingFurnitureId, { position: wallSnap.position, rotation: wallSnap.rotation });
           dragWasWallSnapped = true;
           wallSnapInfo = { wallId: wallSnap.wallId, side: wallSnap.side, wallAngle: wallSnap.wallAngle };
         } else {
@@ -2782,12 +2740,11 @@
               }
             }
           }
-          moveFurniture(draggingFurnitureId, snapped);
-          // Restore original rotation when leaving wall snap
-          if (dragWasWallSnapped) {
-            setFurnitureRotation(draggingFurnitureId, dragStartRotation);
-            dragWasWallSnapped = false;
-          }
+          transformFurnitureDuringDrag(draggingFurnitureId, {
+            position: snapped,
+            ...(dragWasWallSnapped ? { rotation: dragStartRotation } : {}),
+          });
+          dragWasWallSnapped = false;
           wallSnapInfo = null;
         }
       }
@@ -2916,8 +2873,10 @@
       marqueeEnd = null;
     }
 
-    if (draggingFurnitureId) commitFurnitureMove();
-    if (draggingHandle) commitFurnitureMove();
+    if (furnitureGestureStarted) {
+      endUndoGroup(draggingHandle === 'rotate' ? 'Rotated furniture' : draggingHandle ? 'Resized furniture' : 'Moved furniture');
+      furnitureGestureStarted = false;
+    }
     if (draggingWallEndpoint) commitFurnitureMove();
     if (draggingWallParallel) commitFurnitureMove();
     if (draggingCurveHandle) commitFurnitureMove();
@@ -3189,6 +3148,7 @@
 
     // Canvas-specific Escape handling (before global shortcut eats it)
     if (e.code === 'Escape') {
+      finishCanvasGesture();
       elevationPickMode.set(false);
       wallStart = null; wallSequenceFirst = null; typedWallLength = '';
       placingFurnitureId.set(null);
@@ -3705,7 +3665,7 @@
   );
 </script>
 
-<svelte:window on:keydown={onKeyDown} on:keyup={onKeyUp} onmousemove={onWindowMouseMove} onmouseup={onWindowMouseUp} />
+<svelte:window on:keydown={onKeyDown} on:keyup={onKeyUp} onmousemove={onWindowMouseMove} onmouseup={onWindowMouseUp} onblur={onWindowBlur} />
 
 <div class="w-full h-full relative overflow-hidden" role="application">
   <canvas

@@ -109,13 +109,15 @@ export function resizeFurnitureFromHandle(input: FurnitureResizeInput): Furnitur
   const localY = dx * Math.sin(angle) + dy * Math.cos(angle);
   const horizontal = !['resize-t', 'resize-b'].includes(input.handle);
   const vertical = !['resize-l', 'resize-r'].includes(input.handle);
-  const handleSignX = input.handle.includes('-l') || input.handle === 'resize-l' ? -1 : 1;
-  const handleSignY = input.handle.includes('-t') || input.handle === 'resize-t' ? -1 : 1;
+  const direction = input.handle.slice('resize-'.length);
+  const handleSignX = direction.includes('l') ? -1 : 1;
+  const handleSignY = direction.includes('t') ? -1 : 1;
   const anchorX = horizontal ? -handleSignX * halfWidth : 0;
   const anchorY = vertical ? -handleSignY * halfDepth : 0;
 
-  let newWidth = horizontal ? Math.max(minSize, Math.abs(localX - anchorX)) : originalWidth;
-  let newDepth = vertical ? Math.max(minSize, Math.abs(localY - anchorY)) : originalDepth;
+  // Clamp at the opposite edge instead of growing again when the pointer crosses it.
+  let newWidth = horizontal ? Math.max(minSize, handleSignX * (localX - anchorX)) : originalWidth;
+  let newDepth = vertical ? Math.max(minSize, handleSignY * (localY - anchorY)) : originalDepth;
 
   if (input.preserveAspectRatio && horizontal && vertical) {
     const originalRatio = originalWidth / originalDepth;
@@ -134,7 +136,10 @@ export function resizeFurnitureFromHandle(input: FurnitureResizeInput): Furnitur
       x: input.position.x + centerX * Math.cos(worldAngle) - centerY * Math.sin(worldAngle),
       y: input.position.y + centerX * Math.sin(worldAngle) + centerY * Math.cos(worldAngle),
     },
-    scale: { x: newWidth / input.width, y: newDepth / input.depth },
+    scale: {
+      x: (input.scale.x < 0 ? -1 : 1) * newWidth / input.width,
+      y: (input.scale.y < 0 ? -1 : 1) * newDepth / input.depth,
+    },
   };
 }
 

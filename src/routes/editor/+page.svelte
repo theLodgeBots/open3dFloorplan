@@ -168,6 +168,16 @@
 
   onMount(() => {
     void initializeEditor();
+    // Imports can replace the active project from either sidebar or toolbar.
+    // Keep reloads pointed at that project once initial route loading is complete.
+    const stopSyncProjectUrl = currentProject.subscribe((project) => {
+      if (!ready || !project) return;
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('id') === project.id) return;
+      url.searchParams.delete('import');
+      url.searchParams.set('id', project.id);
+      history.replaceState(history.state, '', url);
+    });
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       if (get(saveState) !== 'saved') {
         void autoSave();
@@ -181,6 +191,7 @@
     window.addEventListener('beforeunload', onBeforeUnload);
     document.addEventListener('visibilitychange', onVisibilityChange);
     return () => {
+      stopSyncProjectUrl();
       window.removeEventListener('beforeunload', onBeforeUnload);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };

@@ -201,7 +201,7 @@ bucket audit could not proceed because the available `gcloud` account requires r
 Actual lifecycle, soft-delete, versioning, retained bytes, download volume, and monthly cost are
 still unverified. No bucket configuration or cloud content was changed.
 
-Dependency audit: the original lockfile currently reports 17 advisories (3 critical); this batch
+Dependency audit at completion of the first batch: the original lockfile reported 17 advisories (3 critical); this batch
 reports 16 (3 critical). Critical entries for `jspdf`, `protobufjs`, and `websocket-driver` predate
 this batch. Audit severity is not an exploitability assessment. Review supported upgrades and
 affected runtime paths before the next public release; no broad automatic dependency fix was applied.
@@ -210,3 +210,17 @@ Next in Milestone 1: dependency remediation and focused interaction PR review (#
 then #26), the door hitbox fix (#18), explicit print scale, browser workflow automation, and iOS
 corruption/recovery coverage. Complete the live Firebase audit after credentials are refreshed.
 The full milestone exit gate is not yet met.
+
+### Second batch — dependencies and furniture interactions
+
+Implemented on `codex/security-and-interactions`, based on the first batch. The original commits
+from #22, #20, #17, and #26 are integrated with additional corner/mirror/minimum-size fixes,
+single-action furniture undo, safer gesture completion, wall-snap geometry checks, and imported
+project URL persistence. A clean audit now reports **zero advisories**. All **82 tests** pass,
+type checks report **zero errors and 25 existing warnings**, and the production build passes.
+
+Desktop interaction checks, phone-width tools/measurement, save/reopen, and 3D smoke checks were
+performed in browsers. Download completion and the Firefox/real-device matrix remain unverified.
+See the [batch report and repeatable browser checklist](2026-09-05-security-and-interactions.md)
+for exact coverage, dependency details, cost impact, and remaining work. These changes are on a
+review branch and have not been deployed. No new Firebase Storage traffic is introduced.
