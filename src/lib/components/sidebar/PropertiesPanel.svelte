@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import { catalogAssetUrl } from '$lib/utils/catalogAssetUrl';
 
   import { activeFloor, selectedElementId, selectedRoomId, updateWall, updateDoor, updateWindow, updateRoom, updateFurniture, detectedRoomsStore, updateStair, updateColumn, updateBackgroundImage, setBackgroundImage, calibrationMode, calibrationPoints, updateTextAnnotation, toggleFurnitureLock, updateEntourageItem, removeElement, elevationWallId } from '$lib/stores/project';
@@ -13,13 +14,13 @@
   let selRoomId: string | null = $state(null);
   let detectedRooms: Room[] = $state([]);
 
-  activeFloor.subscribe((f) => { floor = f; });
-  selectedElementId.subscribe((id) => { selId = id; });
-  selectedRoomId.subscribe((id) => { selRoomId = id; });
-  detectedRoomsStore.subscribe((rooms) => { detectedRooms = rooms; });
+  onDestroy(activeFloor.subscribe((f) => { floor = f; }));
+  onDestroy(selectedElementId.subscribe((id) => { selId = id; }));
+  onDestroy(selectedRoomId.subscribe((id) => { selRoomId = id; }));
+  onDestroy(detectedRoomsStore.subscribe((rooms) => { detectedRooms = rooms; }));
 
   let settings = $state($projectSettings);
-  projectSettings.subscribe((s) => { settings = s; });
+  onDestroy(projectSettings.subscribe((s) => { settings = s; }));
 
   function displayValue(cm: number): number {
     return settings.units === 'imperial' ? Math.round(cm / 2.54 * 10) / 10 : cm;

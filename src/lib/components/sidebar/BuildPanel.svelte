@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import { activateMeasurementTool, selectedTool, placingFurnitureId, placingDoorType, placingWindowType, placingStair, addStair, placingColumn, placingColumnShape, activeFloor, setBackgroundImage, canvasCamX, canvasCamY, placingEntourageId, addCustomEntourage } from '$lib/stores/project';
   import type { Tool } from '$lib/stores/project';
   import type { Door, Window as Win, CustomEntourageDef } from '$lib/models/types';
@@ -30,10 +31,10 @@
   }
 
   let currentTool = $state<Tool>('select');
-  selectedTool.subscribe((t) => { currentTool = t; });
+  onDestroy(selectedTool.subscribe((t) => { currentTool = t; }));
 
   let currentPlacing = $state<string | null>(null);
-  placingFurnitureId.subscribe((id) => { currentPlacing = id; });
+  onDestroy(placingFurnitureId.subscribe((id) => { currentPlacing = id; }));
 
   function onPresetClick(presetId: string, templateName?: string) {
     const preset = roomPresets.find(p => p.id === presetId);
@@ -142,13 +143,13 @@
   }
 
   let isPlacingStair = $state(false);
-  placingStair.subscribe(v => { isPlacingStair = v; });
+  onDestroy(placingStair.subscribe(v => { isPlacingStair = v; }));
 
   // Entourage (2D presentation symbols)
   let placingEntId = $state<string | null>(null);
-  placingEntourageId.subscribe(v => { placingEntId = v; });
+  onDestroy(placingEntourageId.subscribe(v => { placingEntId = v; }));
   let customEntDefs = $state<CustomEntourageDef[]>([]);
-  currentProject.subscribe(p => { customEntDefs = p?.customEntourage ?? []; });
+  onDestroy(currentProject.subscribe(p => { customEntDefs = p?.customEntourage ?? []; }));
   let entourageFileInput = $state<HTMLInputElement | null>(null);
 
   function armEntourage(id: string) {
@@ -177,7 +178,7 @@
   }
 
   let isPlacingColumn = $state(false);
-  placingColumn.subscribe(v => { isPlacingColumn = v; });
+  onDestroy(placingColumn.subscribe(v => { isPlacingColumn = v; }));
 
   function onPlaceStair() {
     placingStair.set(true);

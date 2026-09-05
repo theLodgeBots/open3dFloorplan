@@ -548,7 +548,10 @@ export function getFloorTextureCanvas(materialId: string): HTMLCanvasElement | n
 /** Callback to invoke when a photo texture finishes loading (triggers re-render) */
 const textureLoadCallbacks: Set<() => void> = new Set();
 function notifyTextureLoad() { for (const cb of textureLoadCallbacks) cb(); }
-export function setTextureLoadCallback(cb: () => void) { textureLoadCallbacks.add(cb); }
+export function setTextureLoadCallback(cb: () => void): () => void {
+  textureLoadCallbacks.add(cb);
+  return () => { textureLoadCallbacks.delete(cb); };
+}
 
 export function getWallTextureCanvas(textureId: string, color: string): HTMLCanvasElement | null {
   // Try photo texture first

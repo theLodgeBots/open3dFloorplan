@@ -1,6 +1,8 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { base } from '$app/paths';
+  import { orderedFloors } from '$lib/utils/floors';
+  import type { FloorSeed } from '$lib/stores/project';
   import { currentProject, viewMode, undo, redo, addFloor, removeFloor, setActiveFloor, updateProjectName, loadProject, createDefaultProject, snapEnabled, canvasZoom, panMode, showFurnitureStore, layerVisibility, importFloorIntoCurrentProject, activeFloor, selectedElementId, elevationWallId, elevationPickMode } from '$lib/stores/project';
   import { get } from 'svelte/store';
   import type { Floor, Project } from '$lib/models/types';
@@ -29,15 +31,18 @@
   // Mobile (< md) overflow menu for secondary actions
   let moreOpen = $state(false);
   let moreRef: HTMLDivElement | undefined = $state();
+  // Floor-seed menu on the desktop + button
+  let floorMenuOpen = $state(false);
+  let floorMenuRef: HTMLDivElement | undefined = $state();
 
-  currentProject.subscribe((p) => {
+  onDestroy(currentProject.subscribe((p) => {
     if (p) {
       projectName = p.name;
-      floors = p.floors;
+      floors = orderedFloors(p.floors).map(entry => entry.floor);
       activeFloorId = p.activeFloorId;
     }
-  });
-  viewMode.subscribe((m) => { mode = m; });
+  }));
+  onDestroy(viewMode.subscribe((m) => { mode = m; }));
 
   function setMode(m: '2d' | '3d') {
     viewMode.set(m);
@@ -85,8 +90,10 @@
     if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
   }
 
-  function onAddFloor() {
-    addFloor(`Floor ${floors.length}`);
+  function onAddFloor(seed: FloorSeed = 'outer') {
+    addFloor(undefined, seed);
+    floorMenuOpen = false;
+    moreOpen = false;
   }
 
   function onRemoveFloor(id: string) {
@@ -101,7 +108,7 @@
   // Relative time for tooltip
   let lastSavedText = $state('');
   let lastSavedTime: Date | null = $state(null);
-  lastSavedAt.subscribe(v => { lastSavedTime = v; updateLastSavedText(); });
+  onDestroy(lastSavedAt.subscribe(v => { lastSavedTime = v; updateLastSavedText(); }));
 
   function updateLastSavedText() {
     if (!lastSavedTime) { lastSavedText = ''; return; }
@@ -208,10 +215,14 @@
       if (moreOpen && moreRef && !moreRef.contains(e.target as Node)) {
         moreOpen = false;
       }
+      if (floorMenuOpen && floorMenuRef && !floorMenuRef.contains(e.target as Node)) {
+        floorMenuOpen = false;
+      }
     }
     function handleKeydown(e: KeyboardEvent) {
       if (exportOpen) exportOpen = false;
       if (e.key === 'Escape' && moreOpen) moreOpen = false;
+      if (e.key === 'Escape' && floorMenuOpen) floorMenuOpen = false;
       if (e.key === 'Escape' && versionHistoryOpen) versionHistoryOpen = false;
       if (e.key === 'Escape' && areaOpen) areaOpen = false;
     }
@@ -273,7 +284,7 @@
   }
 </script>
 
-<div class="h-12 bg-gradient-to-r from-slate-800 to-slate-700 flex items-center px-4 gap-3 max-md:px-2 max-md:gap-1 shrink-0 shadow-sm">
+<div class="h-12 bg-gradient-to-r from-slate-800 to-slate-700 flex items-center px-4 gap-2 max-xl:px-2 max-xl:gap-1 shrink-0 shadow-sm">
   <!-- Back to Projects -->
   <a
     href={base || '/'}
@@ -284,7 +295,7 @@
     <span class="hidden sm:inline">Projects</span>
   </a>
 
-  <div class="h-5 w-px bg-white/20 max-md:hidden"></div>
+  <div class="h-5 w-px bg-white/20 max-xl:hidden"></div>
 
   {#if editingName}
     <input
@@ -296,30 +307,46 @@
     />
   {:else}
     <button
-      class="font-semibold text-white text-sm hover:bg-white/10 px-2 py-0.5 rounded transition-colors max-w-[12rem] truncate max-md:max-w-[4rem]"
+      class="font-semibold text-white text-sm hover:bg-white/10 px-2 py-0.5 rounded transition-colors max-w-[12rem] truncate max-xl:max-w-[4rem]"
       onclick={() => editingName = true}
       title="Click to rename"
     >{projectName}</button>
   {/if}
 
-  <div class="h-5 w-px bg-white/20 max-md:hidden"></div>
+  <div class="h-5 w-px bg-white/20 max-xl:hidden"></div>
 
   <!-- Floor selector as buttons (in overflow menu on mobile) -->
-  <div class="flex items-center gap-1 max-md:hidden">
-    {#each floors as fl}
+  <div class="flex items-center gap-1 max-xl:hidden">
+    <select aria-label="Current floor" value={activeFloorId} onchange={(e) => setActiveFloor(e.currentTarget.value)}
+      class="w-32 rounded bg-slate-700 px-2 py-1 text-xs text-white" title="Switch floor">
+      {#each floors as fl}<option value={fl.id}>{fl.name}</option>{/each}
+    </select>
+    <div class="relative" bind:this={floorMenuRef}>
       <button
-        class="px-2 py-0.5 text-xs rounded transition-colors {fl.id === activeFloorId ? 'bg-white text-slate-800 font-semibold' : 'text-white/80 hover:bg-white/10'}"
-        onclick={() => setActiveFloor(fl.id)}
-        ondblclick={() => onRemoveFloor(fl.id)}
-        title={fl.id === activeFloorId ? 'Active floor (dbl-click to remove)' : 'Click to switch, dbl-click to remove'}
-      >{fl.name}</button>
-    {/each}
-    <button
-      onclick={onAddFloor}
-      class="text-white/80 hover:text-white text-xs hover:bg-white/10 px-1.5 py-0.5 rounded transition-colors"
-      title="Add Floor"
-      aria-label="Add Floor"
-    >+</button>
+        onclick={() => floorMenuOpen = !floorMenuOpen}
+        class="text-white/80 hover:text-white text-xs hover:bg-white/10 px-1.5 py-0.5 rounded transition-colors"
+        title="Add Floor"
+        aria-label="Add Floor"
+        aria-expanded={floorMenuOpen}
+      >+</button>
+      {#if floorMenuOpen}
+        <div class="absolute left-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 w-64 z-50">
+          <div class="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">Add Top Floor</div>
+          <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => onAddFloor('outer')}>
+            Exterior walls <span class="text-gray-400">— current footprint</span>
+          </button>
+          <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => onAddFloor('copy')}>
+            All walls <span class="text-gray-400">— includes partitions</span>
+          </button>
+          <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => onAddFloor('empty')}>
+            Empty floor
+          </button>
+          <hr class="my-1 border-gray-100" />
+          <button class="w-full px-3 py-2 text-sm text-red-700 hover:bg-gray-100 text-left disabled:opacity-40" disabled={floors.length <= 1}
+            onclick={() => { onRemoveFloor(activeFloorId); floorMenuOpen = false; }}>Remove current floor</button>
+        </div>
+      {/if}
+    </div>
     <span class="text-white/40 text-[10px] ml-1">{floors.length}F</span>
   </div>
 
@@ -332,12 +359,12 @@
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/></svg>
   </button>
 
-  <div class="h-5 w-px bg-white/20 max-md:hidden"></div>
+  <div class="h-5 w-px bg-white/20 max-xl:hidden"></div>
 
   <!-- Snap to grid toggle -->
   <button
     onclick={() => { snapEnabled.update(v => !v); snapOn = !snapOn; }}
-    class="p-1.5 rounded transition-colors max-md:hidden {snapOn ? 'text-white bg-white/20' : 'text-white/40 hover:text-white/70 hover:bg-white/10'}"
+    class="p-1.5 rounded transition-colors max-xl:hidden {snapOn ? 'text-white bg-white/20' : 'text-white/40 hover:text-white/70 hover:bg-white/10'}"
     title="Snap to Grid ({snapOn ? 'On' : 'Off'})"
     aria-label="Snap to Grid"
   >
@@ -348,7 +375,7 @@
 
   <!-- Select / Pan toggle (mobile pans with two fingers; toggle lives in overflow menu) -->
   {#if mode === '2d'}
-  <div class="flex bg-white/15 rounded-full p-0.5 max-md:hidden">
+  <div class="flex bg-white/15 rounded-full p-0.5 max-xl:hidden">
     <button
       onclick={() => panMode.set(false)}
       class="px-2 py-1 text-xs font-semibold rounded-full transition-colors {!$panMode ? 'bg-white text-slate-800' : 'text-white/80 hover:text-white'}"
@@ -371,7 +398,7 @@
   <!-- Furniture visibility toggle -->
   <button
     onclick={() => layerVisibility.update(v => ({ ...v, furniture: !v.furniture }))}
-    class="p-1.5 rounded transition-colors max-md:hidden {$showFurnitureStore ? 'text-white bg-white/20' : 'text-white/40 hover:text-white/70 hover:bg-white/10'}"
+    class="p-1.5 rounded transition-colors max-xl:hidden {$showFurnitureStore ? 'text-white bg-white/20' : 'text-white/40 hover:text-white/70 hover:bg-white/10'}"
     title="Toggle Furniture ({$showFurnitureStore ? 'Visible' : 'Hidden'})"
     aria-label="Toggle Furniture"
   >
@@ -380,12 +407,12 @@
     </svg>
   </button>
 
-  <div class="h-5 w-px bg-white/20 max-md:hidden"></div>
+  <div class="h-5 w-px bg-white/20 max-xl:hidden"></div>
 
   <!-- Plan / Elevation sub-toggle (2D only) — sits left of the 2D/3D pill so the
        two switches read as a family; mobile (<md) uses the overflow menu instead -->
   {#if mode === '2d'}
-    <div class="flex bg-white/15 rounded-full p-0.5 max-md:hidden">
+    <div class="flex bg-white/15 rounded-full p-0.5 max-xl:hidden">
       <button
         onclick={exitElevation}
         class="px-3 py-1 text-xs font-semibold rounded-full transition-colors flex items-center gap-1.5 {!$elevationWallId ? 'bg-white text-slate-800' : 'text-white/80 hover:text-white'}"
@@ -411,41 +438,20 @@
   <div class="flex bg-white/15 rounded-full p-0.5">
     <button
       onclick={() => setMode('2d')}
-      class="px-3 max-md:px-2 py-1 text-xs font-semibold rounded-full transition-colors {mode === '2d' ? 'bg-white text-slate-800' : 'text-white/80 hover:text-white'}"
+      class="px-3 max-xl:px-2 py-1 text-xs font-semibold rounded-full transition-colors {mode === '2d' ? 'bg-white text-slate-800' : 'text-white/80 hover:text-white'}"
     >2D</button>
     <button
       onclick={() => setMode('3d')}
-      class="px-3 max-md:px-2 py-1 text-xs font-semibold rounded-full transition-colors {mode === '3d' ? 'bg-white text-slate-800' : 'text-white/80 hover:text-white'}"
+      class="px-3 max-xl:px-2 py-1 text-xs font-semibold rounded-full transition-colors {mode === '3d' ? 'bg-white text-slate-800' : 'text-white/80 hover:text-white'}"
     >3D</button>
   </div>
 
-  <!-- Zoom controls (2D plan only; mobile uses pinch + overflow menu) -->
-  {#if mode === '2d' && !$elevationWallId}
-    <div class="flex items-center gap-1 bg-white/15 rounded-full p-0.5 max-md:hidden">
-      <button
-        onclick={() => canvasZoom.update(z => Math.max(0.1, z / 1.25))}
-        class="w-7 h-7 flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 rounded-full transition-colors text-sm font-bold"
-        title="Zoom Out (−)"
-        aria-label="Zoom Out"
-      >−</button>
-      <button
-        onclick={() => canvasZoom.set(1)}
-        class="px-2 py-1 text-xs font-medium text-white/80 hover:text-white hover:bg-white/10 rounded-full transition-colors min-w-[3rem] text-center"
-        title="Reset Zoom (100%)"
-      >{Math.round($canvasZoom * 100)}%</button>
-      <button
-        onclick={() => canvasZoom.update(z => Math.min(10, z * 1.25))}
-        class="w-7 h-7 flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 rounded-full transition-colors text-sm font-bold"
-        title="Zoom In (+)"
-        aria-label="Zoom In"
-      >+</button>
-    </div>
-  {/if}
+  <!-- Zoom remains available on the canvas and in the compact toolbar menu. -->
 
   <!-- Version History button -->
   <button
     onclick={() => versionHistoryOpen = true}
-    class="p-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded transition-colors max-md:hidden"
+    class="p-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded transition-colors max-xl:hidden"
     title="Version History"
     aria-label="Version History"
   >
@@ -455,7 +461,7 @@
   <!-- Area summary button -->
   <button
     onclick={() => areaOpen = true}
-    class="px-2 py-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded transition-colors max-md:hidden"
+    class="px-2 py-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded transition-colors max-xl:hidden"
     title="Area Summary"
     aria-label="Area Summary"
   >
@@ -465,7 +471,7 @@
   <!-- Settings button -->
   <button
     onclick={() => settingsOpen = true}
-    class="px-2 py-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded transition-colors max-md:hidden"
+    class="px-2 py-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded transition-colors max-xl:hidden"
     title="Settings"
     aria-label="Settings"
   >
@@ -473,7 +479,7 @@
   </button>
 
   <!-- Overflow menu (mobile only): secondary actions hidden from the condensed bar -->
-  <div class="relative md:hidden" bind:this={moreRef}>
+  <div class="relative xl:hidden" bind:this={moreRef}>
     <button
       onclick={() => moreOpen = !moreOpen}
       class="p-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded transition-colors"
@@ -491,7 +497,11 @@
               {fl.name}{fl.id === activeFloorId ? ' ✓' : ''}
             </button>
           {/each}
-          <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => { onAddFloor(); }}>+ Add Floor</button>
+          <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => { onAddFloor('outer'); }}>+ Add Floor <span class="text-gray-400">(outer walls)</span></button>
+          <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => { onAddFloor('copy'); }}>+ Add Floor <span class="text-gray-400">(all walls)</span></button>
+          <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => { onAddFloor('empty'); }}>+ Add Floor <span class="text-gray-400">(empty)</span></button>
+          <button class="w-full px-3 py-2 text-sm text-red-700 hover:bg-gray-100 text-left disabled:opacity-40" disabled={floors.length <= 1}
+            onclick={() => { onRemoveFloor(activeFloorId); moreOpen = false; }}>Remove current floor</button>
           <div class="h-px bg-gray-100 my-1"></div>
         {/if}
         {#if mode === '2d'}
@@ -512,18 +522,18 @@
     {/if}
   </div>
 
-  <div class="h-5 w-px bg-white/20 max-md:hidden"></div>
+  <div class="h-5 w-px bg-white/20 max-xl:hidden"></div>
 
   <!-- Export dropdown -->
   <div class="relative" bind:this={exportRef}>
     <button
       onclick={() => { exportOpen = !exportOpen; if (exportOpen) triggerTip('first-export', 300, 60); }}
-      class="px-3 py-1.5 max-md:px-2 text-sm text-white/90 hover:text-white hover:bg-white/10 rounded transition-colors flex items-center gap-1.5"
+      class="px-3 py-1.5 max-xl:px-2 text-sm text-white/90 hover:text-white hover:bg-white/10 rounded transition-colors flex items-center gap-1.5"
       title="Export"
       aria-label="Export"
     >
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      <span class="max-md:hidden">Export</span>
+      <span class="max-xl:hidden">Export</span>
     </button>
     {#if exportOpen}
       <div class="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 w-48 z-50">
@@ -574,7 +584,7 @@
   </div>
 
   <span
-    class="text-[11px] font-medium transition-all duration-300 max-md:hidden {$saveState === 'saved' ? 'text-emerald-400' : $saveState === 'saving' ? 'text-amber-300 animate-pulse' : 'text-white/50'}"
+    class="text-[11px] font-medium transition-all duration-300 max-xl:hidden {$saveState === 'saved' ? 'text-emerald-400' : $saveState === 'saving' ? 'text-amber-300 animate-pulse' : 'text-white/50'}"
     title={lastSavedText || 'Not saved yet'}
   >
     {#if $saveState === 'saving'}
@@ -585,7 +595,7 @@
       Unsaved •
     {/if}
   </span>
-  <button onclick={save} class="px-3 py-1.5 max-md:px-2.5 text-sm bg-white text-slate-800 font-semibold rounded-lg hover:bg-blue-50 transition-colors shadow-sm">
+  <button onclick={save} class="px-3 py-1.5 max-xl:px-2.5 text-sm bg-white text-slate-800 font-semibold rounded-lg hover:bg-blue-50 transition-colors shadow-sm">
     Save
   </button>
 </div>

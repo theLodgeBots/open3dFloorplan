@@ -1,11 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { get } from 'svelte/store';
-  import { activeFloor, currentProject, detectedRoomsStore, selectedElementId } from '$lib/stores/project';
-  import type { Floor, Wall, Door, Window as Win, Room, Stair } from '$lib/models/types';
+  import { activeFloor, currentProject, selectedElementId } from '$lib/stores/project';
+  import type { Floor, Wall, Door, Window as Win, Stair } from '$lib/models/types';
   import { wallColors, type WallColor } from '$lib/utils/materials';
   import { projectSettings, formatArea } from '$lib/stores/settings';
   import * as THREE from 'three';
+  import { assembleFloorStack } from '$lib/utils/floorStack';
   import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
   import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
   import MaterialPicker from './MaterialPicker.svelte';
@@ -14,7 +15,7 @@
   import { createFurnitureModel } from '$lib/utils/furnitureModels3d';
   import { createFurnitureModelWithGLB } from '$lib/utils/furnitureModelLoader';
   import { addFurniture } from '$lib/stores/project';
-  import { detectRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
+  import { detectRooms, resolveRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
   import { getMaterial } from '$lib/utils/materials';
   import { getWallTextureCanvas, getFloorTextureCanvas, setTextureLoadCallback } from '$lib/utils/textureGenerator';
 
@@ -30,7 +31,6 @@
   let pointerControls: PointerLockControls;
   let animId: number;
   let currentFloor: Floor | null = null;
-  let savedRooms: Room[] = [];
   let wallGroup: THREE.Group;
   
   // Raycasting for wall selection in 3D
@@ -49,7 +49,7 @@
   let wallsTransparent = $state(false);
   // Multi-floor stacking
   let showAllFloors = $state(false);
-  const FLOOR_HEIGHT = 300; // cm — wall height + slab thickness
+  // Stacked geometry uses the same floor levels as the 2D reference layer.
 
   // Walkthrough mode
   let walkthroughMode = $state(false);
@@ -816,7 +816,7 @@
             createGhostPreview(selectedCatalogId);
           }
           if (ghostGroup) {
-            ghostGroup.position.set(hit.x, 1.5, hit.z);
+            ghostGroup.position.set(hit.x, hit.y + 1.5, hit.z);
             ghostGroup.visible = true;
           }
         } else if (ghostGroup) {
@@ -1539,9 +1539,8 @@
 
     // Room floors with materials + floating labels
     const FALLBACK_ROOM_COLORS = [0xbfdbfe, 0xfde68a, 0xbbf7d0, 0xfecaca, 0xddd6fe, 0xa5f3fc, 0xfed7aa];
-    // Use detected rooms from the store (which have user-edited names/floorTextures)
-    // Fall back to fresh detection if store is empty
-    let rooms = savedRooms.length > 0 ? savedRooms : detectRooms(floor.walls);
+    // Resolve labels and materials from this floor, including after a 3D floor switch.
+    const rooms = resolveRooms(floor);
     for (let ri = 0; ri < rooms.length; ri++) {
       const room = rooms[ri];
       const poly = getRoomPolygon(room, floor.walls);
@@ -1680,44 +1679,19 @@
     const activeF = project.floors.find(f => f.id === project.activeFloorId) ?? project.floors[0];
     buildWalls(activeF);
     
-    // Now add other floors at Y offsets
-    for (let i = 0; i < project.floors.length; i++) {
-      const floor = project.floors[i];
-      if (floor.id === activeF.id) {
-        // Active floor is already built at Y=0, move it to its correct offset
-        // We need to offset all current wallGroup children
-        const yOffset = i * FLOOR_HEIGHT;
-        if (yOffset !== 0) {
-          // Move existing children up
-          for (const child of [...wallGroup.children]) {
-            child.position.y += yOffset;
-          }
-        }
-        // Add floor label
-        addFloorLabel(i, floor.name || (i === 0 ? 'Ground Floor' : `Floor ${i}`), i * FLOOR_HEIGHT);
-        continue;
-      }
-      
-      // Build non-active floor into a temporary group, then merge with transparency
-      const tempGroup = new THREE.Group();
-      buildFloorIntoGroup(floor, tempGroup, i * FLOOR_HEIGHT, 0.35);
-      
-      // Add floor label
-      addFloorLabel(i, floor.name || (i === 0 ? 'Ground Floor' : `Floor ${i}`), i * FLOOR_HEIGHT);
-      
-      // Move children from temp group to wallGroup
-      while (tempGroup.children.length > 0) {
-        const child = tempGroup.children[0];
-        tempGroup.remove(child);
-        wallGroup.add(child);
-      }
+    const entries = assembleFloorStack(wallGroup, project.floors, activeF.id,
+      (floor, group, offset) => buildFloorIntoGroup(floor, group, offset, 0.35));
+    const box = new THREE.Box3().setFromObject(wallGroup);
+    const center = box.getCenter(new THREE.Vector3());
+    const labelX = box.isEmpty() ? -200 : box.min.x - 200;
+    for (const { floor, yOffset } of entries) {
+      addFloorLabel(floor.name, yOffset, labelX, center.z);
     }
-    
-    // Re-center camera to encompass all floors
-    autoCenterCameraAllFloors(project.floors.length);
+    floorPlane.constant = -(entries.find(entry => entry.floor.id === activeF.id)?.yOffset ?? 0);
+    autoCenterCameraAllFloors();
   }
-  
-  function addFloorLabel(floorIndex: number, name: string, yOffset: number) {
+
+  function addFloorLabel(name: string, yOffset: number, labelX: number, labelZ: number) {
     const canvas = document.createElement('canvas');
     canvas.width = 256; canvas.height = 48;
     const ctx = canvas.getContext('2d')!;
@@ -1733,11 +1707,7 @@
     const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true });
     const sprite = new THREE.Sprite(spriteMat);
     
-    // Position label to the side of the building
-    const box = new THREE.Box3().setFromObject(wallGroup);
-    const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
-    sprite.position.set(center.x - size.x / 2 - 200, yOffset + 130, center.z);
+    sprite.position.set(labelX, yOffset + 130, labelZ);
     sprite.scale.set(200, 40, 1);
     wallGroup.add(sprite);
   }
@@ -1828,7 +1798,7 @@
     }
   }
   
-  function autoCenterCameraAllFloors(floorCount: number) {
+  function autoCenterCameraAllFloors() {
     const box = new THREE.Box3().setFromObject(wallGroup);
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
@@ -1842,6 +1812,7 @@
     if (showAllFloors) {
       buildAllFloorsStacked();
     } else if (currentFloor) {
+      floorPlane.constant = 0;
       buildWalls(currentFloor);
     }
     markSceneDirty();
@@ -2108,7 +2079,7 @@
     animate();
 
     // Rebuild 3D scene when photo textures finish loading
-    setTextureLoadCallback(() => {
+    const stopTextures = setTextureLoadCallback(() => {
       if (currentFloor) rebuildScene();
     });
 
@@ -2120,9 +2091,6 @@
       if (f) rebuildScene();
     });
 
-    const unsubRooms = detectedRoomsStore.subscribe((rooms) => {
-      savedRooms = rooms;
-    });
 
     // Highlight selected wall in 3D
     // Store original materials so we can restore them (shared materials must not be mutated)
@@ -2163,9 +2131,9 @@
     });
 
     return () => {
+      stopTextures();
       resizeObs.disconnect();
       unsub();
-      unsubRooms();
       unsubSel();
       cancelAnimationFrame(animId);
       document.removeEventListener('keydown', onKeyDown, false);
