@@ -1,7 +1,7 @@
 import { env } from '$env/dynamic/private';
 import { json } from '@sveltejs/kit';
 import { HandoffError } from '$lib/server/handoffQuota';
-import { HandoffStorage } from '$lib/server/handoffStorage';
+import { HandoffStorage, HandoffStorageFailure } from '$lib/server/handoffStorage';
 import { uploadHandoff } from '$lib/server/handoffUpload';
 
 let storage: HandoffStorage | undefined;
@@ -22,6 +22,7 @@ export async function POST({ request }: { request: Request }) {
     return json(await uploadHandoff(request, storage), { status: 201, headers });
   } catch (error) {
     const known = error instanceof HandoffError;
+    if (!known) console.error(JSON.stringify({ event: 'handoff_unavailable', operation: error instanceof HandoffStorageFailure ? error.operation : 'quota-or-runtime', status: error instanceof HandoffStorageFailure ? error.status : undefined }));
     if (known && error.retryAfter) headers['Retry-After'] = String(error.retryAfter);
     // Never log capture bodies, tokens or sharing codes; storage failures fail closed.
     return json({ error: known ? error.message : 'Link sharing is temporarily unavailable. Use Export Editable Plan (JSON) instead.' }, { status: known ? error.status : 503, headers });

@@ -154,7 +154,14 @@ it('distinguishes a missing ledger from denied access and invalid metadata', asy
   const store = new HandoffStorage('example.test', async () => 'test-token', transport);
   expect(await store.read()).toBeNull();
   transport.mockResolvedValue(new Response(null, { status: 403 }));
-  await expect(store.read()).rejects.toThrow('Could not read');
+  await expect(store.read()).rejects.toMatchObject({ operation: 'ledger-read', status: 403 });
   transport.mockResolvedValue(Response.json({ generation: '1', metageneration: '1', metadata: { quota: '{}' } }));
-  await expect(store.read()).rejects.toThrow('Invalid handoff quota ledger');
+  await expect(store.read()).rejects.toMatchObject({ operation: 'ledger-format' });
+});
+
+it('round-trips the live ledger wire format without losing its version or counters', async () => {
+  const state = { ...emptyState(), uploads: 1, bytes: 12, minuteUploads: 1 };
+  const transport = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ generation: '1788645246013944', metageneration: '1', metadata: { quota: JSON.stringify(state) } }));
+  const store = new HandoffStorage('example.test', async () => 'test-token', transport);
+  expect(await store.read()).toEqual({ generation: '1788645246013944', metageneration: '1', state });
 });
