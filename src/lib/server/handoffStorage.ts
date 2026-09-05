@@ -4,6 +4,12 @@ import { parseQuotaState, type QuotaSnapshot, type QuotaState, type QuotaStore }
 const auth = new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/devstorage.read_write'] });
 const ledgerName = '_system/handoff-admission-v1';
 
+export class HandoffStorageFailure extends Error {
+  constructor(public operation: 'credentials' | 'network' | 'ledger-read' | 'ledger-format' | 'ledger-write' | 'object-create', public status?: number) {
+    super(`Handoff storage failure: ${operation}`);
+  }
+}
+
 /** Existing bucket + a zero-byte metadata ledger; no database, function or keys.
  * Metadata updates advance metageneration, without creating new data generations.
  */
@@ -15,20 +21,25 @@ export class HandoffStorage implements QuotaStore {
   }
 
   private async send(url: string, init: RequestInit = {}) {
-    const token = await this.accessToken();
-    if (!token) throw new Error('Handoff service credentials unavailable');
+    let token;
+    try { token = await this.accessToken(); }
+    catch { throw new HandoffStorageFailure('credentials'); }
+    if (!token) throw new HandoffStorageFailure('credentials');
     const headers = new Headers(init.headers);
     headers.set('Authorization', `Bearer ${token}`);
-    return this.request(url, { ...init, headers, signal: AbortSignal.timeout(5000) });
+    try { return await this.request(url, { ...init, headers, signal: AbortSignal.timeout(5000) }); }
+    catch { throw new HandoffStorageFailure('network'); }
   }
 
   async read(): Promise<QuotaSnapshot | null> {
     const response = await this.send(`${this.bucketUrl}/${encodeURIComponent(ledgerName)}?fields=generation,metageneration,metadata`);
     if (response.status === 404) { await response.body?.cancel(); return null; }
-    if (!response.ok) { await response.body?.cancel(); throw new Error('Could not read handoff quota'); }
-    const data = await response.json();
-    if (!/^\d+$/.test(data.generation) || !/^\d+$/.test(data.metageneration)) throw new Error('Invalid quota preconditions');
-    return { state: parseQuotaState(JSON.parse(data.metadata?.quota)), generation: data.generation, metageneration: data.metageneration };
+    if (!response.ok) { await response.body?.cancel(); throw new HandoffStorageFailure('ledger-read', response.status); }
+    try {
+      const data = await response.json();
+      if (!/^\d+$/.test(data.generation) || !/^\d+$/.test(data.metageneration)) throw new Error('Invalid quota preconditions');
+      return { state: parseQuotaState(JSON.parse(data.metadata?.quota)), generation: data.generation, metageneration: data.metageneration };
+    } catch { throw new HandoffStorageFailure('ledger-format'); }
   }
 
   async write(previous: QuotaSnapshot | null, state: QuotaState): Promise<boolean> {
@@ -40,7 +51,7 @@ export class HandoffStorage implements QuotaStore {
     });
     await response.body?.cancel();
     if (response.status === 412) return false;
-    if (!response.ok) throw new Error('Could not reserve handoff quota');
+    if (!response.ok) throw new HandoffStorageFailure('ledger-write', response.status);
     return true;
   }
 
@@ -55,7 +66,7 @@ export class HandoffStorage implements QuotaStore {
     const response = await this.send(url, { method: 'POST', headers: { 'Content-Type': `multipart/related; boundary=${boundary}` }, body });
     await response.body?.cancel();
     if (response.status === 409 || response.status === 412) return false;
-    if (!response.ok) throw new Error('Could not store handoff');
+    if (!response.ok) throw new HandoffStorageFailure('object-create', response.status);
     return true;
   }
 }
