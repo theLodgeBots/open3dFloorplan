@@ -10,6 +10,7 @@ export interface ProjectSettings {
   dimensionLineColor: string;            // color for dimension lines/text
   wallMeasureMode: 'centerline' | 'edge'; // measure walls center-to-center or edge-to-edge (clear span)
   snapToGrid: boolean;                   // snap elements to grid when dragging
+  snapToWalls: boolean;                  // snap furniture to nearby walls when dragging
   gridSize: number;                      // grid snap size in cm (default 25)
 }
 
@@ -23,6 +24,7 @@ const defaultSettings: ProjectSettings = {
   dimensionLineColor: '#1e293b',
   wallMeasureMode: 'centerline',
   snapToGrid: true,
+  snapToWalls: true,
   gridSize: 25,
 };
 

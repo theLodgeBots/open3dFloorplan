@@ -17,7 +17,7 @@ export interface CanvasState {
 export const GRID = 20;
 export const SNAP = 10;
 export const MAGNETIC_SNAP = 15;
-export const WALL_SNAP_DIST = 30;
+export const WALL_SNAP_DIST = 12;
 
 export function screenToWorld(cs: CanvasState, sx: number, sy: number): Point {
   return { x: (sx - cs.width / 2) / cs.zoom + cs.camX, y: (sy - cs.height / 2) / cs.zoom + cs.camY };
@@ -70,6 +70,72 @@ export function angleSnap(start: Point, end: Point, enabled: boolean): Point {
     }
   }
   return end;
+}
+
+export interface FurnitureResizeInput {
+  position: Point;
+  rotation: number;
+  width: number;
+  depth: number;
+  scale: { x: number; y: number };
+  handle: Exclude<HandleType, 'rotate'>;
+  pointer: Point;
+  preserveAspectRatio: boolean;
+  minSize?: number;
+}
+
+export interface FurnitureResizeResult {
+  position: Point;
+  scale: { x: number; y: number };
+}
+
+/**
+ * Resize a furniture rectangle from a handle while keeping the opposite edge
+ * or corner fixed. All geometry is calculated in the item's local coordinates,
+ * so the same rule works for rotated furniture.
+ */
+export function resizeFurnitureFromHandle(input: FurnitureResizeInput): FurnitureResizeResult {
+  const minSize = input.minSize ?? 10;
+  const originalScaleX = Math.abs(input.scale.x) || 1;
+  const originalScaleY = Math.abs(input.scale.y) || 1;
+  const originalWidth = input.width * originalScaleX;
+  const originalDepth = input.depth * originalScaleY;
+  const halfWidth = originalWidth / 2;
+  const halfDepth = originalDepth / 2;
+  const angle = -(input.rotation * Math.PI) / 180;
+  const dx = input.pointer.x - input.position.x;
+  const dy = input.pointer.y - input.position.y;
+  const localX = dx * Math.cos(angle) - dy * Math.sin(angle);
+  const localY = dx * Math.sin(angle) + dy * Math.cos(angle);
+  const horizontal = !['resize-t', 'resize-b'].includes(input.handle);
+  const vertical = !['resize-l', 'resize-r'].includes(input.handle);
+  const handleSignX = input.handle.includes('-l') || input.handle === 'resize-l' ? -1 : 1;
+  const handleSignY = input.handle.includes('-t') || input.handle === 'resize-t' ? -1 : 1;
+  const anchorX = horizontal ? -handleSignX * halfWidth : 0;
+  const anchorY = vertical ? -handleSignY * halfDepth : 0;
+
+  let newWidth = horizontal ? Math.max(minSize, Math.abs(localX - anchorX)) : originalWidth;
+  let newDepth = vertical ? Math.max(minSize, Math.abs(localY - anchorY)) : originalDepth;
+
+  if (input.preserveAspectRatio && horizontal && vertical) {
+    const originalRatio = originalWidth / originalDepth;
+    if (newWidth / newDepth > originalRatio) newDepth = newWidth / originalRatio;
+    else newWidth = newDepth * originalRatio;
+  }
+
+  const edgeX = horizontal ? anchorX + handleSignX * newWidth : 0;
+  const edgeY = vertical ? anchorY + handleSignY * newDepth : 0;
+  const centerX = (anchorX + edgeX) / 2;
+  const centerY = (anchorY + edgeY) / 2;
+  const worldAngle = -angle;
+
+  return {
+    position: {
+      x: input.position.x + centerX * Math.cos(worldAngle) - centerY * Math.sin(worldAngle),
+      y: input.position.y + centerX * Math.sin(worldAngle) + centerY * Math.cos(worldAngle),
+    },
+    scale: { x: newWidth / input.width, y: newDepth / input.depth },
+  };
 }
 
 export function findConnectedEndpoints(pt: Point, excludeWallId: string, walls: Wall[]): { wallId: string; endpoint: 'start' | 'end' }[] {
