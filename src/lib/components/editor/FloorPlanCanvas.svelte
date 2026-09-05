@@ -1,11 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { activeFloor, selectedTool, selectedElementId, selectedElementIds, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall, moveWallParallel, splitWall, snapEnabled, placingStair, addStair, moveStair, updateStair, placingColumn, placingColumnShape, addColumn, moveColumn, updateColumn, calibrationMode, calibrationPoints, updateBackgroundImage, setBackgroundImage, canvasZoom, canvasCamX, canvasCamY, panMode, showFurnitureStore, addGuide, moveGuide, removeGuide, beginUndoGroup, endUndoGroup, layerVisibility, updateRoom, addMeasurement, removeMeasurement, addAnnotation, removeAnnotation, updateAnnotation, addTextAnnotation, removeTextAnnotation, updateTextAnnotation, moveTextAnnotation, toggleFurnitureLock, createGroup, ungroupElements, findGroupForElement, placingEntourageId, addEntourageItem, moveEntourage, resizeEntourage, currentProject, elevationWallId, elevationPickMode } from '$lib/stores/project';
+  import { activeFloor, selectedTool, selectedElementId, selectedElementIds, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, transformFurnitureDuringDrag, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall, moveWallParallel, splitWall, snapEnabled, placingStair, addStair, moveStair, updateStair, placingColumn, placingColumnShape, addColumn, moveColumn, updateColumn, calibrationMode, calibrationPoints, updateBackgroundImage, setBackgroundImage, canvasZoom, canvasCamX, canvasCamY, panMode, showFurnitureStore, addGuide, moveGuide, removeGuide, beginUndoGroup, endUndoGroup, layerVisibility, updateRoom, addMeasurement, removeMeasurement, addAnnotation, removeAnnotation, updateAnnotation, addTextAnnotation, removeTextAnnotation, updateTextAnnotation, moveTextAnnotation, toggleFurnitureLock, createGroup, ungroupElements, findGroupForElement, placingEntourageId, addEntourageItem, moveEntourage, resizeEntourage, currentProject, elevationWallId, elevationPickMode } from '$lib/stores/project';
   import type { Point, Wall, Door, Window as Win, FurnitureItem, Stair, Column, GuideLine, Measurement, Annotation, TextAnnotation, CustomEntourageDef } from '$lib/models/types';
   import type { Floor, Room } from '$lib/models/types';
   import { resolveRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
   import { getMaterial } from '$lib/utils/materials';
-  import { getCatalogItem } from '$lib/utils/furnitureCatalog';
+  import { snapFurnitureToWalls } from '$lib/utils/furnitureGeometry';
+  import { getCatalogItem, getFurnitureSize, type FurnitureDef } from '$lib/utils/furnitureCatalog';
   import { drawFurnitureIcon } from '$lib/utils/furnitureIcons';
   import { handleGlobalShortcut } from '$lib/utils/shortcuts';
   import ContextMenu from './ContextMenu.svelte';
@@ -13,7 +14,7 @@
   import { getWallTextureCanvas, getFloorTextureCanvas, setTextureLoadCallback } from '$lib/utils/textureGenerator';
   import { projectSettings, formatLength, formatArea } from '$lib/stores/settings';
   import type { ProjectSettings } from '$lib/stores/settings';
-  import type { CanvasState } from '$lib/utils/canvasInteraction';
+  import { resizeFurnitureFromHandle, type CanvasState } from '$lib/utils/canvasInteraction';
   import { drawWall as _drawWall, drawDoorOnWall as _drawDoorOnWall, drawWindowOnWall as _drawWindowOnWall, drawDoorDistanceDimensions as _drawDoorDistanceDimensions, drawWindowDistanceDimensions as _drawWindowDistanceDimensions, drawFurnitureItem, drawStair as _drawStair, drawColumn as _drawColumn, drawGuides as _drawGuides, drawPersistedMeasurements as _drawPersistedMeasurements, drawTextAnnotations as _drawTextAnnotations, drawAnnotation as _drawAnnotation, drawAnnotations as _drawAnnotations, drawRooms as _drawRooms, drawWallJoints as _drawWallJoints, drawSnapPoints as _drawSnapPoints, drawMinimap as _drawMinimap, drawEntourageItems as _drawEntourageItems, drawEntourageGhost as _drawEntourageGhost, entourageAspect } from '$lib/utils/canvasRenderer';
   import { getEntourageDef } from '$lib/utils/entourageCatalog';
   import { pointInPolygon, positionOnWall, findWallAt as _findWallAt, findHandleAt as _findHandleAt, findFurnitureAt as _findFurnitureAt, findColumnAt as _findColumnAt, findStairAt as _findStairAt, findDoorAt as _findDoorAt, findWindowAt as _findWindowAt, findRoomAt as _findRoomAt, hitTestMeasurement as _hitTestMeasurement, hitTestAnnotation as _hitTestAnnotation, hitTestTextAnnotation as _hitTestTextAnnotation, findEntourageAt } from '$lib/utils/hitTesting';
@@ -125,7 +126,7 @@
     units: 'metric', showDimensions: true, showExternalDimensions: true,
     showInternalDimensions: false, showExtensionLines: true,
     showObjectDistance: true, dimensionLineColor: '#1e293b',
-    wallMeasureMode: 'centerline', snapToGrid: true, gridSize: 25,
+    wallMeasureMode: 'centerline', snapToGrid: true, snapToWalls: true, gridSize: 25,
   });
   projectSettings.subscribe((s) => {
     dimSettings = s;
@@ -145,8 +146,6 @@
   const GRID = 20;
   const SNAP = 10;
   const MAGNETIC_SNAP = 15;
-  const WALL_SNAP_DIST = 30; // cm — distance threshold to snap furniture to wall
-
   // Store subscriptions
   let currentFloor: Floor | null = $state(null);
   let currentSelectedId: string | null = $state(null);
@@ -157,6 +156,7 @@
   let currentWindowType: Win['type'] = $state('standard');
   let currentSnapEnabled: boolean = $state(true);
   let currentSnapToGrid: boolean = $state(true);
+  let currentSnapToWalls: boolean = $state(true);
   let currentGridSize: number = $state(25);
   let isPlacingStair: boolean = $state(false);
   let draggingStairId: string | null = $state(null);
@@ -187,9 +187,10 @@
   // Resize/rotate handle drag state
   type HandleType = 'resize-tl' | 'resize-tr' | 'resize-bl' | 'resize-br' | 'resize-t' | 'resize-b' | 'resize-l' | 'resize-r' | 'rotate';
   let draggingHandle = $state<HandleType | null>(null);
-  let handleDragStart: Point = { x: 0, y: 0 };
   let handleOrigScale: { x: number; y: number } = { x: 1, y: 1 };
   let handleOrigRotation: number = 0;
+  let handleOrigPosition: Point = { x: 0, y: 0 };
+  let handleOrigBaseSize: { width: number; depth: number } = { width: 50, depth: 50 };
 
   // Wall parallel drag state (drag midpoint to move wall parallel)
   let draggingWallParallel: { wallId: string; startMousePos: Point; origStart: Point; origEnd: Point; origCurve?: Point; connectedStart: { wallId: string; endpoint: 'start' | 'end' }[]; connectedEnd: { wallId: string; endpoint: 'start' | 'end' }[] } | null = $state(null);
@@ -254,67 +255,10 @@
    * Snap furniture position so its edge is flush against the nearest wall.
    * Returns adjusted position and rotation, or null if no wall is close enough.
    */
-  function snapFurnitureToWall(pos: Point, catalogId: string, currentRotation: number): { position: Point; rotation: number; wallId: string; side: 'normal' | 'anti'; wallAngle: number } | null {
-    if (!currentFloor) return null;
-    const cat = getCatalogItem(catalogId);
-    if (!cat) return null;
+  function snapFurnitureToWall(pos: Point, furniture: FurnitureItem | FurnitureDef): { position: Point; rotation: number; wallId: string; side: 'normal' | 'anti'; wallAngle: number } | null {
+    if (!currentFloor || !currentSnapToWalls) return null;
 
-    // Furniture half-depth (the "back" dimension that goes against the wall)
-    const halfDepth = cat.depth / 2;
-
-    let bestDist = WALL_SNAP_DIST;
-    let bestResult: { position: Point; rotation: number; wallId: string; side: 'normal' | 'anti'; wallAngle: number } | null = null;
-
-    for (const wall of currentFloor.walls) {
-      const wx = wall.end.x - wall.start.x;
-      const wy = wall.end.y - wall.start.y;
-      const wLen = Math.hypot(wx, wy);
-      if (wLen < 1) continue;
-
-      // Unit vectors along wall and perpendicular (normal)
-      const ux = wx / wLen, uy = wy / wLen;
-      const nx = -uy, ny = ux; // normal pointing "left" of wall direction
-
-      // Project furniture center onto wall line
-      const dx = pos.x - wall.start.x;
-      const dy = pos.y - wall.start.y;
-      const along = dx * ux + dy * uy; // projection along wall
-      const perp = dx * nx + dy * ny;  // signed distance from wall center-line
-
-      // Check if projection falls within wall segment (with some margin)
-      if (along < -cat.width / 2 || along > wLen + cat.width / 2) continue;
-
-      const wallHalfThickness = wall.thickness / 2;
-      // Distance from furniture center to wall surface on the side the furniture is on
-      const absDist = Math.abs(perp) - wallHalfThickness;
-
-      // We want the furniture edge to touch the wall, so target distance = halfDepth
-      const snapDist = Math.abs(absDist - halfDepth);
-
-      if (snapDist < bestDist) {
-        bestDist = snapDist;
-        const side: 'normal' | 'anti' = perp >= 0 ? 'normal' : 'anti';
-        const sign = perp >= 0 ? 1 : -1;
-        // Position: push center so edge is flush with wall surface
-        const targetPerp = sign * (wallHalfThickness + halfDepth);
-        const clampedAlong = Math.max(cat.width / 2, Math.min(wLen - cat.width / 2, along));
-        const newX = wall.start.x + ux * clampedAlong + nx * targetPerp;
-        const newY = wall.start.y + uy * clampedAlong + ny * targetPerp;
-        // Align rotation: furniture "front" faces away from wall
-        const wallAngle = Math.atan2(wy, wx) * 180 / Math.PI;
-        // Furniture at 0° has depth along Y axis, so align perpendicular
-        const targetRotation = perp >= 0 ? wallAngle : wallAngle + 180;
-
-        bestResult = {
-          position: { x: snap(newX), y: snap(newY) },
-          rotation: ((targetRotation % 360) + 360) % 360,
-          wallId: wall.id,
-          side,
-          wallAngle: wallAngle
-        };
-      }
-    }
-    return bestResult;
+    return snapFurnitureToWalls(pos, furniture, currentFloor.walls, snap);
   }
 
   function snap(v: number): number {
@@ -538,7 +482,7 @@
     const cat = getCatalogItem(currentPlacingId);
     if (!cat) return;
 
-    const wallSnap = snapFurnitureToWall(mousePos, currentPlacingId, currentPlacingRotation);
+    const wallSnap = snapFurnitureToWall(mousePos, cat);
     placementWallSnap = wallSnap;
 
     const pos = wallSnap ? wallSnap.position : mousePos;
@@ -1761,6 +1705,7 @@
     const unsub5 = placingRotation.subscribe((r) => { currentPlacingRotation = r; markDirty(); });
     const unsub6 = selectedTool.subscribe((t) => {
       if (t !== currentTool) {
+        finishCanvasGesture();
         measureStart = null;
         measureEnd = null;
         annotationStart = null;
@@ -1778,7 +1723,7 @@
     const unsub8 = placingDoorType.subscribe((t) => { currentDoorType = t; markDirty(); });
     const unsub9 = placingWindowType.subscribe((t) => { currentWindowType = t; markDirty(); });
     const unsub10 = snapEnabled.subscribe((v) => { currentSnapEnabled = v; markDirty(); });
-    const unsub_snapgrid = projectSettings.subscribe((s) => { currentSnapToGrid = s.snapToGrid; currentGridSize = s.gridSize; markDirty(); });
+    const unsub_snapgrid = projectSettings.subscribe((s) => { currentSnapToGrid = s.snapToGrid; currentSnapToWalls = s.snapToWalls; currentGridSize = s.gridSize; markDirty(); });
     const unsub11 = placingStair.subscribe((v) => { isPlacingStair = v; markDirty(); });
     const unsubEnt1 = placingEntourageId.subscribe((id) => { currentEntourageDefId = id; markDirty(); });
     const unsubEnt2 = currentProject.subscribe((pr) => { customEntourageDefs = pr?.customEntourage; markDirty(); });
@@ -2011,8 +1956,39 @@
 
   // pointInPolygon, pointToSegmentDist, positionOnWall imported from hitTesting.ts
 
+  /** True while a press that began on the canvas is still in progress. */
+  let canvasGestureActive = false;
+  let canvasPressPosition: Point = { x: 0, y: 0 };
+  let furnitureGestureStarted = false;
+
+  function finishCanvasGesture() {
+    if (canvasGestureActive) onMouseUp(new MouseEvent('mouseup'));
+  }
+
+  function onWindowBlur() {
+    finishCanvasGesture();
+    spaceDown = false;
+    shiftDown = false;
+  }
+
+  // A press that starts on the canvas can end somewhere else: the selection toolbar appears
+  // over the element the moment it is selected, and a drag can also leave the canvas
+  // entirely. Finishing the gesture from the window keeps the release from being lost, which
+  // would otherwise leave the element following the pointer with no way to drop it.
+  function onWindowMouseMove(e: MouseEvent) {
+    if (canvasGestureActive && e.target !== canvas) onMouseMove(e);
+  }
+
+  function onWindowMouseUp(e: MouseEvent) {
+    if (canvasGestureActive && e.target !== canvas) onMouseUp(e);
+  }
+
   function onMouseDown(e: MouseEvent) {
     markDirty();
+    if (e.button !== 0 && e.button !== 1) return;
+    finishCanvasGesture();
+    canvasGestureActive = true;
+    canvasPressPosition = { x: e.clientX, y: e.clientY };
     if (e.button === 1 || (e.button === 0 && (spaceDown || $panMode || (e.shiftKey && currentTool === 'select')))) {
       isPanning = true;
       panStartX = e.clientX;
@@ -2207,7 +2183,8 @@
     // Column and stair placement moved earlier (before select-mode handlers)
 
     if (tool === 'furniture' && currentPlacingId) {
-      const wallSnap = snapFurnitureToWall(wp, currentPlacingId, currentPlacingRotation);
+      const placingCat = getCatalogItem(currentPlacingId);
+      const wallSnap = placingCat ? snapFurnitureToWall(wp, placingCat) : null;
       const pos = wallSnap ? wallSnap.position : { x: snap(wp.x), y: snap(wp.y) };
       const rot = wallSnap ? wallSnap.rotation : currentPlacingRotation;
       const id = addFurniture(currentPlacingId, pos);
@@ -2299,16 +2276,34 @@
         }
       }
 
-      // Check selection handles first (resize/rotate on selected furniture)
+      // Selection handles come first: they belong to the already-selected element and are
+      // drawn over everything, so they win over any element underneath them.
       const handle = findHandleAt(wp);
       if (handle && currentSelectedId && currentFloor) {
         const fi = currentFloor.furniture.find(f => f.id === currentSelectedId);
         if (fi) {
           draggingHandle = handle;
-          handleDragStart = { ...wp };
+          handleOrigPosition = { ...fi.position };
           handleOrigScale = { x: fi.scale?.x ?? 1, y: fi.scale?.y ?? 1 };
           handleOrigRotation = fi.rotation;
-          commitFurnitureMove(); // snapshot for undo
+          const scaleX = Math.abs(handleOrigScale.x) || 1;
+          const scaleY = Math.abs(handleOrigScale.y) || 1;
+          const size = getFurnitureSize(fi);
+          handleOrigBaseSize = { width: size.width / scaleX, depth: size.depth / scaleY };
+          return;
+        }
+      }
+      // Entourage resize handle (SE corner of the selected item)
+      const selEnt = currentFloor?.entourage?.find(en => en.id === currentSelectedId);
+      if (selEnt && !selEnt.locked) {
+        const entAspect = entourageAspect(selEnt.defId, customEntourageDefs) || 1;
+        const ea = ((selEnt.rotation || 0) * Math.PI) / 180;
+        const lx = selEnt.width / 2, ly = (selEnt.width * entAspect) / 2;
+        const hx = selEnt.position.x + lx * Math.cos(ea) - ly * Math.sin(ea);
+        const hy = selEnt.position.y + lx * Math.sin(ea) + ly * Math.cos(ea);
+        if (Math.hypot(wp.x - hx, wp.y - hy) < 12 / zoom) {
+          resizingEntourageId = selEnt.id;
+          commitFurnitureMove(); // snapshot before resize for undo
           return;
         }
       }
@@ -2337,19 +2332,6 @@
         selectedRoomId.set(null);
       }
 
-      // Check doors/windows first (they sit on walls, so check before walls)
-      const door = findDoorAt(wp);
-      if (door) {
-        selectElement(door.id, e.shiftKey);
-        if (!e.shiftKey) draggingDoorId = door.id;
-        return;
-      }
-      const win = findWindowAt(wp);
-      if (win) {
-        selectElement(win.id, e.shiftKey);
-        if (!e.shiftKey) draggingWindowId = win.id;
-        return;
-      }
       // Check columns
       const col = findColumnAt(wp);
       if (col) {
@@ -2360,20 +2342,6 @@
           commitFurnitureMove(); // snapshot before drag for undo
         }
         return;
-      }
-      // Entourage resize handle (SE corner of the selected item)
-      const selEnt = currentFloor?.entourage?.find(en => en.id === currentSelectedId);
-      if (selEnt && !selEnt.locked) {
-        const entAspect = entourageAspect(selEnt.defId, customEntourageDefs) || 1;
-        const ea = ((selEnt.rotation || 0) * Math.PI) / 180;
-        const lx = selEnt.width / 2, ly = (selEnt.width * entAspect) / 2;
-        const hx = selEnt.position.x + lx * Math.cos(ea) - ly * Math.sin(ea);
-        const hy = selEnt.position.y + lx * Math.sin(ea) + ly * Math.cos(ea);
-        if (Math.hypot(wp.x - hx, wp.y - hy) < 12 / zoom) {
-          resizingEntourageId = selEnt.id;
-          commitFurnitureMove(); // snapshot before resize for undo
-          return;
-        }
       }
       // Check stairs
       const stair = findStairAt(wp);
@@ -2392,7 +2360,6 @@
         selectElement(fi.id, e.shiftKey, e.ctrlKey || e.metaKey);
         if (!e.shiftKey && !fi.locked) {
           draggingFurnitureId = fi.id;
-          commitFurnitureMove(); // snapshot before drag for undo
           dragOffset = { x: wp.x - fi.position.x, y: wp.y - fi.position.y };
           dragStartRotation = fi.rotation;
           dragWasWallSnapped = false;
@@ -2408,6 +2375,20 @@
           commitFurnitureMove(); // snapshot before drag for undo
           dragOffset = { x: wp.x - ent.position.x, y: wp.y - ent.position.y };
         }
+        return;
+      }
+      // Doors and windows sit on walls, so they come after the objects standing in the room
+      // and before the walls themselves.
+      const door = findDoorAt(wp);
+      if (door) {
+        selectElement(door.id, e.shiftKey);
+        if (!e.shiftKey) draggingDoorId = door.id;
+        return;
+      }
+      const win = findWindowAt(wp);
+      if (win) {
+        selectElement(win.id, e.shiftKey);
+        if (!e.shiftKey) draggingWindowId = win.id;
         return;
       }
       const wall = findWallAt(wp);
@@ -2543,9 +2524,18 @@
   }
 
   function onMouseMove(e: MouseEvent) {
+    // Recover if a release outside the window was never delivered to this page.
+    if (canvasGestureActive && e.buttons === 0) finishCanvasGesture();
     markDirty();
     const rect = canvas.getBoundingClientRect();
     mousePos = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+
+    if ((draggingFurnitureId || draggingHandle) && !furnitureGestureStarted) {
+      // Treat small pointer movement during a click as selection, not a snapped move.
+      if (Math.hypot(e.clientX - canvasPressPosition.x, e.clientY - canvasPressPosition.y) < 3) return;
+      beginUndoGroup();
+      furnitureGestureStarted = true;
+    }
 
     // Drag room label
     if (draggingRoomLabelId) {
@@ -2667,51 +2657,31 @@
     if (draggingHandle && currentSelectedId && currentFloor) {
       const fi = currentFloor.furniture.find(f => f.id === currentSelectedId);
       if (fi) {
-        const cat = getCatalogItem(fi.catalogId);
-        if (cat) {
-          if (draggingHandle === 'rotate') {
-            // Rotate based on angle from furniture center to mouse
-            const dx = mousePos.x - fi.position.x;
-            const dy = mousePos.y - fi.position.y;
-            let angle = Math.atan2(dx, -dy) * 180 / Math.PI; // 0° = up
-            // Hold Shift to snap to 15° increments; otherwise free rotation
-            if (shiftDown) {
-              angle = Math.round(angle / 15) * 15;
-            }
-            setFurnitureRotation(currentSelectedId, ((angle % 360) + 360) % 360);
-          } else {
-            // Resize: compute delta in furniture-local coords
-            const dx = mousePos.x - fi.position.x;
-            const dy = mousePos.y - fi.position.y;
-            const ang = -(fi.rotation * Math.PI) / 180;
-            const localX = dx * Math.cos(ang) - dy * Math.sin(ang);
-            const localY = dx * Math.sin(ang) + dy * Math.cos(ang);
-            const minScale = 10 / Math.max(cat.width, cat.depth); // 10cm minimum
-            let newSx = fi.scale?.x ?? 1;
-            let newSy = fi.scale?.y ?? 1;
-            const isEdge = ['resize-t', 'resize-b', 'resize-l', 'resize-r'].includes(draggingHandle);
-            const resizesX = !isEdge || draggingHandle === 'resize-l' || draggingHandle === 'resize-r';
-            const resizesY = !isEdge || draggingHandle === 'resize-t' || draggingHandle === 'resize-b';
-            if (resizesX) {
-              newSx = Math.abs(localX * 2) / cat.width;
-              newSx = Math.max(minScale, Math.round(newSx * 20) / 20);
-            }
-            if (resizesY) {
-              newSy = Math.abs(localY * 2) / cat.depth;
-              newSy = Math.max(minScale, Math.round(newSy * 20) / 20);
-            }
-            // Shift: maintain aspect ratio
-            if (shiftDown && resizesX && resizesY) {
-              const origRatio = (handleOrigScale.x * cat.width) / (handleOrigScale.y * cat.depth);
-              const currentRatio = (newSx * cat.width) / (newSy * cat.depth);
-              if (currentRatio > origRatio) {
-                newSy = (newSx * cat.width) / (origRatio * cat.depth);
-              } else {
-                newSx = (newSy * cat.depth * origRatio) / cat.width;
-              }
-            }
-            scaleFurniture(currentSelectedId, { x: newSx, y: newSy });
+        if (draggingHandle === 'rotate') {
+          // Rotate based on angle from furniture center to mouse
+          const dx = mousePos.x - fi.position.x;
+          const dy = mousePos.y - fi.position.y;
+          let angle = Math.atan2(dx, -dy) * 180 / Math.PI; // 0° = up
+          // Hold Shift to snap to 15° increments; otherwise free rotation
+          if (shiftDown) {
+            angle = Math.round(angle / 15) * 15;
           }
+          transformFurnitureDuringDrag(currentSelectedId, { rotation: ((angle % 360) + 360) % 360 });
+        } else {
+          const resized = resizeFurnitureFromHandle({
+            position: handleOrigPosition,
+            rotation: handleOrigRotation,
+            width: handleOrigBaseSize.width,
+            depth: handleOrigBaseSize.depth,
+            scale: handleOrigScale,
+            handle: draggingHandle,
+            pointer: mousePos,
+            preserveAspectRatio: shiftDown,
+          });
+          transformFurnitureDuringDrag(currentSelectedId, {
+            position: resized.position,
+            scale: { ...resized.scale, z: fi.scale?.z ?? 1 },
+          });
         }
       }
     }
@@ -2751,10 +2721,9 @@
       const basePos = { x: mousePos.x - dragOffset.x, y: mousePos.y - dragOffset.y };
       const fi = currentFloor?.furniture.find(f => f.id === draggingFurnitureId);
       if (fi) {
-        const wallSnap = snapFurnitureToWall(basePos, fi.catalogId, fi.rotation);
+        const wallSnap = snapFurnitureToWall(basePos, fi);
         if (wallSnap) {
-          moveFurniture(draggingFurnitureId, wallSnap.position);
-          setFurnitureRotation(draggingFurnitureId, wallSnap.rotation);
+          transformFurnitureDuringDrag(draggingFurnitureId, { position: wallSnap.position, rotation: wallSnap.rotation });
           dragWasWallSnapped = true;
           wallSnapInfo = { wallId: wallSnap.wallId, side: wallSnap.side, wallAngle: wallSnap.wallAngle };
         } else {
@@ -2771,12 +2740,11 @@
               }
             }
           }
-          moveFurniture(draggingFurnitureId, snapped);
-          // Restore original rotation when leaving wall snap
-          if (dragWasWallSnapped) {
-            setFurnitureRotation(draggingFurnitureId, dragStartRotation);
-            dragWasWallSnapped = false;
-          }
+          transformFurnitureDuringDrag(draggingFurnitureId, {
+            position: snapped,
+            ...(dragWasWallSnapped ? { rotation: dragStartRotation } : {}),
+          });
+          dragWasWallSnapped = false;
           wallSnapInfo = null;
         }
       }
@@ -2825,6 +2793,7 @@
 
   function onMouseUp(e: MouseEvent) {
     markDirty();
+    canvasGestureActive = false;
     isPanning = false;
     draggingGuideId = null;
 
@@ -2904,8 +2873,10 @@
       marqueeEnd = null;
     }
 
-    if (draggingFurnitureId) commitFurnitureMove();
-    if (draggingHandle) commitFurnitureMove();
+    if (furnitureGestureStarted) {
+      endUndoGroup(draggingHandle === 'rotate' ? 'Rotated furniture' : draggingHandle ? 'Resized furniture' : 'Moved furniture');
+      furnitureGestureStarted = false;
+    }
     if (draggingWallEndpoint) commitFurnitureMove();
     if (draggingWallParallel) commitFurnitureMove();
     if (draggingCurveHandle) commitFurnitureMove();
@@ -3177,6 +3148,7 @@
 
     // Canvas-specific Escape handling (before global shortcut eats it)
     if (e.code === 'Escape') {
+      finishCanvasGesture();
       elevationPickMode.set(false);
       wallStart = null; wallSequenceFirst = null; typedWallLength = '';
       placingFurnitureId.set(null);
@@ -3693,7 +3665,7 @@
   );
 </script>
 
-<svelte:window on:keydown={onKeyDown} on:keyup={onKeyUp} />
+<svelte:window on:keydown={onKeyDown} on:keyup={onKeyUp} onmousemove={onWindowMouseMove} onmouseup={onWindowMouseUp} onblur={onWindowBlur} />
 
 <div class="w-full h-full relative overflow-hidden" role="application">
   <canvas

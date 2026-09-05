@@ -297,6 +297,17 @@ export function moveFurniture(id: string, position: Point) {
   }
 }
 
+/** Apply one drag frame atomically. The canvas owns the enclosing undo group. */
+export function transformFurnitureDuringDrag(id: string, updates: Partial<Pick<FurnitureItem, 'position' | 'rotation' | 'scale'>>) {
+  const p = get(currentProject);
+  const floor = p?.floors.find(f => f.id === p.activeFloorId);
+  const item = floor?.furniture.find(fi => fi.id === id);
+  if (!p || !item) return;
+  Object.assign(item, updates);
+  p.updatedAt = new Date();
+  currentProject.set({ ...p });
+}
+
 /** Snapshot the current state before a drag begins (call once at drag start).
  *  Alias for beginDrag() for backward compatibility. */
 export function commitFurnitureMove() {

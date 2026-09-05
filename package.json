@@ -22,23 +22,28 @@
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^7.0.0",
-		"@sveltejs/adapter-node": "^5.5.3",
-		"@sveltejs/kit": "^2.50.2",
+		"@sveltejs/adapter-node": "^5.5.7",
+		"@sveltejs/kit": "^2.70.3",
 		"@sveltejs/vite-plugin-svelte": "^6.2.4",
 		"@tailwindcss/vite": "^4.1.18",
 		"@types/three": "^0.182.0",
-		"firebase": "^12.9.0",
-		"svelte": "^5.49.2",
+		"firebase": "^12.18.0",
+		"svelte": "^5.57.0",
 		"svelte-check": "^4.3.6",
 		"tailwindcss": "^4.1.18",
 		"three": "^0.182.0",
 		"typescript": "^5.9.3",
-		"vite": "^7.3.1",
+		"vite": "^7.3.6",
 		"vitest": "^5.0.0"
 	},
 	"dependencies": {
 		"dxf-writer": "^1.18.4",
-		"jspdf": "^4.1.0",
+		"jspdf": "^4.2.1",
 		"jszip": "^3.10.1"
+	},
+	"overrides": {
+		"@sveltejs/kit": {
+			"cookie": "^0.7.2"
+		}
 	}
 }

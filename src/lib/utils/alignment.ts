@@ -1,6 +1,6 @@
 import { get } from 'svelte/store';
 import { activeFloor, currentProject, beginUndoGroup, endUndoGroup } from '$lib/stores/project';
-import { getCatalogItem } from '$lib/utils/furnitureCatalog';
+import { getFurnitureSize } from '$lib/utils/furnitureCatalog';
 import type { FurnitureItem, Floor } from '$lib/models/types';
 
 export type AlignmentOp =
@@ -22,10 +22,8 @@ interface Rect {
 }
 
 function getRect(item: FurnitureItem): Rect {
-  const cat = getCatalogItem(item.catalogId);
-  const w = (item.width ?? cat?.width ?? 50) * (item.scale?.x ?? 1);
-  const d = (item.depth ?? cat?.depth ?? 50) * (item.scale?.y ?? 1);
-  return { item, x: item.position.x, y: item.position.y, w, d };
+  const { width, depth } = getFurnitureSize(item);
+  return { item, x: item.position.x, y: item.position.y, w: width, d: depth };
 }
 
 function getSelectedFurniture(ids: Set<string>): FurnitureItem[] {
