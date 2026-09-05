@@ -73,6 +73,8 @@ Changed geometry/import settings and expired entries trigger a new explicit uplo
 
 Self-hosted deployments default to sharing disabled. Enable only with
 `HANDOFF_UPLOADS_ENABLED=true` and `HANDOFF_BUCKET` set to the intended bucket.
+Set adapter-node's `BODY_SIZE_LIMIT=2M` so its default 512 KiB limit does not
+reject valid 1 MiB captures before the endpoint can enforce its own limit.
 The runtime needs Application Default Credentials with object get/create/update
 access for `inbox/` and the ledger. App Hosting already supplies its service
 identity; do not add service-account key files to the repository or browser.

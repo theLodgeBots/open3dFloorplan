@@ -1,0 +1,102 @@
+[
+  {
+    "file": "brick.jpg",
+    "originalBytes": 831880,
+    "webpBytes": 116184
+  },
+  {
+    "file": "concrete.jpg",
+    "originalBytes": 1126366,
+    "webpBytes": 112454
+  },
+  {
+    "file": "exposed-brick.jpg",
+    "originalBytes": 1550678,
+    "webpBytes": 174422
+  },
+  {
+    "file": "floor-bamboo.jpg",
+    "originalBytes": 1144528,
+    "webpBytes": 103930
+  },
+  {
+    "file": "floor-carpet-beige.jpg",
+    "originalBytes": 1414262,
+    "webpBytes": 331024
+  },
+  {
+    "file": "floor-carpet-gray.jpg",
+    "originalBytes": 1157846,
+    "webpBytes": 270190
+  },
+  {
+    "file": "floor-concrete.jpg",
+    "originalBytes": 269501,
+    "webpBytes": 27686
+  },
+  {
+    "file": "floor-laminate.jpg",
+    "originalBytes": 1222391,
+    "webpBytes": 88084
+  },
+  {
+    "file": "floor-light-oak.jpg",
+    "originalBytes": 892211,
+    "webpBytes": 99336
+  },
+  {
+    "file": "floor-marble-dark.jpg",
+    "originalBytes": 1239605,
+    "webpBytes": 237054
+  },
+  {
+    "file": "floor-marble-white.jpg",
+    "originalBytes": 1220876,
+    "webpBytes": 231878
+  },
+  {
+    "file": "floor-porcelain.jpg",
+    "originalBytes": 2314442,
+    "webpBytes": 513432
+  },
+  {
+    "file": "floor-slate.jpg",
+    "originalBytes": 1483352,
+    "webpBytes": 291122
+  },
+  {
+    "file": "floor-tile-gray.jpg",
+    "originalBytes": 1596504,
+    "webpBytes": 305504
+  },
+  {
+    "file": "floor-tile-white.jpg",
+    "originalBytes": 1152913,
+    "webpBytes": 119050
+  },
+  {
+    "file": "floor-vinyl.jpg",
+    "originalBytes": 1204950,
+    "webpBytes": 133396
+  },
+  {
+    "file": "floor-walnut.jpg",
+    "originalBytes": 649557,
+    "webpBytes": 63366
+  },
+  {
+    "file": "stone.jpg",
+    "originalBytes": 1584524,
+    "webpBytes": 269744
+  },
+  {
+    "file": "subway-tile.jpg",
+    "originalBytes": 1059920,
+    "webpBytes": 119772
+  },
+  {
+    "file": "wood-panel.jpg",
+    "originalBytes": 744688,
+    "webpBytes": 54644
+  }
+]

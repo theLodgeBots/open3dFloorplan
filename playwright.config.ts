@@ -30,6 +30,7 @@ export default defineConfig({
       NODE_ENV: 'production', HOST: '127.0.0.1', PORT: '4188',
       ORIGIN: 'http://127.0.0.1:4188', PUBLIC_ENABLE_ANALYTICS: 'false',
       HANDOFF_UPLOADS_ENABLED: 'false', HANDOFF_BUCKET: '',
+      BODY_SIZE_LIMIT: '2M',
     },
   },
 });
