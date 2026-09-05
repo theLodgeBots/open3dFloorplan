@@ -85,20 +85,7 @@
       if (!isRoomPlanJson(data)) {
         throw new Error('The downloaded file is not a valid RoomPlan export.');
       }
-      // The iOS app can send explicit import choices (user-facing toggles);
-      // openplanPrepared is the older marker for exact hand-drawn/edited
-      // geometry. Raw scans without either keep the dialog defaults.
-      const sent = data?.openplanImportOptions;
-      const options = sent
-        ? {
-            straighten: !!sent.straighten,
-            orthogonal: !!sent.orthogonal,
-            mergeDistance: sent.straighten || sent.orthogonal ? 15 : 0,
-          }
-        : data?.openplanPrepared
-          ? { straighten: false, orthogonal: false, mergeDistance: 0 }
-          : undefined;
-      const project = createProjectFromRoomPlan(data, `Room Capture ${code}`, options);
+      const project = createProjectFromRoomPlan(data, `Room Capture ${code}`);
       loadProject(project);
       // A storage failure must not discard a successfully downloaded capture.
       await autoSave();
