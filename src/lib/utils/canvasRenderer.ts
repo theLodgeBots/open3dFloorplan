@@ -1770,3 +1770,107 @@ export function drawEntourageGhost(
   );
   ctx.restore();
 }
+
+// ── Floor-below ghost ────────────────────────────────────────────────
+
+/** Envelope walls of the floor below; everything else there is a partition. */
+const GHOST_OUTER_FILL = 'rgba(100, 116, 139, 0.30)';
+const GHOST_INNER_FILL = 'rgba(100, 116, 139, 0.14)';
+const GHOST_STAIR_STROKE = 'rgba(100, 116, 139, 0.55)';
+
+/** Screen-space outline of a wall's footprint band, following its curve if it has one. */
+function wallBandPath(cs: CanvasState, w: Wall): { x: number; y: number }[] {
+  const s = wts(cs, w.start.x, w.start.y);
+  const e = wts(cs, w.end.x, w.end.y);
+  const half = wallThicknessScreen(w, cs.zoom) / 2;
+
+  if (w.curvePoint) {
+    const cp = wts(cs, w.curvePoint.x, w.curvePoint.y);
+    const SEGS = 24;
+    const outer: { x: number; y: number }[] = [];
+    const inner: { x: number; y: number }[] = [];
+    for (let i = 0; i <= SEGS; i++) {
+      const t = i / SEGS;
+      const mt = 1 - t;
+      const px = mt * mt * s.x + 2 * mt * t * cp.x + t * t * e.x;
+      const py = mt * mt * s.y + 2 * mt * t * cp.y + t * t * e.y;
+      const tdx = 2 * mt * (cp.x - s.x) + 2 * t * (e.x - cp.x);
+      const tdy = 2 * mt * (cp.y - s.y) + 2 * t * (e.y - cp.y);
+      const tlen = Math.hypot(tdx, tdy) || 1;
+      const nx = (-tdy / tlen) * half;
+      const ny = (tdx / tlen) * half;
+      outer.push({ x: px + nx, y: py + ny });
+      inner.push({ x: px - nx, y: py - ny });
+    }
+    return [...outer, ...inner.reverse()];
+  }
+
+  const dx = e.x - s.x;
+  const dy = e.y - s.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = (-dy / len) * half;
+  const ny = (dx / len) * half;
+  return [
+    { x: s.x + nx, y: s.y + ny },
+    { x: e.x + nx, y: e.y + ny },
+    { x: e.x - nx, y: e.y - ny },
+    { x: s.x - nx, y: s.y - ny },
+  ];
+}
+
+function tracePolygon(ctx: CanvasRenderingContext2D, pts: { x: number; y: number }[]): void {
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.closePath();
+}
+
+/**
+ * Draw the storey below as a dim, non-interactive reference layer.
+ *
+ * Sits above this floor's room fills (which are opaque) but below its walls, so
+ * the layout underneath shows through without competing with what you are
+ * editing. Envelope walls are drawn a shade stronger than partitions — when you
+ * are laying out an upper storey, the footprint you have to stay inside matters
+ * more than which rooms happen to sit under it. Stairs come along because an
+ * upper floor's stairwell opening has to land on the flight below.
+ *
+ * `outerWallIds` is passed in rather than derived here: envelope detection runs
+ * room detection, which is far too costly to repeat on every animation frame.
+ */
+export function drawFloorBelowGhost(cs: CanvasState, floor: Floor, outerWallIds: Set<string>): void {
+  const { ctx, zoom } = cs;
+  ctx.save();
+
+  for (const w of floor.walls) {
+    ctx.fillStyle = outerWallIds.has(w.id) ? GHOST_OUTER_FILL : GHOST_INNER_FILL;
+    tracePolygon(ctx, wallBandPath(cs, w));
+    ctx.fill();
+  }
+
+  for (const stair of floor.stairs ?? []) {
+    const s = wts(cs, stair.position.x, stair.position.y);
+    const w = stair.width * zoom;
+    const d = stair.depth * zoom;
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.rotate((stair.rotation * Math.PI) / 180);
+    ctx.strokeStyle = GHOST_STAIR_STROKE;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 4]);
+    ctx.strokeRect(-w / 2, -d / 2, w, d);
+    ctx.setLineDash([]);
+    // A few treads, enough to read as a stair without competing with this floor.
+    const treads = 4;
+    ctx.beginPath();
+    for (let i = 1; i < treads; i++) {
+      const y = -d / 2 + (d * i) / treads;
+      ctx.moveTo(-w / 2, y);
+      ctx.lineTo(w / 2, y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  ctx.restore();
+}

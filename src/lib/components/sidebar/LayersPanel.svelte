@@ -1,17 +1,18 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import { activeFloor, selectedElementId, layerVisibility } from '$lib/stores/project';
   import { getCatalogItem } from '$lib/utils/furnitureCatalog';
   import { getEntourageDef } from '$lib/utils/entourageCatalog';
   import type { Floor } from '$lib/models/types';
 
   let floor: Floor | null = $state(null);
-  activeFloor.subscribe(f => { floor = f; });
+  onDestroy(activeFloor.subscribe(f => { floor = f; }));
 
   let selId: string | null = $state(null);
-  selectedElementId.subscribe(id => { selId = id; });
+  onDestroy(selectedElementId.subscribe(id => { selId = id; }));
 
-  let vis = $state({ walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true, entourage: true });
-  layerVisibility.subscribe(v => { vis = v; });
+  let vis = $state({ walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true, entourage: true, floorBelow: true });
+  onDestroy(layerVisibility.subscribe(v => { vis = v; }));
 
   // Collapsed state per category
   let collapsed: Record<string, boolean> = $state({});

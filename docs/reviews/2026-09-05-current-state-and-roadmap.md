@@ -260,3 +260,13 @@ print scaling, and wall-aligned door/window selection. See the
 The implementation passes 110 tests, type checks, build and dependency audit.
 Cloud retention, upload quotas and billing-administrator work from #30 remain
 outstanding; no iOS or live bucket policy changed in this batch.
+
+### Fourth batch — multi-floor reliability and view cleanup
+
+The feature work from #23 is integrated with independent wall copies, partial
+exterior boundaries, unique floor levels, a floor-below reference, compact floor
+controls, and correct stacked 3D elevations. Floor changes clear stale editing
+context. Browser testing also led to cleanup of duplicate/unmounted 2D animation
+loops and view subscriptions. All 135 tests pass with zero type errors and zero
+dependency advisories. See the [batch evidence and limitations](2026-09-05-multifloor-reliability.md).
+The remaining cloud cost controls in #30 are unchanged.

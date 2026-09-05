@@ -1,9 +1,12 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
+  import { startAnimationLoop } from '$lib/utils/animationLoop';
   import { activeFloor, selectedTool, selectedElementId, selectedElementIds, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, transformFurnitureDuringDrag, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall, moveWallParallel, splitWall, snapEnabled, placingStair, addStair, moveStair, updateStair, placingColumn, placingColumnShape, addColumn, moveColumn, updateColumn, calibrationMode, calibrationPoints, updateBackgroundImage, setBackgroundImage, canvasZoom, canvasCamX, canvasCamY, panMode, showFurnitureStore, addGuide, moveGuide, removeGuide, beginUndoGroup, endUndoGroup, layerVisibility, updateRoom, addMeasurement, removeMeasurement, addAnnotation, removeAnnotation, updateAnnotation, addTextAnnotation, removeTextAnnotation, updateTextAnnotation, moveTextAnnotation, toggleFurnitureLock, createGroup, ungroupElements, findGroupForElement, placingEntourageId, addEntourageItem, moveEntourage, resizeEntourage, currentProject, elevationWallId, elevationPickMode } from '$lib/stores/project';
   import type { Point, Wall, Door, Window as Win, FurnitureItem, Stair, Column, GuideLine, Measurement, Annotation, TextAnnotation, CustomEntourageDef } from '$lib/models/types';
   import type { Floor, Room } from '$lib/models/types';
   import { resolveRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
+  import { getFloorBelow } from '$lib/utils/floors';
+  import { detectOuterWalls } from '$lib/utils/outerWalls';
   import { getMaterial } from '$lib/utils/materials';
   import { snapFurnitureToWalls } from '$lib/utils/furnitureGeometry';
   import { getCatalogItem, getFurnitureSize, type FurnitureDef } from '$lib/utils/furnitureCatalog';
@@ -15,7 +18,7 @@
   import { projectSettings, formatLength, formatArea } from '$lib/stores/settings';
   import type { ProjectSettings } from '$lib/stores/settings';
   import { resizeFurnitureFromHandle, type CanvasState } from '$lib/utils/canvasInteraction';
-  import { drawWall as _drawWall, drawDoorOnWall as _drawDoorOnWall, drawWindowOnWall as _drawWindowOnWall, drawDoorDistanceDimensions as _drawDoorDistanceDimensions, drawWindowDistanceDimensions as _drawWindowDistanceDimensions, drawFurnitureItem, drawStair as _drawStair, drawColumn as _drawColumn, drawGuides as _drawGuides, drawPersistedMeasurements as _drawPersistedMeasurements, drawTextAnnotations as _drawTextAnnotations, drawAnnotation as _drawAnnotation, drawAnnotations as _drawAnnotations, drawRooms as _drawRooms, drawWallJoints as _drawWallJoints, drawSnapPoints as _drawSnapPoints, drawMinimap as _drawMinimap, drawEntourageItems as _drawEntourageItems, drawEntourageGhost as _drawEntourageGhost, entourageAspect } from '$lib/utils/canvasRenderer';
+  import { drawWall as _drawWall, drawDoorOnWall as _drawDoorOnWall, drawWindowOnWall as _drawWindowOnWall, drawDoorDistanceDimensions as _drawDoorDistanceDimensions, drawWindowDistanceDimensions as _drawWindowDistanceDimensions, drawFurnitureItem, drawStair as _drawStair, drawColumn as _drawColumn, drawGuides as _drawGuides, drawPersistedMeasurements as _drawPersistedMeasurements, drawTextAnnotations as _drawTextAnnotations, drawAnnotation as _drawAnnotation, drawAnnotations as _drawAnnotations, drawRooms as _drawRooms, drawWallJoints as _drawWallJoints, drawSnapPoints as _drawSnapPoints, drawMinimap as _drawMinimap, drawEntourageItems as _drawEntourageItems, drawEntourageGhost as _drawEntourageGhost, drawFloorBelowGhost as _drawFloorBelowGhost, entourageAspect } from '$lib/utils/canvasRenderer';
   import { getEntourageDef } from '$lib/utils/entourageCatalog';
   import { pointInPolygon, positionOnWall, findWallAt as _findWallAt, findHandleAt as _findHandleAt, findFurnitureAt as _findFurnitureAt, findColumnAt as _findColumnAt, findStairAt as _findStairAt, findDoorAt as _findDoorAt, findWindowAt as _findWindowAt, findRoomAt as _findRoomAt, hitTestMeasurement as _hitTestMeasurement, hitTestAnnotation as _hitTestAnnotation, hitTestTextAnnotation as _hitTestTextAnnotation, findEntourageAt } from '$lib/utils/hitTesting';
 
@@ -34,7 +37,7 @@
   function markDirty() { canvasDirty = true; }
   function getCS(): CanvasState { return { ctx, width, height, zoom, camX, camY }; }
   // Sync zoom with shared store
-  canvasZoom.subscribe(v => { zoom = v; });
+  onDestroy(canvasZoom.subscribe(v => { zoom = v; }));
   $effect(() => { canvasZoom.set(zoom); });
   $effect(() => { canvasCamX.set(camX); });
   $effect(() => { canvasCamY.set(camY); });
@@ -114,7 +117,7 @@
   let showRulers = $state(true);
 
   // Layer visibility toggles
-  let layerVis = $state({ walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true, entourage: true });
+  let layerVis = $state({ walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true, entourage: true, floorBelow: true });
   // Sync showFurnitureStore ↔ layerVisibility.furniture
   let showFurniture = $derived(layerVis.furniture);
   $effect(() => { showFurnitureStore.set(layerVis.furniture); });
@@ -128,10 +131,10 @@
     showObjectDistance: true, dimensionLineColor: '#1e293b',
     wallMeasureMode: 'centerline', snapToGrid: true, snapToWalls: true, gridSize: 25,
   });
-  projectSettings.subscribe((s) => {
+  onDestroy(projectSettings.subscribe((s) => {
     dimSettings = s;
     showDimensions = s.showDimensions;
-  });
+  }));
   let showStairs = $derived(layerVis.stairs);
   let showLayerPanel = $state(false);
   let showMinimap = $state(true);
@@ -142,6 +145,12 @@
   let detectedRooms: Room[] = $state([]);
   let lastWallHash = '';
   let lastRoomFloorId = '';
+  // Storey directly beneath the active one, drawn as a dim reference underlay.
+  let floorBelow: Floor | null = $state(null);
+  // Its envelope walls. Cached because detection runs room detection, which is
+  // far too costly for the per-frame redraws that dragging triggers.
+  let floorBelowOuterIds = new Set<string>();
+  let lastFloorBelowHash = '';
 
   const GRID = 20;
   const SNAP = 10;
@@ -796,6 +805,16 @@
     ctx.setLineDash([]);
   }
 
+  /** Envelope wall ids for the ghost underlay, recomputed only when its geometry changes. */
+  function getFloorBelowOuterIds(floor: Floor): Set<string> {
+    const hash = floor.id + JSON.stringify(floor.walls.map(w => [w.id, w.start, w.end]));
+    if (hash !== lastFloorBelowHash) {
+      lastFloorBelowHash = hash;
+      floorBelowOuterIds = detectOuterWalls(floor.walls);
+    }
+    return floorBelowOuterIds;
+  }
+
   function updateDetectedRooms() {
     if (!currentFloor) return;
     const hash = currentFloor.id + JSON.stringify([currentFloor.walls, currentFloor.rooms]);
@@ -1034,12 +1053,11 @@
 
   function scheduleDraw() {
     markDirty();
-    requestAnimationFrame(draw);
   }
 
   function draw() {
     if (!ctx) return;
-    if (!canvasDirty) { requestAnimationFrame(draw); return; }
+    if (!canvasDirty) return;
     canvasDirty = false;
     ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = '#f8f9fa';
@@ -1049,7 +1067,7 @@
     drawBackgroundImage();
 
     const floor = currentFloor;
-    if (!floor) { requestAnimationFrame(draw); return; }
+    if (!floor) return;
     // Mark dirty whenever active interactions are happening (wall drawing, dragging, etc.)
     if (wallStart || draggingFurnitureId || draggingDoorId || draggingWindowId || draggingStairId ||
         draggingColumnId || draggingWallEndpoint || draggingWallParallel || draggingCurveHandle ||
@@ -1066,6 +1084,13 @@
     function isSelected(id: string) { return id === selId || multiIds.has(id); }
 
     drawRooms();
+    // Above the room fills, below this floor's own walls. Room floor textures
+    // are opaque, so an underlay drawn before them vanishes the moment the
+    // storey encloses a room — which is immediately, now that a new floor
+    // starts from the envelope below.
+    if (layerVis.floorBelow && floorBelow) {
+      _drawFloorBelowGhost(getCS(), floorBelow, getFloorBelowOuterIds(floorBelow));
+    }
     drawSnapPoints();
 
     if (layerVis.walls) {
@@ -1672,7 +1697,6 @@
     // Mini-map
     drawMinimap();
 
-    requestAnimationFrame(draw);
   }
 
   /** True while the integrated elevation view covers the canvas area */
@@ -1683,20 +1707,29 @@
   onMount(() => {
     ctx = canvas.getContext('2d')!;
     resize();
-    // Re-render when photo textures finish loading
-    setTextureLoadCallback(() => { /* draw loop is already running via rAF */ });
+    const stopTextures = setTextureLoadCallback(markDirty);
+    const stopDrawing = startAnimationLoop(draw);
+    let mounted = true;
     const resizeObs = new ResizeObserver(resize);
     resizeObs.observe(canvas.parentElement!);
-    requestAnimationFrame(draw);
 
     let initialFitDone = false;
     const unsub1 = activeFloor.subscribe((f) => {
+      if (f?.id !== currentFloor?.id) {
+        measureStart = null;
+        measureEnd = null;
+        annotationStart = null;
+        editingDimensionId = null;
+        wallStart = null;
+        wallSequenceFirst = null;
+        typedWallLength = '';
+      }
       currentFloor = f;
       markDirty();
       if (!initialFitDone && f && f.walls.length > 0) {
         initialFitDone = true;
         // Delay slightly to ensure canvas is sized
-        requestAnimationFrame(() => { zoomToFit(); });
+        requestAnimationFrame(() => { if (mounted) zoomToFit(); });
       }
     });
     const unsub2 = selectedElementId.subscribe((id) => { currentSelectedId = id; markDirty(); });
@@ -1726,7 +1759,15 @@
     const unsub_snapgrid = projectSettings.subscribe((s) => { currentSnapToGrid = s.snapToGrid; currentSnapToWalls = s.snapToWalls; currentGridSize = s.gridSize; markDirty(); });
     const unsub11 = placingStair.subscribe((v) => { isPlacingStair = v; markDirty(); });
     const unsubEnt1 = placingEntourageId.subscribe((id) => { currentEntourageDefId = id; markDirty(); });
-    const unsubEnt2 = currentProject.subscribe((pr) => { customEntourageDefs = pr?.customEntourage; markDirty(); });
+    const unsubEnt2 = currentProject.subscribe((pr) => {
+      customEntourageDefs = pr?.customEntourage;
+      floorBelow = getFloorBelow(pr);
+      if (!initialFitDone && floorBelow?.walls.length && layerVis.floorBelow) {
+        initialFitDone = true;
+        requestAnimationFrame(() => { if (mounted) zoomToFit(); });
+      }
+      markDirty();
+    });
     const unsub_layers = layerVisibility.subscribe((v) => { layerVis = v; markDirty(); });
     const unsub_col = placingColumn.subscribe((v) => { isPlacingColumn = v; markDirty(); });
     const unsub_cols = placingColumnShape.subscribe((v) => { placingColShape = v; markDirty(); });
@@ -1778,7 +1819,7 @@
     canvas.addEventListener('touchend', onTouchEnd, { passive: false });
     canvas.addEventListener('touchcancel', onTouchEnd, { passive: false });
 
-    return () => { resizeObs.disconnect(); unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); unsub8(); unsub9(); unsub10(); unsub11(); unsub12(); unsub13(); unsub_multi(); unsub_elevopen(); unsub_elevpick(); unsub14(); unsub_col(); unsub_cols(); unsub_layers(); unsub_snapgrid(); unsubEnt1(); unsubEnt2(); document.removeEventListener('paste', handlePaste); canvas.removeEventListener('touchstart', onTouchStart); canvas.removeEventListener('touchmove', onTouchMove); canvas.removeEventListener('touchend', onTouchEnd); canvas.removeEventListener('touchcancel', onTouchEnd); };
+    return () => { mounted = false; stopDrawing(); stopTextures(); resizeObs.disconnect(); unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); unsub8(); unsub9(); unsub10(); unsub11(); unsub12(); unsub13(); unsub_multi(); unsub_elevopen(); unsub_elevpick(); unsub14(); unsub_col(); unsub_cols(); unsub_layers(); unsub_snapgrid(); unsubEnt1(); unsubEnt2(); document.removeEventListener('paste', handlePaste); canvas.removeEventListener('touchstart', onTouchStart); canvas.removeEventListener('touchmove', onTouchMove); canvas.removeEventListener('touchend', onTouchEnd); canvas.removeEventListener('touchcancel', onTouchEnd); };
   });
 
   /** Compute world bounding box of all elements */
@@ -1824,7 +1865,9 @@
   }
 
   function zoomToFit() {
-    if (!currentFloor || (currentFloor.walls.length === 0 && currentFloor.furniture.length === 0)) {
+    const fitFloor = currentFloor && (currentFloor.walls.length || currentFloor.furniture.length)
+      ? currentFloor : layerVis.floorBelow && floorBelow ? floorBelow : currentFloor;
+    if (!fitFloor || (fitFloor.walls.length === 0 && fitFloor.furniture.length === 0)) {
       camX = 0; camY = 0; zoom = 1;
       return;
     }
@@ -1834,13 +1877,13 @@
       if (y < minY) minY = y; if (y > maxY) maxY = y;
     }
     // Walls (including curve control points)
-    for (const w of currentFloor.walls) {
+    for (const w of fitFloor.walls) {
       expand(w.start.x, w.start.y);
       expand(w.end.x, w.end.y);
       if (w.curvePoint) expand(w.curvePoint.x, w.curvePoint.y);
     }
     // Furniture
-    for (const fi of currentFloor.furniture) {
+    for (const fi of fitFloor.furniture) {
       const cat = getCatalogItem(fi.catalogId);
       if (!cat) continue;
       const hw = (fi.width ?? cat.width) / 2;
@@ -1850,24 +1893,24 @@
       expand(fi.position.x + r, fi.position.y + r);
     }
     // Doors & windows (position on their parent wall)
-    for (const d of currentFloor.doors) {
-      const w = currentFloor.walls.find(wl => wl.id === d.wallId);
+    for (const d of fitFloor.doors) {
+      const w = fitFloor.walls.find(wl => wl.id === d.wallId);
       if (w) { const pt = wallPointAt(w, d.position); expand(pt.x, pt.y); }
     }
-    for (const win of currentFloor.windows) {
-      const w = currentFloor.walls.find(wl => wl.id === win.wallId);
+    for (const win of fitFloor.windows) {
+      const w = fitFloor.walls.find(wl => wl.id === win.wallId);
       if (w) { const pt = wallPointAt(w, win.position); expand(pt.x, pt.y); }
     }
     // Stairs
-    if (currentFloor.stairs) {
-      for (const st of currentFloor.stairs) {
+    if (fitFloor.stairs) {
+      for (const st of fitFloor.stairs) {
         expand(st.position.x - st.width / 2, st.position.y - st.depth / 2);
         expand(st.position.x + st.width / 2, st.position.y + st.depth / 2);
       }
     }
     // Columns
-    if (currentFloor.columns) {
-      for (const col of currentFloor.columns) {
+    if (fitFloor.columns) {
+      for (const col of fitFloor.columns) {
         const r = col.diameter / 2;
         expand(col.position.x - r, col.position.y - r);
         expand(col.position.x + r, col.position.y + r);
@@ -3784,7 +3827,7 @@
     />
   {/if}
   <!-- Empty state hint -->
-  {#if currentFloor && currentFloor.walls.length === 0 && currentFloor.furniture.length === 0 && currentFloor.doors.length === 0}
+  {#if currentFloor && currentFloor.walls.length === 0 && currentFloor.furniture.length === 0 && currentFloor.doors.length === 0 && !(layerVis.floorBelow && floorBelow?.walls.length)}
     <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
       <div class="text-center opacity-60">
         <div class="text-5xl mb-3">🏠</div>
@@ -3859,6 +3902,10 @@
         </label>
       {/each}
       <hr class="my-1 border-gray-100" />
+      <label class="flex items-center gap-2 py-0.5 cursor-pointer hover:bg-gray-50 rounded px-1" class:opacity-40={!floorBelow}>
+        <input type="checkbox" checked={layerVis.floorBelow} disabled={!floorBelow} onchange={() => layerVisibility.update(v => ({ ...v, floorBelow: !v.floorBelow }))} class="accent-blue-500" />
+        <span>{floorBelow ? `Floor Below (${floorBelow.name})` : 'Floor Below'}</span>
+      </label>
       <label class="flex items-center gap-2 py-0.5 cursor-pointer hover:bg-gray-50 rounded px-1">
         <input type="checkbox" bind:checked={showRoomLabels} class="accent-blue-500" />
         <span>Room Labels</span>
