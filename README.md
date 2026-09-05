@@ -99,12 +99,18 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 npm test
 npm run check
 npm run build
+npx playwright install --with-deps chromium
+npm run test:browser
 ```
 
 GitHub Actions runs these checks for pull requests and pushes to `main`.
 The regression suite covers local storage failures, autosave status, room metadata
 and exports, and keyboard tools. Use `npm run test:watch` while working on a fix.
-Browser smoke checks remain manual; the unit suite does not simulate drawing or touch gestures.
+Production-browser CI covers import/edit/undo/save/reload/export, damaged-file
+recovery, catalog loading, 3D and cold/warm asset transfers. It starts an isolated
+Node server with analytics and cloud uploads disabled. Failure screenshots/traces
+and the HTML report are retained for seven days. Drawing and touch gestures still
+need separate interactive/device checks.
 
 ### Production Build
 
@@ -142,7 +148,7 @@ npm run preview
 - **[TypeScript](https://www.typescriptlang.org)** — Type safety
 - **[jsPDF](https://github.com/parallax/jsPDF)** — PDF generation
 - **[dxf-writer](https://github.com/nicholaschiasson/dxf-writer)** — DXF export
-- **[Firebase](https://firebase.google.com)** — Optional cloud sync
+- **[Firebase](https://firebase.google.com)** — Hosting, analytics and temporary iPhone handoffs; projects stay local
 
 ---
 
@@ -173,9 +179,9 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## 📱 iOS capture handoff
 
-The companion iOS app can hand a fresh [Apple RoomPlan](https://developer.apple.com/augmented-reality/roomplan/) scan directly to the web editor via Firebase Storage:
+The companion iOS app can share an edited plan or [Apple RoomPlan](https://developer.apple.com/augmented-reality/roomplan/) scan with the web editor. Local **Export Editable Plan (JSON)** requires no cloud upload.
 
-1. The iOS app uploads the RoomPlan `room.json` to Firebase Storage at `inbox/{CODE}.json` in the `openplan3d.firebasestorage.app` bucket, where `CODE` is 8 characters from `[A-Z2-9]` (I, O, 0 and 1 are excluded to avoid ambiguity).
+1. The updated iOS app posts JSON to `/api/handoffs`, which validates it and reserves quota before creating `inbox/{CODE}.json` in `openplan3d.firebasestorage.app`. The code excludes I, O, 0 and 1. Unchanged plans reuse a valid link. Older distributed builds still upload directly to Storage during migration.
 2. The app shows a QR code / link of the form:
 
    ```
@@ -188,9 +194,9 @@ The companion iOS app can hand a fresh [Apple RoomPlan](https://developer.apple.
    https://firebasestorage.googleapis.com/v0/b/openplan3d.firebasestorage.app/o/inbox%2F{CODE}.json?alt=media
    ```
 
-   and imports it through the regular RoomPlan pipeline (default options: straighten + orthogonal), creating a new project. On success the `import` param is replaced with the new project's `id` so a refresh won't re-import.
+   and imports it as a new project. Prepared iPhone exports preserve their angles by default; raw captures retain their scan-cleanup defaults. On success the `import` param is replaced with the new project's `id` so a refresh won't re-import.
 
-Access is controlled by [`storage.rules`](storage.rules): public **read** and **create** are allowed only on `inbox/{CODE}.json` (content type `application/json`, < 10 MB); updates, deletes, and everything else in the bucket are denied.
+During migration, [`storage.rules`](storage.rules) still permits legacy public creates below 10 MiB. **This bypasses aggregate admission limits until cutover.** The new endpoint enforces 1 MiB per capture, 100 reservations / 25 MiB per UTC day, and 10 reservations per minute. See [configuration, costs and the client migration gate](docs/handoff-quotas.md). These limits are not a cap on Firebase spending.
 
 ### One-time setup (project owner)
 

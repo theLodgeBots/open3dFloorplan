@@ -1,0 +1,95 @@
+# Hosted handoff admission and migration
+
+Source paths below refer to the web repository, `laanlabs/openPlan3D`.
+
+The updated iPhone client sends geometry JSON to `POST /api/handoffs` on the
+existing web backend. Local editing and Editable Plan JSON export do not use
+this service. No database or extra hosted service is introduced.
+
+## Deployment state
+
+This release stages the quota endpoint and updates the companion client.
+**The existing public Storage create rule remains deployed for older iPhone
+builds. Consequently, the bucket is not yet protected by an aggregate quota.**
+The cutover candidate is `ops/storage-quota-cutover.rules`; it is deliberately
+not referenced by `firebase.json`. Closing the old path requires confirming that
+distributed iPhone clients have migrated. App Store/TestFlight publication is
+separate from merging the companion source.
+
+## Endpoint contract
+
+- Request: `Content-Type: application/json`, the complete validated RoomPlan or
+  prepared iPhone handoff payload. Actual streamed bytes are limited to 1 MiB;
+  a misleading/missing Content-Length cannot bypass the check. Body reading
+  times out after ten seconds. Compressed request bodies are rejected.
+- Success: HTTP 201 with `{ "code": "ABCDEFGH", "reuseUntil": "...ISO timestamp..." }`.
+  The client builds its link to `/editor?import=CODE`. The randomly generated code
+  uses the existing eight-character alphabet, and object creation is conditional
+  on the object not already existing.
+- `reuseUntil` limits client caching to 24 hours; it is **not a guaranteed deletion
+  or read-access deadline**. The prefix lifecycle makes captures eligible for
+  deletion after one day, and deletion is asynchronous.
+- Failure: JSON `{ "error": "..." }`. HTTP 413 is too large; 415 is an unsupported
+  media type; 422 is malformed geometry; 429 is an admission limit; 503 is
+  unavailable/busy. Limited/busy responses include `Retry-After` when applicable.
+  Responses and new capture objects use `Cache-Control: no-store` (objects also
+  specify `private`). Clients offer file export instead of retrying automatically.
+
+## Enforced limits on this endpoint
+
+| Limit | Initial value |
+| --- | --- |
+| One capture | 1 MiB |
+| Upload reservations per UTC day | 100 |
+| Reserved capture bytes per UTC day | 25 MiB |
+| Upload reservations per UTC minute | 10 |
+
+The constants live in `src/lib/server/handoffQuota.ts`. They are conservative
+initial capacity limits, not a dollar budget. Changing them requires a reviewed
+deployment. An additional process-local guard admits at most 30 requests per
+minute into parsing/storage work; it is not the authoritative global quota.
+
+A zero-byte object, `_system/handoff-admission-v1`, stores the current day/minute
+and counters in metadata. The existing runtime identity accesses it through IAM;
+Firebase rules deny public access to this path. A reservation uses **both generation
+and metageneration** preconditions. Conflicting instances retry at most five times;
+metadata/auth/network failures fail closed. A failed or uncertain capture write
+keeps its reservation, so retries cannot reclaim capacity already consumed.
+Code collisions retry at most three times and never overwrite an existing capture.
+
+Metadata-only updates advance metageneration without creating a new data
+generation. Each normal accepted upload adds one quota read and one metadata write
+to the capture write; conflicts can add bounded retries. These operations and
+App Hosting requests still have costs. This does not cap download traffic or
+total Firebase spending. See [GCS preconditions](https://docs.cloud.google.com/storage/docs/request-preconditions)
+and [object metadata](https://docs.cloud.google.com/storage/docs/metadata).
+
+The iPhone app hashes canonical JSON and reuses successful links until one minute
+before their reuse deadline. Concurrent identical sends share one request. A
+bounded local cache persists only hashes, codes and expiry, never capture contents.
+Changed geometry/import settings and expired entries trigger a new explicit upload.
+
+## Configuration and cutover
+
+Self-hosted deployments default to sharing disabled. Enable only with
+`HANDOFF_UPLOADS_ENABLED=true` and `HANDOFF_BUCKET` set to the intended bucket.
+The runtime needs Application Default Credentials with object get/create/update
+access for `inbox/` and the ledger. App Hosting already supplies its service
+identity; do not add service-account key files to the repository or browser.
+The OpenPlan3D backend's existing identity already has these permissions; this
+release does not expand IAM access. Browser CI explicitly disables cloud sharing.
+
+After the new client is distributed and the compatibility decision is confirmed:
+
+1. Verify a synthetic updated-client share and web import against production.
+2. Replace `storage.rules` with the reviewed cutover candidate, commit it, and
+   deploy only Storage rules for project `openplan3d`. Keeping the root rules in
+   sync prevents a later routine deployment from reopening public writes.
+3. Verify direct anonymous creates and public ledger access are denied; verify
+   quota-approved writes, existing-code reads, and local file export still work.
+4. Keep the one-day `inbox/` lifecycle. Do not apply that lifecycle to the ledger.
+   Recheck retained live/soft-deleted bytes and the agreed operating budget.
+
+Older apps' direct uploads will fail after cutover. Reopening that rule restores
+compatibility but also restores the quota bypass. Avoid describing the staged
+release as full enforcement while this path remains open.
