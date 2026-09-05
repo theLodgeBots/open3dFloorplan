@@ -11,7 +11,9 @@ env:
     value: production
     availability:
       - RUNTIME
-  - variable: NODE_ENV
-    value: development
+      - BUILD
+  # Install the compiler/tooling without compiling a development-mode application.
+  - variable: NPM_CONFIG_INCLUDE
+    value: dev
     availability:
       - BUILD

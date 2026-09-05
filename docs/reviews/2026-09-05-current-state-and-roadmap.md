@@ -249,3 +249,14 @@ Budget settings remain inaccessible to the available account. See the
 [live audit and prioritized cost follow-up](2026-09-05-firebase-cost-audit.md) for
 evidence, measurement limits, and the proposed retention decision. No cloud policy
 or capture content was changed.
+
+### Third batch — deployment, downloads, printing and opening selection
+
+The next web batch implements production-mode build enforcement, recovery from
+stale deployment assets with local-save guards, SvelteKit URL synchronization,
+visible-only furniture thumbnails, content-hashed model/texture URLs, physical
+print scaling, and wall-aligned door/window selection. See the
+[implementation and browser evidence](2026-09-05-web-reliability-and-costs.md).
+The implementation passes 110 tests, type checks, build and dependency audit.
+Cloud retention, upload quotas and billing-administrator work from #30 remain
+outstanding; no iOS or live bucket policy changed in this batch.

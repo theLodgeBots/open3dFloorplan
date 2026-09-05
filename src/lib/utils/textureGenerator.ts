@@ -1,3 +1,4 @@
+import { catalogAssetUrl } from '$lib/utils/catalogAssetUrl';
 /**
  * High-quality texture generator for walls and floors.
  * Uses real photo textures from ambientCG (CC0) with procedural fallback.
@@ -10,12 +11,12 @@ const loadingSet = new Set<string>();
 
 /** Photo texture paths (served from /textures/) */
 const PHOTO_TEXTURES: Record<string, string> = {
-  'red-brick': `${base}/textures/brick.jpg`,
-  'exposed-brick': `${base}/textures/exposed-brick.jpg`,
-  'stone': `${base}/textures/stone.jpg`,
-  'wood-panel': `${base}/textures/wood-panel.jpg`,
-  'concrete-block': `${base}/textures/concrete.jpg`,
-  'subway-tile': `${base}/textures/subway-tile.jpg`,
+  'red-brick': catalogAssetUrl(`/textures/brick.jpg`),
+  'exposed-brick': catalogAssetUrl(`/textures/exposed-brick.jpg`),
+  'stone': catalogAssetUrl(`/textures/stone.jpg`),
+  'wood-panel': catalogAssetUrl(`/textures/wood-panel.jpg`),
+  'concrete-block': catalogAssetUrl(`/textures/concrete.jpg`),
+  'subway-tile': catalogAssetUrl(`/textures/subway-tile.jpg`),
 };
 
 /** Load a photo texture into cache and re-render when ready */
@@ -484,20 +485,20 @@ export function generateHardwoodTexture(baseColor: string = '#c4a882'): HTMLCanv
 
 /** Floor texture photo paths */
 const FLOOR_TEXTURES: Record<string, string> = {
-  'light-oak': `${base}/textures/floor-light-oak.jpg`,
-  'walnut': `${base}/textures/floor-walnut.jpg`,
-  'bamboo': `${base}/textures/floor-bamboo.jpg`,
-  'laminate': `${base}/textures/floor-laminate.jpg`,
-  'ceramic-white': `${base}/textures/floor-tile-white.jpg`,
-  'ceramic-gray': `${base}/textures/floor-tile-gray.jpg`,
-  'porcelain': `${base}/textures/floor-porcelain.jpg`,
-  'marble-white': `${base}/textures/floor-marble-white.jpg`,
-  'marble-dark': `${base}/textures/floor-marble-dark.jpg`,
-  'carpet-beige': `${base}/textures/floor-carpet-beige.jpg`,
-  'carpet-gray': `${base}/textures/floor-carpet-gray.jpg`,
-  'concrete': `${base}/textures/floor-concrete.jpg`,
-  'slate': `${base}/textures/floor-slate.jpg`,
-  'vinyl': `${base}/textures/floor-vinyl.jpg`,
+  'light-oak': catalogAssetUrl(`/textures/floor-light-oak.jpg`),
+  'walnut': catalogAssetUrl(`/textures/floor-walnut.jpg`),
+  'bamboo': catalogAssetUrl(`/textures/floor-bamboo.jpg`),
+  'laminate': catalogAssetUrl(`/textures/floor-laminate.jpg`),
+  'ceramic-white': catalogAssetUrl(`/textures/floor-tile-white.jpg`),
+  'ceramic-gray': catalogAssetUrl(`/textures/floor-tile-gray.jpg`),
+  'porcelain': catalogAssetUrl(`/textures/floor-porcelain.jpg`),
+  'marble-white': catalogAssetUrl(`/textures/floor-marble-white.jpg`),
+  'marble-dark': catalogAssetUrl(`/textures/floor-marble-dark.jpg`),
+  'carpet-beige': catalogAssetUrl(`/textures/floor-carpet-beige.jpg`),
+  'carpet-gray': catalogAssetUrl(`/textures/floor-carpet-gray.jpg`),
+  'concrete': catalogAssetUrl(`/textures/floor-concrete.jpg`),
+  'slate': catalogAssetUrl(`/textures/floor-slate.jpg`),
+  'vinyl': catalogAssetUrl(`/textures/floor-vinyl.jpg`),
 };
 
 // Legacy material ID mapping (matches materials.ts getMaterial())

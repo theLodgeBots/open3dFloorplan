@@ -206,11 +206,7 @@ export function exportAsPNG(canvas: HTMLCanvasElement, project?: Project) {
   });
 }
 
-export function exportAsJSON(project: Project) {
-  const json = JSON.stringify(project, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
-  download(blob, `${project.name || 'project'}.json`);
-}
+export { downloadProjectJSON as exportAsJSON } from './projectBackup';
 
 export function exportAsSVG(project: Project) {
   const floor = project.floors.find(f => f.id === project.activeFloorId) ?? project.floors[0];

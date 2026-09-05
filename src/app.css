@@ -126,30 +126,19 @@ html.dark .bg-blue-50 { background-color: #1e3a5f !important; }
 
 /* ── Print styles ─────────────────────────────────────────────── */
 @media print {
-  /* Hide everything except the print page */
-  body > * {
-    display: none !important;
-  }
+  body * { visibility: hidden !important; }
+  .print-page, .print-page * { visibility: visible !important; }
   .print-overlay-backdrop {
-    display: block !important;
-    position: static !important;
-    background: none !important;
+    position: absolute !important;
+    inset: 0 !important;
     overflow: visible !important;
+    background: none !important;
   }
-  .print-hide {
-    display: none !important;
-  }
+  .print-hide { display: none !important; }
   .print-page {
     margin: 0 !important;
+    max-width: none !important;
     box-shadow: none !important;
-    width: 100% !important;
-    min-height: auto !important;
-    page-break-inside: avoid;
-  }
-  .print-canvas-container canvas {
-    width: 100% !important;
-  }
-  @page {
-    margin: 0.5in;
+    break-inside: avoid;
   }
 }
