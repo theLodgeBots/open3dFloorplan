@@ -1,0 +1,167 @@
+import { expect, test, type Page } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+
+const fixture = resolve('tests/fixtures/handoff-roomplan.json');
+
+test('self-hosted sharing fails closed without cloud configuration', async ({ request }) => {
+  const response = await request.post('/api/handoffs', { data: { walls: [] } });
+  expect(response.status()).toBe(503);
+  expect(response.headers()['cache-control']).toBe('no-store');
+  expect(await response.json()).toEqual({ error: 'Link sharing is unavailable. Use Export Editable Plan (JSON) instead.' });
+});
+
+async function importJSON(page: Page, file: string | { name: string; mimeType: string; buffer: Buffer }) {
+  await page.getByRole('button', { name: 'Export', exact: true }).press('Enter');
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Import JSON', exact: true }).press('Enter');
+  await (await chooser).setFiles(file);
+}
+
+async function exportJSON(page: Page) {
+  await page.getByRole('button', { name: 'Export', exact: true }).click();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download JSON', exact: true }).click();
+  const path = await (await download).path();
+  expect(path).toBeTruthy();
+  return JSON.parse(await readFile(path!, 'utf8'));
+}
+
+test('import, numeric edit, undo/redo, save/reload and export preserve a multi-floor project', async ({ page }) => {
+  const errors: string[] = [];
+  const externalRequests: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('request', request => {
+    if (/^https?:/.test(request.url()) && new URL(request.url()).origin !== 'http://127.0.0.1:4188') externalRequests.push(request.url());
+  });
+  await page.goto('/editor');
+  await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
+  await importJSON(page, fixture);
+  const floor = page.getByRole('combobox', { name: 'Current floor' });
+  await expect(floor.locator('option')).toHaveText(['Entry', 'Loft', 'Future Floor']);
+  await expect(page.getByRole('application')).toContainText('4 walls');
+  await expect(page.getByRole('application')).toContainText('4 doors');
+  await expect(page.getByRole('application')).toContainText('2 windows');
+
+  await page.getByTitle('Click to rename', { exact: true }).click();
+  await page.getByRole('textbox', { name: 'Project name' }).fill('Browser regression home');
+  await page.getByRole('textbox', { name: 'Project name' }).press('Enter');
+  await page.getByRole('button', { name: 'Toggle Layers Panel', exact: true }).click();
+  await page.getByRole('button', { name: /Wall 1$/ }).click();
+  const thickness = page.getByRole('spinbutton', { name: 'Thickness (cm)', exact: true });
+  await expect(thickness).toHaveValue('27.5');
+  await thickness.fill('32.5');
+  await thickness.press('Tab');
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect(thickness).toHaveValue('27.5');
+  await page.getByRole('button', { name: 'Redo', exact: true }).click();
+  await expect(thickness).toHaveValue('32.5');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByText('Saved ✓', { exact: true })).toBeVisible();
+
+  const beforeReload = await exportJSON(page);
+  expect(beforeReload.name).toBe('Browser regression home');
+  expect(beforeReload.floors[0].walls[0].thickness).toBe(32.5);
+  expect(beforeReload.floors[0].walls[0].height).toBe(273.5);
+  await floor.selectOption({ label: 'Future Floor' });
+  await expect(page.getByRole('application')).toContainText('0 walls');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByText('Saved ✓', { exact: true })).toBeVisible();
+  const saved = await exportJSON(page);
+  await page.reload();
+  await expect(floor.locator('option:checked')).toHaveText('Future Floor');
+  await expect(page.getByRole('application')).toContainText('0 walls');
+  expect(await exportJSON(page)).toEqual(saved);
+
+  // A corrupt import must leave the saved project, selected floor and all bytes intact.
+  const damaged = JSON.parse(await readFile(fixture, 'utf8'));
+  damaged.doors[0].dimensions[0] = 'damaged';
+  await importJSON(page, { name: 'damaged.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(damaged)) });
+  await expect(page.getByRole('alert')).toContainText('No project was imported');
+  expect(await exportJSON(page)).toEqual(saved);
+  await page.getByRole('button', { name: 'Dismiss import error', exact: true }).click();
+
+  // Retry via the other import entry point; prepared iPhone geometry must not be straightened.
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: /Import RoomPlan iOS LiDAR scan/ }).click();
+  await (await chooser).setFiles(fixture);
+  await expect(page.getByRole('checkbox', { name: /Straighten/ })).not.toBeChecked();
+  await expect(page.getByRole('checkbox', { name: /orthogonal/i })).not.toBeChecked();
+  await expect(page.getByRole('spinbutton', { name: /Merge distance/i })).toHaveValue('0');
+  await page.getByRole('button', { name: 'Import', exact: true }).click();
+  await expect(floor.locator('option:checked')).toHaveText('Entry');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByText('Saved ✓', { exact: true })).toBeVisible();
+  expect(errors).toEqual([]);
+  expect(externalRequests).toEqual([]);
+});
+
+test('catalog and 3D use bounded, cacheable assets with zero startup model downloads', async ({ page }, testInfo) => {
+  const errors: string[] = [];
+  const assets: { url: string; cacheControl: string | undefined; bytes: number }[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  const pending: Promise<void>[] = [];
+  page.on('response', response => {
+    if (/\.(glb|webp)(?:\?|$)/.test(response.url())) pending.push((async () => {
+      const headers = await response.allHeaders();
+      expect(response.ok(), response.url()).toBe(true);
+      assets.push({ url: response.url(), cacheControl: headers['cache-control'], bytes: (await response.body()).byteLength });
+    })().catch(error => { errors.push(String(error)); }));
+  });
+  await page.goto('/editor');
+  await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
+  // Let deferred startup work settle: old eager thumbnail generation would fetch 94 GLBs here.
+  await page.waitForLoadState('networkidle');
+  expect(assets.filter(x => x.url.endsWith('.glb'))).toHaveLength(0);
+  const startup = await page.evaluate(() => performance.getEntriesByType('resource').map(entry => {
+    const resource = entry as PerformanceResourceTiming;
+    return { url: resource.name, transferBytes: resource.transferSize, encodedBytes: resource.encodedBodySize };
+  }));
+  await importJSON(page, fixture);
+  await expect(page.getByRole('combobox', { name: 'Current floor' }).locator('option')).toHaveCount(3);
+  await page.getByRole('button', { name: 'Objects', exact: true }).click();
+  await expect.poll(() => assets.filter(x => x.url.endsWith('.glb')).length).toBeGreaterThan(0);
+  await page.waitForLoadState('networkidle');
+  await Promise.all(pending);
+  const catalogModels = assets.filter(x => x.url.endsWith('.glb'));
+  expect(new Set(catalogModels.map(x => x.url)).size).toBeLessThan(25);
+  expect(catalogModels.reduce((sum, x) => sum + x.bytes, 0)).toBeLessThan(400_000);
+  await page.getByPlaceholder('Search furniture...').fill('Dining Chair');
+  await expect(page.getByRole('button', { name: /Dining Chair/ }).first()).toBeVisible();
+
+  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await expect(page.getByRole('region', { name: '3D floor plan viewer' }).locator('canvas').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Show All Floors Stacked', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Active Floor Only', exact: true })).toBeVisible();
+  await page.waitForLoadState('networkidle');
+  await Promise.all(pending);
+  await testInfo.attach('stacked-3d', { body: await page.screenshot(), contentType: 'image/png' });
+  const oak = assets.find(x => /floor-light-oak\.[\w-]+\.webp$/.test(x.url));
+  expect(oak).toBeTruthy();
+  expect(oak!.bytes).toBeLessThan(120_000);
+  for (const asset of assets) expect(asset.cacheControl).toContain('immutable');
+
+  const cold = await page.evaluate(() => performance.getEntriesByType('resource').map(entry => {
+    const resource = entry as PerformanceResourceTiming;
+    return { url: resource.name, transferBytes: resource.transferSize, encodedBytes: resource.encodedBodySize };
+  }));
+  await page.getByRole('button', { name: '2D', exact: true }).click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByText('Saved ✓', { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await expect(page.getByRole('region', { name: '3D floor plan viewer' }).locator('canvas').first()).toBeVisible();
+  await page.waitForLoadState('networkidle');
+  const warm = await page.evaluate(() => performance.getEntriesByType('resource').map(entry => {
+    const resource = entry as PerformanceResourceTiming;
+    return { url: resource.name, transferBytes: resource.transferSize, encodedBytes: resource.encodedBodySize };
+  }));
+  const warmOak = warm.find(x => x.url === oak!.url);
+  expect(warmOak).toBeTruthy();
+  expect(warmOak!.transferBytes).toBe(0);
+  expect(warmOak!.encodedBytes).toBe(oak!.bytes);
+  await testInfo.attach('asset-transfers', { body: JSON.stringify({ startup, catalogModels, cold, warm }, null, 2), contentType: 'application/json' });
+  await page.getByRole('button', { name: '2D', exact: true }).click();
+  expect(errors).toEqual([]);
+});

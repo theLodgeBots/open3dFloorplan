@@ -281,3 +281,18 @@ to the original scan. The suites pass 162 web and 37 iOS tests. See the
 [batch report](2026-09-05-iphone-handoff-and-recovery.md) and
 [versioned handoff contract](../handoff-format-v1.md). Full attachment exchange,
 bidirectional editing and the remaining Firebase cost controls are still open.
+
+
+### Sixth batch — cost controls and browser CI
+
+Bundled textures are 84.7% smaller at unchanged pixel dimensions. Production
+browser workflows now run in CI, with asset-transfer/caching checks and zero
+external requests during local editing. The web and companion implement a staged
+quota endpoint and reuse unchanged iPhone shares. Validation: 180 web unit tests,
+three browser checks, 43 iOS tests and seven candidate-rule cases pass.
+
+The legacy direct-upload rule remains for distributed iPhone compatibility, so
+full aggregate enforcement still requires client release and rule cutover.
+Keep the current recovery policy based on the measured retained bytes. A billing
+administrator and monthly budget target remain outstanding. See
+[the sixth-batch report](2026-09-05-cost-controls-and-browser-ci.md).

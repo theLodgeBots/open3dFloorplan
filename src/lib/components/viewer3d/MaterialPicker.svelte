@@ -34,12 +34,12 @@
   ];
 
   const textureThumbs: Record<string, string> = {
-    'red-brick': catalogAssetUrl(`/textures/brick.jpg`),
-    'exposed-brick': catalogAssetUrl(`/textures/exposed-brick.jpg`),
-    'stone': catalogAssetUrl(`/textures/stone.jpg`),
-    'wood-panel': catalogAssetUrl(`/textures/wood-panel.jpg`),
-    'concrete-block': catalogAssetUrl(`/textures/concrete.jpg`),
-    'subway-tile': catalogAssetUrl(`/textures/subway-tile.jpg`),
+    'red-brick': catalogAssetUrl(`/textures/brick.webp`),
+    'exposed-brick': catalogAssetUrl(`/textures/exposed-brick.webp`),
+    'stone': catalogAssetUrl(`/textures/stone.webp`),
+    'wood-panel': catalogAssetUrl(`/textures/wood-panel.webp`),
+    'concrete-block': catalogAssetUrl(`/textures/concrete.webp`),
+    'subway-tile': catalogAssetUrl(`/textures/subway-tile.webp`),
   };
 
   const plainColors = wallColors.filter(wc => !wc.texture);

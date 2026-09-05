@@ -7,6 +7,22 @@ runConfig:
   maxInstances: 2
 
 env:
+  # Node's default 512 KiB body limit is below the handoff's 1 MiB limit.
+  # Leave enough room for the endpoint to count bytes and return its own 413.
+  - variable: BODY_SIZE_LIMIT
+    value: 2M
+    availability:
+      - RUNTIME
+  # Staged quota endpoint for the updated iPhone app. Legacy direct-upload
+  # rules stay in place until distributed clients have migrated (issue #30).
+  - variable: HANDOFF_UPLOADS_ENABLED
+    value: "true"
+    availability:
+      - RUNTIME
+  - variable: HANDOFF_BUCKET
+    value: openplan3d.firebasestorage.app
+    availability:
+      - RUNTIME
   - variable: NODE_ENV
     value: production
     availability:

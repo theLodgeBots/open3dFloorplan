@@ -303,6 +303,7 @@
   {#if editingName}
     <input
       type="text"
+      aria-label="Project name"
       bind:value={projectName}
       onblur={onNameBlur}
       onkeydown={onNameKeydown}
