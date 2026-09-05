@@ -31,7 +31,7 @@ The format and remaining fidelity limits are documented in
 - 162 web tests pass across 17 files, including 27 import tests. Type checks have
   zero errors and 25 existing warnings; production Node build succeeds; audit
   reports zero vulnerabilities.
-- 36 iOS tests pass, including nine recovery/contract tests, on iPhone 17 Pro / iOS
+- 37 iOS tests pass, including ten recovery/contract tests, on iPhone 17 Pro / iOS
   26.5 simulator. Both FloorPlan and openPlan3d simulator targets build.
 - Matching fixtures in both repositories are checked against the actual Swift
   exporter and imported web geometry. Recovery tests read the actual backup bytes.
@@ -46,7 +46,8 @@ The format and remaining fidelity limits are documented in
 - Native simulator UI verified the failed-load screen, Retry, Recover Original
   Scan, successful Save and exact original-file backup retention. Recovery mode
   exposes only recovery actions to accessibility; editor controls are disabled
-  and hidden until a complete plan loads.
+  and hidden until a complete plan loads. Empty/unreadable edited plans also
+  cannot display furniture inventory from the original scan.
 - Post-merge live verification is recorded on the release PR. No physical device, LiDAR, Files/AirDrop delivery or live
   Firebase upload was exercised; no App Store/TestFlight release is included.
 

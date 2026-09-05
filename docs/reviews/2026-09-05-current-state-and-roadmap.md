@@ -277,7 +277,7 @@ Web imports retain iPhone wall/opening dimensions, styles and orientation, named
 floors, empty floors and intentional angles. All RoomPlan import paths share
 validation and defaults. iOS adds geometry JSON file sharing and explicit damaged
 plan recovery with a preserved backup; unreadable edits cannot fall back silently
-to the original scan. The suites pass 162 web and 36 iOS tests. See the
+to the original scan. The suites pass 162 web and 37 iOS tests. See the
 [batch report](2026-09-05-iphone-handoff-and-recovery.md) and
 [versioned handoff contract](../handoff-format-v1.md). Full attachment exchange,
 bidirectional editing and the remaining Firebase cost controls are still open.
