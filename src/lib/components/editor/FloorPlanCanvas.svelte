@@ -2315,7 +2315,8 @@
         }
       }
 
-      // Check selection handles first (resize/rotate on selected furniture)
+      // Selection handles come first: they belong to the already-selected element and are
+      // drawn over everything, so they win over any element underneath them.
       const handle = findHandleAt(wp);
       if (handle && currentSelectedId && currentFloor) {
         const fi = currentFloor.furniture.find(f => f.id === currentSelectedId);
@@ -2325,6 +2326,20 @@
           handleOrigScale = { x: fi.scale?.x ?? 1, y: fi.scale?.y ?? 1 };
           handleOrigRotation = fi.rotation;
           commitFurnitureMove(); // snapshot for undo
+          return;
+        }
+      }
+      // Entourage resize handle (SE corner of the selected item)
+      const selEnt = currentFloor?.entourage?.find(en => en.id === currentSelectedId);
+      if (selEnt && !selEnt.locked) {
+        const entAspect = entourageAspect(selEnt.defId, customEntourageDefs) || 1;
+        const ea = ((selEnt.rotation || 0) * Math.PI) / 180;
+        const lx = selEnt.width / 2, ly = (selEnt.width * entAspect) / 2;
+        const hx = selEnt.position.x + lx * Math.cos(ea) - ly * Math.sin(ea);
+        const hy = selEnt.position.y + lx * Math.sin(ea) + ly * Math.cos(ea);
+        if (Math.hypot(wp.x - hx, wp.y - hy) < 12 / zoom) {
+          resizingEntourageId = selEnt.id;
+          commitFurnitureMove(); // snapshot before resize for undo
           return;
         }
       }
@@ -2353,19 +2368,6 @@
         selectedRoomId.set(null);
       }
 
-      // Check doors/windows first (they sit on walls, so check before walls)
-      const door = findDoorAt(wp);
-      if (door) {
-        selectElement(door.id, e.shiftKey);
-        if (!e.shiftKey) draggingDoorId = door.id;
-        return;
-      }
-      const win = findWindowAt(wp);
-      if (win) {
-        selectElement(win.id, e.shiftKey);
-        if (!e.shiftKey) draggingWindowId = win.id;
-        return;
-      }
       // Check columns
       const col = findColumnAt(wp);
       if (col) {
@@ -2376,20 +2378,6 @@
           commitFurnitureMove(); // snapshot before drag for undo
         }
         return;
-      }
-      // Entourage resize handle (SE corner of the selected item)
-      const selEnt = currentFloor?.entourage?.find(en => en.id === currentSelectedId);
-      if (selEnt && !selEnt.locked) {
-        const entAspect = entourageAspect(selEnt.defId, customEntourageDefs) || 1;
-        const ea = ((selEnt.rotation || 0) * Math.PI) / 180;
-        const lx = selEnt.width / 2, ly = (selEnt.width * entAspect) / 2;
-        const hx = selEnt.position.x + lx * Math.cos(ea) - ly * Math.sin(ea);
-        const hy = selEnt.position.y + lx * Math.sin(ea) + ly * Math.cos(ea);
-        if (Math.hypot(wp.x - hx, wp.y - hy) < 12 / zoom) {
-          resizingEntourageId = selEnt.id;
-          commitFurnitureMove(); // snapshot before resize for undo
-          return;
-        }
       }
       // Check stairs
       const stair = findStairAt(wp);
@@ -2424,6 +2412,20 @@
           commitFurnitureMove(); // snapshot before drag for undo
           dragOffset = { x: wp.x - ent.position.x, y: wp.y - ent.position.y };
         }
+        return;
+      }
+      // Doors and windows sit on walls, so they come after the objects standing in the room
+      // and before the walls themselves.
+      const door = findDoorAt(wp);
+      if (door) {
+        selectElement(door.id, e.shiftKey);
+        if (!e.shiftKey) draggingDoorId = door.id;
+        return;
+      }
+      const win = findWindowAt(wp);
+      if (win) {
+        selectElement(win.id, e.shiftKey);
+        if (!e.shiftKey) draggingWindowId = win.id;
         return;
       }
       const wall = findWallAt(wp);
