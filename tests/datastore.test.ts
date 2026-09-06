@@ -20,6 +20,7 @@ describe('local project persistence', () => {
   it('round trips a project and its dates without changing other projects', async () => {
     const first = createDefaultProject('First');
     const second = createDefaultProject('Second');
+    second.floors[0].elevation = -325.5;
     await localStore.save(first);
     await localStore.save(second);
     second.name = 'Renamed';

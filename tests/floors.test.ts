@@ -2,6 +2,8 @@ import { beforeEach, expect, it } from 'vitest';
 import { get } from 'svelte/store';
 import { addFloor, createDefaultFloor, currentProject, loadProject, removeFloor, setActiveFloor, undo, redo, selectedElementId, selectedElementIds, elevationWallId, selectedTool } from '$lib/stores/project';
 import { roomProject } from './fixtures/project';
+import { updateFloorElevation } from '$lib/stores/project';
+import { floorElevations } from '$lib/utils/floors';
 
 beforeEach(() => loadProject(roomProject()));
 
@@ -85,4 +87,48 @@ it('clears selections, unfinished tools and elevation when switching or adding f
   elevationWallId.set(get(currentProject)!.floors[1].walls[0].id);
   setActiveFloor(ground);
   expect(get(elevationWallId)).toBeNull();
+});
+
+it('changes floor elevations independently of geometry and groups undo by floor', () => {
+  addFloor();
+  const original = structuredClone(get(currentProject)!.floors);
+  const [ground, upper] = original;
+  updateFloorElevation(ground.id, -50.5);
+  updateFloorElevation(upper.id, 400);
+  updateFloorElevation(upper.id, 425.5);
+  expect(floorElevations(get(currentProject)!.floors).map(entry => entry.elevation)).toEqual([-50.5, 425.5]);
+  expect(get(currentProject)!.floors.map(f => f.walls)).toEqual(original.map(f => f.walls));
+  undo();
+  expect(floorElevations(get(currentProject)!.floors).map(entry => entry.elevation)).toEqual([-50.5, 300]);
+  redo();
+  expect(get(currentProject)!.floors[1].elevation).toBe(425.5);
+  updateFloorElevation(upper.id);
+  expect(get(currentProject)!.floors[1]).not.toHaveProperty('elevation');
+  undo();
+  expect(get(currentProject)!.floors[1].elevation).toBe(425.5);
+});
+
+it('ignores invalid, unchanged and missing-floor edits without consuming undo history', () => {
+  const id = get(currentProject)!.activeFloorId;
+  updateFloorElevation(id, 40);
+  updateFloorElevation(id, 40);
+  for (const value of [NaN, Infinity, -Infinity, '400', null]) updateFloorElevation(id, value as number);
+  updateFloorElevation('missing', 400);
+  undo();
+  expect(get(currentProject)!.floors[0]).not.toHaveProperty('elevation');
+  redo();
+  expect(get(currentProject)!.floors[0].elevation).toBe(40);
+});
+
+it('adds a new top floor above adjusted floors and preserves elevations through remove/undo', () => {
+  addFloor();
+  const upperId = get(currentProject)!.activeFloorId;
+  updateFloorElevation(upperId, 425.5);
+  addFloor(undefined, 'copy');
+  const p = get(currentProject)!;
+  expect(p.floors[2]).toMatchObject({ level: 2, elevation: 725.5 });
+  removeFloor(upperId);
+  expect(floorElevations(get(currentProject)!.floors).map(entry => entry.elevation)).toEqual([0, 725.5]);
+  undo();
+  expect(floorElevations(get(currentProject)!.floors).map(entry => entry.elevation)).toEqual([0, 425.5, 725.5]);
 });

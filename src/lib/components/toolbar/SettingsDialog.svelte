@@ -4,6 +4,7 @@
   import { currentProject, updateProjectName } from '$lib/stores/project';
   import type { Project } from '$lib/models/types';
   import { themePreference, type ThemePreference } from '$lib/stores/theme';
+  import FloorElevations from './FloorElevations.svelte';
 
   let { open = $bindable(false) }: { open: boolean } = $props();
   let projectName = $state('');
@@ -115,7 +116,7 @@
 {#if open}
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onclick={close} onkeydown={(e) => { if (e.key === 'Escape') close(); }} role="dialog" tabindex="-1" aria-label="Settings">
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[420px] max-h-[80vh] flex flex-col" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="document">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[420px] max-w-[calc(100vw-1rem)] max-h-[80vh] flex flex-col" onclick={(e) => e.stopPropagation()} onkeydown={(e) => { if (e.key === 'Escape') close(); e.stopPropagation(); }} role="document">
       <!-- Header -->
       <div class="flex items-center justify-between px-5 pt-4 pb-2">
         <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">Settings</h2>
@@ -123,7 +124,7 @@
       </div>
 
       <!-- Tabs -->
-      <div class="flex border-b border-gray-200 dark:border-gray-700 px-5">
+      <div class="flex shrink-0 overflow-x-auto border-b border-gray-200 dark:border-gray-700 px-5">
         <button
           class="px-4 py-2 text-sm font-medium transition-colors relative {activeTab === 'project' ? 'text-slate-800 dark:text-slate-200' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}"
           onclick={() => activeTab = 'project'}
@@ -178,6 +179,7 @@
                 placeholder="Add a description for this project..."
               ></textarea>
             </label>
+            <FloorElevations />
           </div>
 
         {:else if activeTab === 'dimensions'}

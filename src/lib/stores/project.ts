@@ -1,7 +1,7 @@
 import { writable, derived, get } from 'svelte/store';
 import type { Project, Floor, Wall, Door, Window as Win, FurnitureItem, Point, Stair, Column, BackgroundImage, GuideLine, ElementGroup, EntourageItem } from '$lib/models/types';
 import { getOuterWalls } from '$lib/utils/outerWalls';
-import { nextFloorLevel } from '$lib/utils/floors';
+import { nextFloorLevel, floorElevations, validFloorElevation, DEFAULT_FLOOR_SPACING } from '$lib/utils/floors';
 import { getWallStartHeight, getWallEndHeight, getWallHeightAt, validWallHeight } from '$lib/models/types';
 
 
@@ -668,6 +668,12 @@ export function addFloor(name?: string, seed: FloorSeed = 'outer') {
   // otherwise hand the next storey a level that is already taken.
   const level = nextFloorLevel(p.floors);
   const floor = createDefaultFloor(level);
+  // Continue the top floor's adjusted elevation, retaining any skipped levels.
+  const top = floorElevations(p.floors).at(-1);
+  if (top) {
+    const elevation = top.elevation + (level - top.level) * DEFAULT_FLOOR_SPACING;
+    if (elevation !== level * DEFAULT_FLOOR_SPACING && validFloorElevation(elevation)) floor.elevation = elevation;
+  }
   if (name !== undefined) floor.name = name;
   if (seed !== 'empty') {
     const cur = p.floors.find(f => f.id === p.activeFloorId);
@@ -708,6 +714,19 @@ export function setActiveFloor(floorId: string) {
     p.activeFloorId = floorId;
     currentProject.set({ ...p });
   }
+}
+
+/** An omitted elevation restores the legacy level-based default. */
+export function updateFloorElevation(floorId: string, elevation?: number) {
+  const p = get(currentProject);
+  if (!p || (elevation !== undefined && !validFloorElevation(elevation))) return;
+  const entry = floorElevations(p.floors).find(entry => entry.floor.id === floorId);
+  if (!entry || (elevation === undefined ? entry.floor.elevation === undefined : entry.elevation === elevation)) return;
+  snapshot('Changed floor elevation', `floor-elevation:${floorId}`);
+  if (elevation === undefined) delete entry.floor.elevation;
+  else entry.floor.elevation = elevation;
+  p.updatedAt = new Date();
+  currentProject.set({ ...p });
 }
 
 export function updateProjectName(name: string) {

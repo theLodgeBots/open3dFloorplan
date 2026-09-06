@@ -10,6 +10,8 @@
   import { createSlopedBoxGeometry } from '$lib/utils/slopedWallGeometry';
   import { buildWallSegments, openingOnWall, roomCeilingHeight, wallPathSpans, doorPanelPose } from '$lib/utils/wallProfiles';
   import { assembleFloorStack } from '$lib/utils/floorStack';
+  import { setFloorCameraPose } from '$lib/utils/floorCamera';
+  import { frameScene } from '$lib/utils/frameScene';
   import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
   import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
   import MaterialPicker from './MaterialPicker.svelte';
@@ -33,7 +35,7 @@
   function markSceneDirty() { sceneDirty = true; }
   let pointerControls: PointerLockControls;
   let animId: number;
-  let currentFloor: Floor | null = null;
+  let currentFloor = $state.raw<Floor | null>(null);
   let wallGroup: THREE.Group;
 
   // Raycasting for wall selection in 3D
@@ -52,10 +54,13 @@
   let wallsTransparent = $state(false);
   // Multi-floor stacking
   let showAllFloors = $state(false);
+  let activeFloorElevation = $state(0);
+  let sceneGround: THREE.Mesh;
   // Stacked geometry uses the same floor levels as the 2D reference layer.
 
   // Walkthrough mode
   let walkthroughMode = $state(false);
+  let walkthroughMouseUnavailable = $state(false);
   let moveForward = false;
   let moveBackward = false;
   let moveLeft = false;
@@ -98,7 +103,7 @@
   let cameraFOV = $state(90);
   let cameraHeight = $state(160);
   let cameraPreviewOpen = $state(false);
-  let cameraPreviewCanvas: HTMLCanvasElement | null = null;
+  let cameraPreviewCanvas = $state<HTMLCanvasElement | null>(null);
   let cameraPreviewRenderer: THREE.WebGLRenderer | null = null;
   let cameraPlaced = $state(false);
   let cameraDragMode = $state<'position' | 'lookat' | null>(null);
@@ -327,7 +332,10 @@
   }
 
   function createCameraMarker(pos: THREE.Vector3, lookAt: THREE.Vector3) {
-    if (cameraHelper) wallGroup.remove(cameraHelper);
+    if (cameraHelper) {
+      clearGroup(cameraHelper);
+      wallGroup.remove(cameraHelper);
+    }
     cameraHelper = new THREE.Group();
     cameraHelper.name = 'interior_camera';
 
@@ -382,6 +390,7 @@
     target.position.set(lookAt.x, cameraHeight * 0.75, lookAt.z);
     cameraHelper.add(target);
 
+    cameraHelper.position.y = activeFloorElevation;
     wallGroup.add(cameraHelper);
     markSceneDirty();
   }
@@ -391,7 +400,6 @@
       interiorCamera = new THREE.PerspectiveCamera(cameraFOV, 16 / 9, 1, 5000);
     }
     interiorCamera.fov = cameraFOV;
-    interiorCamera.position.set(cameraPosition.x, cameraHeight, cameraPosition.z);
 
     // Apply yaw (horizontal) and pitch (vertical) rotation to base direction
     const yawRad = cameraYaw * Math.PI / 180;
@@ -403,11 +411,9 @@
     const lookDist = 500;
     const lookY = cameraHeight + Math.tan(pitchRad) * lookDist;
 
-    interiorCamera.lookAt(
-      cameraPosition.x + dirX * lookDist,
-      lookY,
-      cameraPosition.z + dirZ * lookDist
-    );
+    setFloorCameraPose(interiorCamera, activeFloorElevation,
+      { x: cameraPosition.x, y: cameraHeight, z: cameraPosition.z },
+      { x: cameraPosition.x + dirX * lookDist, y: lookY, z: cameraPosition.z + dirZ * lookDist });
     interiorCamera.updateProjectionMatrix();
   }
 
@@ -757,6 +763,7 @@
     groundMat.polygonOffsetFactor = 2;
     groundMat.polygonOffsetUnits = 2;
     const ground = new THREE.Mesh(groundGeo, groundMat);
+    sceneGround = ground;
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -1;
     ground.receiveShadow = true;
@@ -1027,20 +1034,8 @@
     }
   }
 
-  function autoCenterCamera(floor: Floor) {
-    if (floor.walls.length === 0) return;
-    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    for (const w of floor.walls) {
-      for (const p of [w.start, w.end]) {
-        minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
-        minZ = Math.min(minZ, p.y); maxZ = Math.max(maxZ, p.y);
-      }
-    }
-    const cx = (minX + maxX) / 2;
-    const cz = (minZ + maxZ) / 2;
-    const size = Math.max(maxX - minX, maxZ - minZ, 200);
-    controls.target.set(cx, 100, cz);
-    camera.position.set(cx + size * 1.8, size * 1.4, cz + size * 1.8);
+  function autoCenterCamera() {
+    frameScene(camera, new THREE.Box3().setFromObject(wallGroup), controls.target);
     controls.update();
   }
 
@@ -1708,7 +1703,7 @@
     // Columns
     buildColumns(floor);
 
-    autoCenterCamera(floor);
+    autoCenterCamera();
   }
 
   /** Build all floors stacked vertically in 3D */
@@ -1728,8 +1723,11 @@
     for (const { floor, yOffset } of entries) {
       addFloorLabel(floor.name, yOffset, labelX, center.z);
     }
-    floorPlane.constant = -(entries.find(entry => entry.floor.id === activeF.id)?.yOffset ?? 0);
-    autoCenterCameraAllFloors();
+    activeFloorElevation = entries.find(entry => entry.floor.id === activeF.id)?.yOffset ?? 0;
+    floorPlane.constant = -activeFloorElevation;
+    // Keep the presentation ground below basements as well as above-ground floors.
+    sceneGround.position.y = Math.min(0, ...entries.map(entry => entry.yOffset)) - 1;
+    autoCenterCamera();
   }
 
   function addFloorLabel(name: string, yOffset: number, labelX: number, labelZ: number) {
@@ -1843,22 +1841,26 @@
     }
   }
 
-  function autoCenterCameraAllFloors() {
-    const box = new THREE.Box3().setFromObject(wallGroup);
-    const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z, 400);
-    controls.target.copy(center);
-    camera.position.set(center.x + maxDim * 1.2, center.y + maxDim * 0.8, center.z + maxDim * 1.2);
-    controls.update();
-  }
-
   function rebuildScene() {
+    const walkingPosition = walkthroughMode ? camera.position.clone() : null;
+    const walkingRotation = walkthroughMode ? camera.quaternion.clone() : null;
     if (showAllFloors) {
       buildAllFloorsStacked();
     } else if (currentFloor) {
+      activeFloorElevation = 0;
       floorPlane.constant = 0;
+      sceneGround.position.y = -1;
       buildWalls(currentFloor);
+    }
+    if (walkingPosition && walkingRotation) {
+      camera.position.copy(walkingPosition);
+      camera.position.y = activeFloorElevation + eyeHeight;
+      camera.quaternion.copy(walkingRotation);
+    }
+    if (cameraPlaced) {
+      updateInteriorCamera();
+      updateCameraMarkerFromState();
+      cameraPreviewDirty = true;
     }
     markSceneDirty();
   }
@@ -1883,8 +1885,8 @@
     const maxDim = Math.max(size.x, size.z, 500);
 
     // Animate camera to top-down position
-    camera.position.set(center.x, maxDim * 1.5, center.z);
-    controls.target.set(center.x, 0, center.z);
+    camera.position.set(center.x, (box.isEmpty() ? 0 : box.max.y) + maxDim * 1.5, center.z);
+    controls.target.copy(center);
     controls.update();
   }
 
@@ -1897,7 +1899,12 @@
   }
 
   function enterWalkthroughMode() {
+    cameraPlacementMode = false;
+    cameraPreviewOpen = false;
+    furniturePlacementMode = false;
+    removeGhostPreview();
     walkthroughMode = true;
+    walkthroughMouseUnavailable = false;
     controls.enabled = false;
 
     // Position camera at eye height in center of floor plan or largest room
@@ -1934,11 +1941,19 @@
         startPos = { x: (minX + maxX) / 2, y: eyeHeight, z: (minZ + maxZ) / 2 };
       }
 
-      camera.position.set(startPos.x, startPos.y, startPos.z);
-      camera.lookAt(startPos.x, startPos.y, startPos.z - 100); // Look forward initially
+      setFloorCameraPose(camera, activeFloorElevation, startPos,
+        { ...startPos, z: startPos.z - 100 });
     }
 
-    pointerControls.lock();
+    // Three's lock() discards the browser's promise. Handle rejection here so
+    // embedded/unsupported browsers can still use keyboard movement and look.
+    try {
+      Promise.resolve(renderer.domElement.requestPointerLock()).catch(() => {
+        if (walkthroughMode) walkthroughMouseUnavailable = true;
+      });
+    } catch {
+      walkthroughMouseUnavailable = true;
+    }
   }
 
 
@@ -1962,7 +1977,7 @@
 
       pointerControls.moveRight(-velocity.x * delta);
       pointerControls.moveForward(-velocity.z * delta);
-      camera.position.y = eyeHeight;
+      camera.position.y = activeFloorElevation + eyeHeight;
 
       if (lookLeft || lookRight) {
         const yaw = ((lookLeft ? 1 : 0) - (lookRight ? 1 : 0)) * LOOK_SPEED * delta;
@@ -2017,6 +2032,12 @@
     resizeObs.observe(container);
 
     const unsub = activeFloor.subscribe((f) => {
+      if (currentFloor?.id !== f?.id) {
+        if (walkthroughMode) exitWalkthroughMode();
+        cameraPlaced = false;
+        cameraPreviewOpen = false;
+        cameraPlacementMode = false;
+      }
       currentFloor = f;
       if (f) rebuildScene();
     });
@@ -2068,12 +2089,19 @@
       cancelAnimationFrame(animId);
       document.removeEventListener('keydown', onKeyDown, false);
       document.removeEventListener('keyup', onKeyUp, false);
+      pointerControls.dispose();
+      controls.dispose();
       renderer.dispose();
     };
   });
 </script>
 
 <div bind:this={container} class="w-full h-full relative" role="region" aria-label="3D floor plan viewer">
+  {#if showAllFloors && currentFloor}
+    <div class="absolute bottom-4 right-4 z-10 rounded bg-black/70 px-3 py-2 text-xs text-white pointer-events-none">
+      {currentFloor.name} · {activeFloorElevation} cm elevation
+    </div>
+  {/if}
   <!-- 3D Toolbar Row -->
   <div class="absolute top-4 right-4 z-50 flex gap-1.5">
     <!-- Multi-Floor Stacking Toggle -->
@@ -2393,6 +2421,9 @@
     <!-- Controls Panel -->
     <div class="absolute top-4 left-4 z-10 bg-black/70 text-white text-xs rounded-lg backdrop-blur-sm p-3 space-y-2 min-w-[180px]">
       <div class="font-semibold text-white/90 mb-1">Walkthrough Controls</div>
+      {#if walkthroughMouseUnavailable}
+        <p role="status" class="max-w-56 text-amber-200">Mouse look is unavailable in this browser. Use WASD to look and arrow keys to move.</p>
+      {/if}
       <label class="flex items-center justify-between gap-2">
         <span class="text-white/70">Eye Height</span>
         <div class="flex items-center gap-1">
