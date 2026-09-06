@@ -41,8 +41,8 @@ nested validation.
 house templates, generated iPhone handoffs, legacy defaults, rejected fields,
 local-load failures and snapshot recovery. Added desktop and phone-width browser
 workflows cover atomic native import rejection, unchanged saved bytes, undo/redo,
-legacy welcome import, save/reload/3D, raw-library backup and failed snapshot
-restoration. The linked PR records final CI and live browser results.
+native/RoomPlan welcome imports, save/reload/3D, raw-library backup and failed snapshot
+restoration, including unreadable history containers. The linked PR records final CI and live browser results.
 
 All work remains in the browser. No schema version, hosted service, Firebase
 Storage operation or iPhone export changes are introduced. This does not migrate

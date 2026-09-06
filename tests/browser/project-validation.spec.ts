@@ -143,3 +143,36 @@ test('a damaged version stays available for backup and cannot replace the curren
   expect(await exportProject(page)).toEqual(before);
   check();
 });
+
+test('welcome import accepts the advertised iPhone RoomPlan JSON locally', async ({ page }) => {
+  const check = observe(page);
+  await page.goto('/');
+  const pending = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: /Import a Plan/ }).click();
+  await (await pending).setFiles(resolve('tests/fixtures/handoff-roomplan.json'));
+  await expect(page.getByRole('application')).toContainText('4 walls');
+  await expect(page.getByRole('combobox', { name: 'Current floor' }).locator('option')).toHaveText(['Entry', 'Loft', 'Future Floor']);
+  const saved = await exportProject(page);
+  expect(saved.floors[0].walls[0].thickness).toBe(27.5);
+  expect(saved.floors[0].doors[0].width).toBeCloseTo(91.5);
+  await page.reload(); expect((await exportProject(page)).floors).toEqual(saved.floors);
+  check();
+});
+
+test('unreadable history remains downloadable and is not replaced by the session snapshot', async ({ page }) => {
+  const check = observe(page), source = JSON.parse(await readFile(fixture, 'utf8'));
+  await page.addInitScript(source => {
+    localStorage.setItem('floorplan_projects', JSON.stringify({ [source.id]: JSON.stringify(source) }));
+    localStorage.setItem(`vh_${source.id}`, '{damaged history bytes');
+  }, source);
+  await page.goto(`/editor?id=${source.id}`);
+  await expect(page.getByRole('application')).toContainText('1 room');
+  await page.getByRole('button', { name: 'Version History', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Version History', exact: true });
+  await expect(dialog.getByRole('alert')).toContainText('Version history could not be read.');
+  const pending = page.waitForEvent('download');
+  await dialog.getByRole('button', { name: 'Download version backup', exact: true }).click();
+  expect(await readFile((await (await pending).path())!, 'utf8')).toBe('{damaged history bytes');
+  expect(await page.evaluate(id => localStorage.getItem(`vh_${id}`), source.id)).toBe('{damaged history bytes');
+  check();
+});
