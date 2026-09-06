@@ -174,7 +174,10 @@ export function updateRecord(store: StoreName, id: string, update: (raw: string 
 
 export async function records(tx: IDBTransaction, name: StoreName): Promise<Record<string, string>> {
   const store = tx.objectStore(name);
-  const [keys, values] = await Promise.all([request(store.getAllKeys()), request(store.getAll())]);
+  // Settle each request before starting the next: a synchronous getAll failure
+  // must not leave a pending key-read promise unobserved when the transaction aborts.
+  const keys = await request(store.getAllKeys());
+  const values = await request(store.getAll());
   return Object.fromEntries(keys.map((key, index) => [String(key), values[index]]));
 }
 
