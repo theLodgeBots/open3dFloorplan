@@ -314,3 +314,12 @@ same elevations, including basements. Settings supports compact screens. The
 suite has 220 unit tests and adds desktop/390 px browser workflows without new
 Firebase Storage operations. See the
 [floor elevation report](2026-09-05-floor-elevations.md).
+
+## Ninth batch: direct AI providers
+
+Community PR #14 is integrated with browser-direct provider settings and model
+refresh, manual model IDs, a corrected Responses model default, request
+cancellation, and bounded error handling. Its unrestricted hosted proxy is removed;
+no AI image storage or proxy bandwidth is added to Firebase. See
+[direct AI provider review](2026-09-06-direct-ai-providers.md) for the transport
+contract, compatibility limitations, contributor credit and validation.
