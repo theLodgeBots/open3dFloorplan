@@ -1,15 +1,13 @@
 import { Group } from 'three';
 import type { Floor } from '$lib/models/types';
-import { orderedFloors } from './floors';
-
-export const FLOOR_HEIGHT = 300;
+import { floorElevations } from './floors';
 
 /** The active floor is already built at zero; move it before adding any other floors. */
 export function assembleFloorStack(
   root: Group, floors: Floor[], activeFloorId: string,
   buildOther: (floor: Floor, group: Group, yOffset: number) => void,
 ): { floor: Floor; yOffset: number }[] {
-  const entries = orderedFloors(floors).map(({ floor, level }) => ({ floor, yOffset: level * FLOOR_HEIGHT }));
+  const entries = floorElevations(floors).map(({ floor, elevation }) => ({ floor, yOffset: elevation }));
   const active = entries.find(entry => entry.floor.id === activeFloorId);
   if (!active) return [];
   for (const child of root.children) child.position.y += active.yOffset;

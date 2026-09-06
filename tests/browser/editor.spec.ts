@@ -222,3 +222,82 @@ test('sloped walls preserve heights and openings through edits, reversal, elevat
   expect(errors).toEqual([]);
   expect(externalRequests).toEqual([]);
 });
+
+for (const width of [1440, 390]) {
+  test(`floor elevations survive edits and reload at ${width}px with stacked views`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const errors: string[] = [];
+    const externalRequests: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('request', request => {
+      if (/^https?:/.test(request.url()) && new URL(request.url()).origin !== 'http://127.0.0.1:4188') externalRequests.push(request.url());
+    });
+    const settings = async () => {
+      if (width < 768) await page.getByRole('button', { name: 'More actions', exact: true }).click();
+      await page.getByRole('button', { name: 'Settings', exact: true }).click();
+      await expect(page.getByRole('dialog', { name: 'Settings', exact: true })).toBeVisible();
+    };
+    const selectFloor = async (name: string) => {
+      if (width < 768) {
+        await page.getByRole('button', { name: 'More actions', exact: true }).click();
+        await page.getByRole('button', { name, exact: true }).click();
+      } else await page.getByRole('combobox', { name: 'Current floor' }).selectOption({ label: name });
+    };
+    await page.goto('/editor');
+    await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
+    await importJSON(page, resolve('tests/fixtures/sloped-walls.openplan.json'));
+    const original = await exportJSON(page);
+    await settings();
+    const upper = page.getByRole('spinbutton', { name: 'Curved Upper elevation (cm)', exact: true });
+    const ground = page.getByRole('spinbutton', { name: 'Sloped Ground elevation (cm)', exact: true });
+    await expect(upper).toHaveValue('300');
+    await expect(ground).toHaveValue('0');
+    await ground.fill('-50.5'); await ground.press('Tab');
+    await upper.fill('425.5'); await upper.press('Tab');
+    await upper.fill(''); await upper.press('Tab');
+    await expect(upper).toHaveValue('425.5');
+    await testInfo.attach(`floor-settings-${width}`, { body: await page.screenshot(), contentType: 'image/png' });
+    await page.getByRole('button', { name: 'Close settings', exact: true }).click();
+    await page.getByRole('button', { name: 'Undo', exact: true }).click();
+    await settings();
+    await expect(upper).toHaveValue('300');
+    await expect(ground).toHaveValue('-50.5');
+    await page.getByRole('button', { name: 'Close settings', exact: true }).click();
+    await page.getByRole('button', { name: 'Redo', exact: true }).click();
+    await settings();
+    await expect(upper).toHaveValue('425.5');
+    await page.getByRole('button', { name: 'Use default elevation for Curved Upper', exact: true }).click();
+    await expect(upper).toHaveValue('300');
+    await upper.fill('425.5'); await upper.press('Tab');
+    await page.getByRole('button', { name: 'Close settings', exact: true }).click();
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    const saved = await exportJSON(page);
+    expect(saved.floors.map((floor: { elevation: number }) => floor.elevation)).toEqual([-50.5, 425.5]);
+    expect(saved.floors.map(({ elevation: _, ...floor }: { elevation: number }) => floor)).toEqual(original.floors);
+    await page.reload();
+    expect((await exportJSON(page)).floors).toEqual(saved.floors);
+    // JSON import must preserve the setting as well as local storage does.
+    await importJSON(page, { name: 'elevations.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(saved)) });
+    await selectFloor('Curved Upper');
+    await page.getByRole('button', { name: '3D', exact: true }).click();
+    await expect(page.getByRole('region', { name: '3D floor plan viewer' }).locator('canvas').first()).toBeVisible();
+    await page.getByRole('button', { name: 'Show All Floors Stacked', exact: true }).click();
+    await expect(page.getByText('Curved Upper · 425.5 cm elevation', { exact: true })).toBeVisible();
+    await page.waitForLoadState('networkidle');
+    await testInfo.attach(`adjusted-stack-${width}`, { body: await page.screenshot(), contentType: 'image/png' });
+    if (width >= 768) {
+      await page.getByRole('button', { name: 'Enter Walkthrough Mode', exact: true }).click();
+      await expect(page.getByText('Walkthrough Controls', { exact: true })).toBeVisible();
+      await testInfo.attach('upper-floor-walkthrough', { body: await page.screenshot(), contentType: 'image/png' });
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('button', { name: 'Enter Walkthrough Mode', exact: true })).toBeVisible();
+    }
+    await selectFloor('Sloped Ground');
+    await expect(page.getByText('Sloped Ground · -50.5 cm elevation', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Active Floor Only', exact: true }).click();
+    await expect(page.getByText('Sloped Ground · -50.5 cm elevation', { exact: true })).not.toBeVisible();
+    await page.getByRole('button', { name: '2D', exact: true }).click();
+    expect(errors).toEqual([]);
+    expect(externalRequests).toEqual([]);
+  });
+}

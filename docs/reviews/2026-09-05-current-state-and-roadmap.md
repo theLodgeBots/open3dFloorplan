@@ -305,3 +305,12 @@ split/exterior-copy heights, per-room ceiling decisions and consistent curved
 walls in stacked views. The suite has 207 unit tests and a fourth browser
 workflow. This work adds no Firebase Storage traffic. See the
 [implementation and validation report](2026-09-05-variable-height-walls.md).
+
+### Eighth batch — configurable floor elevations
+
+Issue #42 adds independent floor elevations with legacy 300 cm defaults, local
+persistence and undo/redo. Stacked geometry, placement and cameras follow the
+same elevations, including basements. Settings supports compact screens. The
+suite has 216 unit tests and adds desktop/390 px browser workflows without new
+Firebase Storage operations. See the
+[floor elevation report](2026-09-05-floor-elevations.md).

@@ -185,6 +185,8 @@ export interface Floor {
   id: string;
   name: string;
   level: number;
+  /** Floor surface above ground in cm; omitted in legacy projects (level × 300). */
+  elevation?: number;
   walls: Wall[];
   rooms: Room[];
   doors: Door[];
