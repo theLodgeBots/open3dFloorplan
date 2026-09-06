@@ -27,7 +27,7 @@ for (const width of [1440, 390]) test(`native package preview/import/edit/reload
   await page.setViewportSize({ width, height: 900 });
   const check = observe(page);
   await page.goto('/');
-  await page.getByRole('button', { name: 'Import project package', exact: true }).click();
+  await page.getByRole('button', { name: 'Import a project package', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Import project package', exact: true });
   const before = await storedRecords(page);
   await choose(page);
@@ -63,7 +63,7 @@ for (const width of [1440, 390]) test(`native package preview/import/edit/reload
 });
 test('actual Swift return package restores web-only details and Swift edits', async ({ page }) => {
   const check = observe(page);
-  await page.goto('/'); await page.getByRole('button', { name: 'Import project package', exact: true }).click();
+  await page.goto('/'); await page.getByRole('button', { name: 'Import a project package', exact: true }).click();
   await choose(page, resolve('tests/fixtures/swift-return-project-package.zip'));
   await page.getByRole('button', { name: 'Import as copy', exact: true }).click();
   await expect(page.getByRole('dialog').getByRole('status')).toContainText('Project imported.');

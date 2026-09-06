@@ -193,7 +193,7 @@
         <button onclick={onRestoreLibrary} class="mt-5 text-sm font-semibold text-blue-600 underline">Restore a library backup</button>
       {/if}
       {#if onImportPackage}
-        <button onclick={onImportPackage} class="mt-3 block w-full text-sm font-semibold text-blue-600 underline">Import project package</button>
+        <button onclick={onImportPackage} class="mt-3 block w-full text-sm font-semibold text-blue-600 underline">Import a project package</button>
       {/if}
     </div>
   {/if}
