@@ -85,6 +85,19 @@ it('migrates once when two fresh clients open simultaneously', async () => {
   expect(a).toEqual(b); expect(await createLocalStore().list()).toHaveLength(1);
 });
 
+it('retries recovery failures and supports self-hosted contexts without randomUUID', async () => {
+  const project = roomProject(); data.set(key, JSON.stringify({ [project.id]: JSON.stringify(project) }));
+  const store = createLocalStore(); await store.load(project.id);
+  project.name = 'Old tab edit'; data.set(key, JSON.stringify({ [project.id]: JSON.stringify(project) }));
+  const restore = failWrites();
+  await expect(store.list()).rejects.toMatchObject({ name: 'QuotaExceededError' });
+  const backup = JSON.parse(await libraryBackup()); expect(Object.keys(backup.projects)).toEqual([project.id]);
+  expect(JSON.parse(JSON.parse(backup.legacy.previous[key])[project.id]).name).not.toBe(project.name);
+  restore(); vi.stubGlobal('crypto', undefined);
+  expect(await store.list()).toHaveLength(2);
+  expect((await store.load(project.id))!.name).not.toBe(project.name);
+});
+
 it('returns exact damaged legacy bytes for backup even when migration cannot parse them', async () => {
   data.set(key, '{unreadable library');
   await expect(createLocalStore().list()).rejects.toThrow('could not be read');

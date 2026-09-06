@@ -92,7 +92,8 @@ async function migrate(db: IDBDatabase) {
     const meta = tx.objectStore('meta');
     const previous: Legacy | undefined = await request(meta.get('legacy-current'));
     const current = legacyStorage();
-    if (previous && JSON.stringify(previous) === JSON.stringify(current)) return;
+    if (previous && Object.keys(previous).length === Object.keys(current).length &&
+        Object.entries(current).every(([key, raw]) => previous[key] === raw)) return;
     const projects = tx.objectStore('projects');
     const entries = library(current[PROJECTS_STORAGE_KEY]);
     if (!previous) {
@@ -106,26 +107,30 @@ async function migrate(db: IDBDatabase) {
       const before = library(previous[PROJECTS_STORAGE_KEY]);
       for (const [id, raw] of Object.entries(entries)) {
         if (before[id] === raw || await request(projects.get(id)) === raw) continue;
-        // Invalid bytes stay available in the full backup. Valid old-tab edits are
-        // immediately visible in the library, with their own independent history.
+        // Invalid bytes stay available in the full backup. Only validation errors
+        // are skippable; any failure while storing a recovery must abort migration.
+        let copy;
         try {
-          const copy = readProject(JSON.parse(raw));
-          const link: { id: string; raw: string } | undefined = await request(meta.get(`recovered:${id}`));
-          // Continuing work in an old tab updates its untouched recovery copy.
-          // Editing/deleting that copy in the new app makes the next recovery independent.
-          const reuse = link && await request(projects.get(link.id)) === link.raw;
-          copy.id = reuse ? link.id : crypto.randomUUID();
-          copy.name = `${copy.name || 'Untitled Project'} (Recovered from older tab)`;
-          const recoveredRaw = JSON.stringify(copy);
-          if (reuse) projects.put(recoveredRaw, copy.id); else projects.add(recoveredRaw, copy.id);
-          meta.put({ id: copy.id, raw: recoveredRaw }, `recovered:${id}`);
-          const thumb = current[`floorplan_thumb_${id}`];
-          if (thumb) tx.objectStore('thumbnails').put(thumb, copy.id);
-        } catch (error) {
-          // Parsing failures must not make the existing IndexedDB library unavailable.
-          // IDB failures, however, must abort migration and leave its marker unchanged.
-          if (error instanceof DOMException) throw error;
+          copy = readProject(JSON.parse(raw));
+        } catch { continue; }
+        const link: { id: string; raw: string } | undefined = await request(meta.get(`recovered:${id}`));
+        // Continuing work in an old tab updates its untouched recovery copy.
+        // Editing/deleting that copy in the new app makes the next recovery independent.
+        const reuse = link && await request(projects.get(link.id)) === link.raw;
+        if (reuse) copy.id = link.id;
+        else {
+          let attempts = 0;
+          do {
+            if (++attempts > 5) throw new Error('Could not choose a recovery project ID. Try loading again.');
+            copy.id = globalThis.crypto?.randomUUID?.() ?? `project-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+          } while (await request(projects.get(copy.id)) !== undefined);
         }
+        copy.name = `${copy.name || 'Untitled Project'} (Recovered from older tab)`;
+        const recoveredRaw = JSON.stringify(copy);
+        if (reuse) projects.put(recoveredRaw, copy.id); else projects.add(recoveredRaw, copy.id);
+        meta.put({ id: copy.id, raw: recoveredRaw }, `recovered:${id}`);
+        const thumb = current[`floorplan_thumb_${id}`];
+        if (thumb) tx.objectStore('thumbnails').put(thumb, copy.id);
       }
     }
     meta.put(current, 'legacy-current');

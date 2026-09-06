@@ -18,7 +18,7 @@ No Firebase upload, paid storage, schema change to the iPhone handoff, or cloud 
 
 ## Verification
 
-- 403 unit tests pass, including full migration rollback/retry, commit abort after request success, concurrent clients, late old-release recovery, reserved IDs, histories and a project exceeding the old localStorage quota.
+- 404 unit tests pass, including full migration rollback/retry, commit abort after request success, concurrent clients, late old-release recovery, reserved IDs, histories and a project exceeding the old localStorage quota.
 - Type checking: zero errors; 23 pre-existing warnings. Production build passes. npm audit: zero vulnerabilities.
 - Browser suite now targets actual IndexedDB writes/reads for all existing import and conflict regression checks, with added migration, rollback/retry, large local project and older-release recovery cases. GitHub CI and release verification are recorded in the PR.
-- Manual upgrade test: imported and manually saved a project in the previous production build, then opened the new build on the same origin. Its project, preview and previous manual/session history remained available.
+- Manual upgrade test: imported and manually saved a project in the previous production build, then opened the new build on the same origin. Its project, preview and previous manual/session history remained available. Saving further edits in the still-open old release created a separate visible recovery copy while retaining the current IndexedDB version.
