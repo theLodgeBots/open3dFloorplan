@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { readProject } from '$lib/utils/projectValidation';
   import ImportError from '$lib/components/ImportError.svelte';
   import { onMount, onDestroy } from 'svelte';
   import { base } from '$app/paths';
@@ -6,7 +7,7 @@
   import type { FloorSeed } from '$lib/stores/project';
   import { currentProject, viewMode, undo, redo, addFloor, removeFloor, setActiveFloor, updateProjectName, loadProject, createDefaultProject, snapEnabled, canvasZoom, panMode, showFurnitureStore, layerVisibility, activeFloor, selectedElementId, elevationWallId, elevationPickMode } from '$lib/stores/project';
   import { get } from 'svelte/store';
-  import type { Floor, Project } from '$lib/models/types';
+  import type { Floor } from '$lib/models/types';
   import { exportAsPNG, exportAsJSON, exportAsSVG, exportPDF } from '$lib/utils/export';
   import { exportDXF, exportDWG } from '$lib/utils/cadExport';
   import { createProjectFromRoomPlan, extractRoomJsonFromZip, isRoomPlanJson } from '$lib/utils/roomplanImport';
@@ -256,30 +257,12 @@
           : JSON.parse(await file.text());
         if (isRoomPlanJson(data)) {
           loadProject(createProjectFromRoomPlan(data, file.name.replace(/\.(json|zip)$/i, '')));
-        } else if (data.floors && data.id) {
-          // Validate project structure
-          if (!Array.isArray(data.floors) || data.floors.length === 0) {
-            importError = 'Invalid project file: "floors" must be a non-empty array.';
-            return;
-          }
-          for (const fl of data.floors) {
-            if (!fl.id || !Array.isArray(fl.walls)) {
-              importError = 'Invalid project file: each floor must have an "id" and "walls" array.';
-              return;
-            }
-          }
-          if (!data.activeFloorId || !data.floors.some((f: any) => f.id === data.activeFloorId)) {
-            data.activeFloorId = data.floors[0].id;
-          }
-          // Revive dates
-          if (data.createdAt) data.createdAt = new Date(data.createdAt);
-          if (data.updatedAt) data.updatedAt = new Date(data.updatedAt);
-          loadProject(data as Project);
         } else {
-          importError = 'Unrecognized file format. Expected a project file or Apple RoomPlan JSON.';
+          loadProject(readProject(data));
         }
       } catch (e: any) {
-        importError = e.message;
+        const message = e?.message ?? 'Could not read this file.';
+        importError = message.includes('No project was imported.') ? message : `${message} No project was imported.`;
       }
     };
     input.click();

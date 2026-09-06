@@ -1,0 +1,59 @@
+{
+  "id": "qa-legacy-native-import",
+  "name": "QA Legacy Native Import",
+  "floors": [
+    {
+      "id": "legacy-ground",
+      "walls": [
+        {
+          "id": "qa-wall-0",
+          "start": {
+            "x": 0,
+            "y": 0
+          },
+          "end": {
+            "x": 600.5,
+            "y": 0
+          },
+          "thickness": 20
+        },
+        {
+          "id": "qa-wall-1",
+          "start": {
+            "x": 600.5,
+            "y": 0
+          },
+          "end": {
+            "x": 600,
+            "y": 400
+          },
+          "thickness": 20
+        },
+        {
+          "id": "qa-wall-2",
+          "start": {
+            "x": 600,
+            "y": 400
+          },
+          "end": {
+            "x": 0,
+            "y": 400
+          },
+          "thickness": 20
+        },
+        {
+          "id": "qa-wall-3",
+          "start": {
+            "x": 0,
+            "y": 400
+          },
+          "end": {
+            "x": 0,
+            "y": 0
+          },
+          "thickness": 20
+        }
+      ]
+    }
+  ]
+}

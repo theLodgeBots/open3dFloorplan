@@ -190,7 +190,7 @@
         {#each projects as project}
           <div class="group bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg hover:border-gray-300 transition-all duration-200 relative">
             <!-- Thumbnail -->
-            <a href={`${base}/editor?id=${project.id}`} class="block">
+            <a href={`${base}/editor?id=${encodeURIComponent(project.id)}`} class="block">
               <div class="aspect-[4/3] bg-gray-100 relative overflow-hidden">
                 {#if thumbnails[project.id]}
                   <img src={thumbnails[project.id]} alt="" class="w-full h-full object-contain" />
@@ -214,7 +214,7 @@
                   class="font-semibold text-gray-800 text-sm bg-blue-50 border border-blue-300 rounded px-2 py-1 w-full outline-none"
                 />
               {:else}
-                <a href={`${base}/editor?id=${project.id}`} class="block">
+                <a href={`${base}/editor?id=${encodeURIComponent(project.id)}`} class="block">
                   <h3 class="font-semibold text-gray-800 text-sm truncate">{project.name || 'Untitled Project'}</h3>
                 </a>
               {/if}
@@ -235,7 +235,7 @@
                 class="absolute top-12 right-3 bg-white rounded-lg shadow-xl border border-gray-200 py-1 w-40 z-50"
                 onclick={(e) => e.stopPropagation()}
               >
-                <button onclick={() => { goto(`${base}/editor?id=${project.id}`); }} class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left flex items-center gap-2">
+                <button onclick={() => { goto(`${base}/editor?id=${encodeURIComponent(project.id)}`); }} class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left flex items-center gap-2">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                   Open
                 </button>

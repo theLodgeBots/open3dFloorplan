@@ -1,5 +1,6 @@
 import { writable, get } from 'svelte/store';
 import { currentProject, loadProject } from './project';
+import { readProject } from '$lib/utils/projectValidation';
 import type { Project } from '$lib/models/types';
 
 export interface Snapshot {
@@ -15,13 +16,30 @@ function storageKey(projectId: string): string {
   return `vh_${projectId}`;
 }
 
+export const snapshotError = writable<string | null>(null);
+
 export function getSnapshots(projectId: string): Snapshot[] {
+  const raw = localStorage.getItem(storageKey(projectId));
+  if (raw === null) return [];
   try {
-    const raw = localStorage.getItem(storageKey(projectId));
-    return raw ? JSON.parse(raw) : [];
+    const snapshots = JSON.parse(raw);
+    if (!Array.isArray(snapshots) || snapshots.some(item => !item ||
+        typeof item.timestamp !== 'number' || !Number.isFinite(item.timestamp) ||
+        typeof item.description !== 'string' || typeof item.data !== 'string')) throw new Error();
+    return snapshots;
   } catch {
-    return [];
+    throw new Error('Version history could not be read. Download a backup before clearing damaged versions.');
   }
+}
+
+/** Keep the raw history bytes available even if a snapshot cannot be opened. */
+export function downloadSnapshotBackup(projectId: string) {
+  const raw = localStorage.getItem(storageKey(projectId));
+  if (raw === null) throw new Error('No saved version history was found.');
+  const url = URL.createObjectURL(new Blob([raw], { type: 'application/json' }));
+  const link = document.createElement('a');
+  link.href = url; link.download = 'openplan3d-version-history-backup.json'; link.click();
+  URL.revokeObjectURL(url);
 }
 
 function persistSnapshots(projectId: string, snapshots: Snapshot[]) {
@@ -40,7 +58,12 @@ function persistSnapshots(projectId: string, snapshots: Snapshot[]) {
 }
 
 export function saveSnapshot(project: Project, description: string) {
-  const snapshots = getSnapshots(project.id);
+  let snapshots: Snapshot[];
+  try { snapshots = getSnapshots(project.id); }
+  catch (error) {
+    snapshotError.set(error instanceof Error ? error.message : 'Could not read version history.');
+    return; // Never replace an unreadable history with a new, empty one.
+  }
   snapshots.push({
     timestamp: Date.now(),
     description,
@@ -55,16 +78,16 @@ export function saveSnapshot(project: Project, description: string) {
 }
 
 export function restoreSnapshot(projectId: string, index: number): boolean {
-  const snapshots = getSnapshots(projectId);
-  if (index < 0 || index >= snapshots.length) return false;
   try {
-    const project = JSON.parse(snapshots[index].data) as Project;
-    if (project.createdAt) project.createdAt = new Date(project.createdAt as any);
-    if (project.updatedAt) project.updatedAt = new Date(project.updatedAt as any);
+    const snapshots = getSnapshots(projectId);
+    if (!Number.isInteger(index) || index < 0 || index >= snapshots.length) throw new Error('This version is no longer available.');
+    const project = readProject(JSON.parse(snapshots[index].data));
+    if (project.id !== projectId) throw new Error('This version belongs to a different project.');
     loadProject(project);
+    snapshotError.set(null);
     return true;
-  } catch (e) {
-    console.error('[VersionHistory] Failed to restore snapshot:', e);
+  } catch (error) {
+    snapshotError.set(`${error instanceof Error ? error.message : 'Could not read this version.'} Your current plan has not changed.`);
     return false;
   }
 }
@@ -72,6 +95,7 @@ export function restoreSnapshot(projectId: string, index: number): boolean {
 export function deleteAllSnapshots(projectId: string) {
   localStorage.removeItem(storageKey(projectId));
   snapshotsStore.set([]);
+  snapshotError.set(null);
 }
 
 // Reactive store for current project's snapshots
@@ -79,8 +103,13 @@ export const snapshotsStore = writable<Snapshot[]>([]);
 
 // Refresh snapshots store for current project
 export function refreshSnapshots() {
+  snapshotError.set(null);
   const p = get(currentProject);
-  if (p) snapshotsStore.set(getSnapshots(p.id));
+  try { snapshotsStore.set(p ? getSnapshots(p.id) : []); }
+  catch (error) {
+    snapshotsStore.set([]);
+    snapshotError.set(error instanceof Error ? error.message : 'Could not read version history.');
+  }
 }
 
 // Auto-snapshot timer
