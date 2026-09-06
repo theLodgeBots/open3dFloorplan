@@ -25,6 +25,7 @@ geometry with zero or one.
   enforce the wall's actual range rather than a 5%/95% clamp.
 - Length inputs keep fractional centimetres, accept Enter or blur to commit, and
   do not convert a rounded imperial display back into geometry merely on focus/blur.
+  The same precision protection applies to wall heights, thickness and openings.
 - The desktop properties panel participates in the layout instead of covering the
   layers list. The compact bottom sheet remains available on phone widths.
 

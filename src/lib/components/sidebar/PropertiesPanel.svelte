@@ -99,18 +99,10 @@
     });
   });
   function onWallStartHeight(e: Event) {
-    if (!selectedWall) return;
-    const input = e.target as HTMLInputElement;
-    if (!input.value.trim() || !input.validity.valid) { if (e.type === 'blur') input.value = String(displayValue(getWallStartHeight(selectedWall))); return; }
-    const height = inputToCm(input.valueAsNumber);
-    if (height !== getWallStartHeight(selectedWall)) updateWall(selectedWall.id, { startHeight: height });
+    if (selectedWall) dimensionInput(e, getWallStartHeight(selectedWall), value => updateWall(selectedWall!.id, { startHeight: value }), true);
   }
   function onWallEndHeight(e: Event) {
-    if (!selectedWall) return;
-    const input = e.target as HTMLInputElement;
-    if (!input.value.trim() || !input.validity.valid) { if (e.type === 'blur') input.value = String(displayValue(getWallEndHeight(selectedWall))); return; }
-    const height = inputToCm(input.valueAsNumber);
-    if (height !== getWallEndHeight(selectedWall)) updateWall(selectedWall.id, { endHeight: height });
+    if (selectedWall) dimensionInput(e, getWallEndHeight(selectedWall), value => updateWall(selectedWall!.id, { endHeight: value }), true);
   }
   function equalizeWallHeights() {
     if (!selectedWall) return;
@@ -822,7 +814,7 @@
       </div>
       <label class="block">
         <span class="text-xs text-gray-500">Width ({unitLabel()})</span>
-        <input type="number" value={displayValue(Math.round(selectedEntourage.width))} oninput={(e) => { if (selectedEntourage) updateEntourageItem(selectedEntourage.id, { width: Math.max(1, inputToCm(Number((e.target as HTMLInputElement).value)) || 1) }); }} min="0" class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        <input type="number" value={displayValue(Math.round(selectedEntourage.width))} oninput={(e) => { if (selectedEntourage) updateEntourageItem(selectedEntourage.id, { width: Math.max(1, inputToCm(Number((e.target as HTMLInputElement).value)) || 1) }); }} min="1" class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
         <span class="text-xs text-gray-500">Rotation (°)</span>

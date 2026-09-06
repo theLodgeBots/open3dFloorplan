@@ -103,7 +103,10 @@ for (const width of [1440, 390]) {
     const beforeFocus = (await exportPlan(page)).floors;
     const inches = page.getByRole('spinbutton', { name: 'Length (in)', exact: true });
     await expect(inches).toHaveValue('275.9');
-    await inches.click(); await inches.press('Tab');
+    for (const name of ['Length (in)', 'Thickness (in)', 'Start Height (in)', 'End Height (in)']) {
+      const input = page.getByRole('spinbutton', { name, exact: true });
+      await input.click(); await input.press('Tab');
+    }
     expect((await exportPlan(page)).floors).toEqual(beforeFocus);
     await edit(page, 'Length (in)', '300.25');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
