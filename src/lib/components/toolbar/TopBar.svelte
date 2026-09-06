@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { readProject } from '$lib/utils/projectValidation';
+  import { openProject } from '$lib/services/projectOpening';
   import ImportError from '$lib/components/ImportError.svelte';
   import { onMount, onDestroy } from 'svelte';
   import { base } from '$app/paths';
   import { orderedFloors } from '$lib/utils/floors';
   import type { FloorSeed } from '$lib/stores/project';
-  import { currentProject, viewMode, undo, redo, addFloor, removeFloor, setActiveFloor, updateProjectName, loadProject, createDefaultProject, snapEnabled, canvasZoom, panMode, showFurnitureStore, layerVisibility, activeFloor, selectedElementId, elevationWallId, elevationPickMode } from '$lib/stores/project';
+  import { currentProject, viewMode, undo, redo, addFloor, removeFloor, setActiveFloor, updateProjectName, createDefaultProject, snapEnabled, canvasZoom, panMode, showFurnitureStore, layerVisibility, activeFloor, selectedElementId, elevationWallId, elevationPickMode } from '$lib/stores/project';
   import { get } from 'svelte/store';
   import type { Floor } from '$lib/models/types';
   import { exportAsPNG, exportAsJSON, exportAsSVG, exportPDF } from '$lib/utils/export';
@@ -16,6 +16,9 @@
   import { saveState, saveError, lastSavedAt, manualSave, autoSave, initAutoSave } from '$lib/stores/saveStatus';
   import { initVersionHistory, stopVersionHistory, snapshotOnAction } from '$lib/stores/versionHistory';
   import VersionHistoryPanel from './VersionHistoryPanel.svelte';
+
+  const openingLifetime = new AbortController();
+  onDestroy(() => openingLifetime.abort());
 
   let importError = $state<string | null>(null);
 
@@ -196,13 +199,11 @@
     URL.revokeObjectURL(url);
   }
 
-  function newProject() {
-    if (!confirm('Create a new project? Unsaved changes will be lost.')) return;
-    const project = createDefaultProject();
-    loadProject(project);
-    history.replaceState(null, '', `${base}/editor?id=${project.id}`);
-    void autoSave();
+  async function newProject() {
+    importError = null;
     exportOpen = false;
+    try { await openProject(() => createDefaultProject(), 'new', openingLifetime.signal); }
+    catch (error) { importError = error instanceof Error ? error.message : 'Could not open a new project.'; }
   }
 
   onMount(() => {
@@ -252,14 +253,14 @@
       const file = input.files?.[0];
       if (!file) return;
       try {
-        const data = /\.zip$/i.test(file.name)
-          ? await extractRoomJsonFromZip(file)
-          : JSON.parse(await file.text());
-        if (isRoomPlanJson(data)) {
-          loadProject(createProjectFromRoomPlan(data, file.name.replace(/\.(json|zip)$/i, '')));
-        } else {
-          loadProject(readProject(data));
-        }
+        await openProject(async () => {
+          const data = /\.zip$/i.test(file.name)
+            ? await extractRoomJsonFromZip(file)
+            : JSON.parse(await file.text());
+          return isRoomPlanJson(data)
+            ? createProjectFromRoomPlan(data, file.name.replace(/\.(json|zip)$/i, ''))
+            : data;
+        }, 'import', openingLifetime.signal);
       } catch (e: any) {
         const message = e?.message ?? 'Could not read this file.';
         importError = message.includes('No project was imported.') ? message : `${message} No project was imported.`;
@@ -615,5 +616,5 @@
 {/if}
 
 {#if importError}
-  <ImportError message={importError} onDismiss={() => importError = null} />
+  <ImportError title="Couldn’t open plan" message={importError} onDismiss={() => importError = null} />
 {/if}

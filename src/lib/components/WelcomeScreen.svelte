@@ -1,12 +1,15 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import { isRoomPlanJson } from '$lib/utils/roomplanValidation';
-  import { readProject } from '$lib/utils/projectValidation';
+  import { openProject } from '$lib/services/projectOpening';
   import ImportError from '$lib/components/ImportError.svelte';
   import { goto } from '$app/navigation';
   import { base } from '$app/paths';
-  import { autoSave } from '$lib/stores/saveStatus';
-  import { createDefaultProject, loadProject } from '$lib/stores/project';
+  import { createDefaultProject } from '$lib/stores/project';
   import { houseTemplates } from '$lib/utils/houseTemplates';
+
+  const openingLifetime = new AbortController();
+  onDestroy(() => openingLifetime.abort());
 
   let { onDismiss }: { onDismiss: () => void } = $props();
 
@@ -26,22 +29,18 @@
     onDismiss();
   }
 
-  async function startFromScratch() {
-    const p = createDefaultProject('Untitled Project');
-    loadProject(p);
-    await autoSave();
-    markSeen();
-    goto(`${base}/editor?id=${p.id}`);
+  async function createProject(create: () => unknown) {
+    importError = null;
+    try {
+      const project = await openProject(create, 'new', openingLifetime.signal);
+      if (!project) return;
+      markSeen();
+      goto(`${base}/editor?id=${encodeURIComponent(project.id)}`);
+    } catch (error) { importError = error instanceof Error ? error.message : 'Could not open a project.'; }
   }
 
-  async function useHouseTemplate(index: number) {
-    const template = houseTemplates[index];
-    const p = template.create();
-    loadProject(p);
-    await autoSave();
-    markSeen();
-    goto(`${base}/editor?id=${p.id}`);
-  }
+  function startFromScratch() { return createProject(() => createDefaultProject('Untitled Project')); }
+  function useHouseTemplate(index: number) { return createProject(houseTemplates[index].create); }
 
   let showTemplates = $state(false);
   let showImport = $state(false);
@@ -58,13 +57,13 @@
     if (!file) return;
     importError = null;
     try {
-      const data = JSON.parse(await file.text());
-      const project = isRoomPlanJson(data)
-        ? (await import('$lib/utils/roomplanImport')).createProjectFromRoomPlan(data, file.name.replace(/\.json$/i, ''))
-        : readProject(data);
-      project.updatedAt = new Date();
-      loadProject(project);
-      await autoSave();
+      const project = await openProject(async () => {
+        const data = JSON.parse(await file.text());
+        return isRoomPlanJson(data)
+          ? (await import('$lib/utils/roomplanImport')).createProjectFromRoomPlan(data, file.name.replace(/\.json$/i, ''))
+          : data;
+      }, 'import', openingLifetime.signal);
+      if (!project) return;
       markSeen();
       goto(`${base}/editor?id=${encodeURIComponent(project.id)}`);
     } catch (error) {
@@ -92,7 +91,7 @@
 
 <input type="file" accept=".json" class="hidden" bind:this={fileInput} onchange={onFileSelected} />
 
-{#if importError}<ImportError message={importError} onDismiss={() => importError = null} />{/if}
+{#if importError}<ImportError title="Couldn’t open plan" message={importError} onDismiss={() => importError = null} />{/if}
 
 <!-- Backdrop -->
 <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">

@@ -339,3 +339,11 @@ files with missing arrays, and protects reopening/duplicate/version-restoration
 paths from malformed geometry. Damaged files and history retain raw-backup paths.
 See [the batch report](2026-09-06-native-project-validation.md). All processing
 remains local with no added Firebase Storage usage.
+
+## Twelfth batch: preserve work when opening projects
+
+Issue #49 protects pending edits before valid imports, templates and New Project
+replace the active plan. Duplicate imported IDs open as separate local copies;
+failed saves retain backup/retry paths, and superseded file reads cannot replace
+newer work. See [the batch report](2026-09-06-safe-project-opening.md). There are
+no new Firebase Storage operations or iPhone schema changes.

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { openProject } from '$lib/services/projectOpening';
   import ImportError from '$lib/components/ImportError.svelte';
   import { onDestroy } from 'svelte';
   import { activateMeasurementTool, selectedTool, placingFurnitureId, placingDoorType, placingWindowType, placingStair, addStair, placingColumn, placingColumnShape, activeFloor, setBackgroundImage, canvasCamX, canvasCamY, placingEntourageId, addCustomEntourage } from '$lib/stores/project';
@@ -11,7 +12,10 @@
   import type { FurnitureDef } from '$lib/utils/furnitureCatalog';
   import FurnitureThumbnail from './FurnitureThumbnail.svelte';
   import { createProjectFromRoomPlan, extractRoomJsonFromZip, roomPlanImportOptions, validateRoomPlan, ORTHO_VERSION } from '$lib/utils/roomplanImport';
-  import { currentProject, loadProject } from '$lib/stores/project';
+  import { currentProject } from '$lib/stores/project';
+
+  const openingLifetime = new AbortController();
+  onDestroy(() => openingLifetime.abort());
 
   let importError = $state<string | null>(null);
 
@@ -254,22 +258,25 @@
     input.click();
   }
 
-  function confirmImport() {
+  async function confirmImport() {
     if (!importJsonData) return;
+    const input = importJsonData;
+    importError = null;
     try {
       // Create a new project for the imported data instead of merging into current
       const projectName = importFileName ? importFileName.replace(/\.(json|zip)$/i, '') : 'RoomPlan Import';
-      const newProject = createProjectFromRoomPlan(importJsonData, projectName, {
+      await openProject(() => createProjectFromRoomPlan(input, projectName, {
         straighten: optStraighten,
         orthogonal: optOrthogonal,
         mergeDistance: optMergeDistance,
-      });
-      loadProject(newProject);
+      }), 'import', openingLifetime.signal);
     } catch (e: any) {
-      importError = e.message;
+      if (importJsonData === input) importError = e.message;
     }
-    showImportDialog = false;
-    importJsonData = null;
+    if (importJsonData === input) {
+      showImportDialog = false;
+      importJsonData = null;
+    }
   }
 
   function cancelImport() {

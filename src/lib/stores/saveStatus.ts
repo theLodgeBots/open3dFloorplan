@@ -88,7 +88,16 @@ async function persist(manual: boolean): Promise<boolean> {
     await localStore.save(p);
     // A completed write must not mark newer edits or another project as saved.
     if (attempt === saveAttempt && savingRevision === revision && get(currentProject) === p) {
-      captureThumbnail(p.id);
+      // The canvas may still show the previous plan immediately after an import.
+      // Let reactive updates, zoom-to-fit and a paint finish before taking a preview.
+      // Preview work must not delay the save or capture a newer revision/project.
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          if (attempt === saveAttempt && savingRevision === revision && get(currentProject) === p) {
+            captureThumbnail(p.id);
+          }
+        }));
+      }
       if (manual) saveSnapshot(p, 'Manual save');
       saveState.set('saved');
       saveError.set(null);

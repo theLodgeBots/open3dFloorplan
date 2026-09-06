@@ -1,12 +1,15 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import { base } from '$app/paths';
   import { localStore, storageErrorMessage, downloadLibraryBackup } from '$lib/services/datastore';
-  import { autoSave } from '$lib/stores/saveStatus';
-  import { createDefaultProject, loadProject } from '$lib/stores/project';
+  import { openProject } from '$lib/services/projectOpening';
+  import { createDefaultProject } from '$lib/stores/project';
   import WelcomeScreen from '$lib/components/WelcomeScreen.svelte';
   import { houseTemplates } from '$lib/utils/houseTemplates';
+
+  const openingLifetime = new AbortController();
+  onDestroy(() => openingLifetime.abort());
 
   let projects = $state<{ id: string; name: string; updatedAt: string }[]>([]);
   let thumbnails = $state<Record<string, string | null>>({});
@@ -51,21 +54,17 @@
     });
   });
 
-  async function createFromTemplate(index: number) {
-    const template = houseTemplates[index];
-    const p = template.create();
-    loadProject(p);
-    await autoSave();
-    showTemplateModal = false;
-    goto(`${base}/editor?id=${p.id}`);
+  async function createProject(create: () => unknown) {
+    await withLibraryError(async () => {
+      const project = await openProject(create, 'new', openingLifetime.signal);
+      if (!project) return;
+      showTemplateModal = false;
+      goto(`${base}/editor?id=${encodeURIComponent(project.id)}`);
+    });
   }
 
-  async function newProject() {
-    const p = createDefaultProject('Untitled Project');
-    loadProject(p);
-    await autoSave();
-    goto(`${base}/editor?id=${p.id}`);
-  }
+  function createFromTemplate(index: number) { return createProject(houseTemplates[index].create); }
+  function newProject() { return createProject(() => createDefaultProject('Untitled Project')); }
 
   async function deleteProject(id: string) {
     await withLibraryError(async () => {

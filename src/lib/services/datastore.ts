@@ -2,6 +2,7 @@ import { readProject } from '$lib/utils/projectValidation';
 import type { Project } from '$lib/models/types';
 
 export interface DataStore {
+  has(id: string): Promise<boolean>;
   save(project: Project): Promise<void>;
   load(id: string): Promise<Project | null>;
   list(): Promise<{ id: string; name: string; updatedAt: string }[]>;
@@ -52,6 +53,8 @@ export function downloadLibraryBackup() {
 }
 
 export const localStore: DataStore = {
+  async has(id) { return Object.hasOwn(getAll(), id); },
+
   async save(project) {
     const all = getAll();
     all[project.id] = JSON.stringify(project);
