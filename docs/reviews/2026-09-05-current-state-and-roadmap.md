@@ -359,3 +359,7 @@ for browser compatibility limits and validation. All processing remains local.
 ## Fourteenth batch — IndexedDB local library
 
 Projects, previews and ten-version histories move into separate IndexedDB stores with atomic migration, retained legacy recovery bytes, transaction-complete save status and old-tab recovery copies. Full-library backups are available from the library. This removes localStorage's project-size bottleneck without adding Firebase storage. See [implementation and verification](2026-09-06-indexeddb-library.md). Whole-library restore UI, image deduplication and complete two-way iPhone file exchange remain follow-up work; issue #30 still covers the device release, quota cutover and billing controls.
+
+## Fifteenth batch — complete local library restoration
+
+Current and legacy library backups can be previewed and restored as independent copies, with valid history rebound to each new project ID. Damaged bytes remain in future recovery backups. The whole restore, including destination migration, commits atomically; cancellation and failed writes retain existing data and allow retry. See [implementation and verification](2026-09-06-library-backup-restore.md). Complete iPhone ↔ web file/attachment exchange and image deduplication remain next engineering priorities; issue #30 still covers the iPhone release and Firebase cost controls.

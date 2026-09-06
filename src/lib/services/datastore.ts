@@ -119,8 +119,15 @@ export function createLocalStore(): DataStore {
     async list() {
       const all = await withDatabase(db => transaction(db, ['projects'], 'readonly', tx => records(tx, 'projects')));
       const projects = Object.entries(all).map(([id, raw]) => {
-        const p = JSON.parse(raw);
-        return { id, name: p.name, updatedAt: p.updatedAt };
+        try {
+          const p = JSON.parse(raw);
+          if (!p || typeof p.name !== 'string' || typeof p.updatedAt !== 'string' || !Number.isFinite(Date.parse(p.updatedAt))) throw new Error();
+          return { id, name: p.name, updatedAt: p.updatedAt };
+        } catch {
+          // Keep damaged entries visible and deletable without hiding healthy or
+          // restored projects. Opening still validates; backups retain raw bytes.
+          return { id, name: `Unreadable project — ${id}`, updatedAt: new Date(0).toISOString() };
+        }
       });
       listed.clear();
       for (const [id, raw] of Object.entries(all)) listed.set(id, raw);
