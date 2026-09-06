@@ -59,6 +59,7 @@
 
   // Walkthrough mode
   let walkthroughMode = $state(false);
+  let walkthroughMouseUnavailable = $state(false);
   let moveForward = false;
   let moveBackward = false;
   let moveLeft = false;
@@ -1919,7 +1920,12 @@
   }
 
   function enterWalkthroughMode() {
+    cameraPlacementMode = false;
+    cameraPreviewOpen = false;
+    furniturePlacementMode = false;
+    removeGhostPreview();
     walkthroughMode = true;
+    walkthroughMouseUnavailable = false;
     controls.enabled = false;
 
     // Position camera at eye height in center of floor plan or largest room
@@ -1960,7 +1966,15 @@
         { ...startPos, z: startPos.z - 100 });
     }
 
-    pointerControls.lock();
+    // Three's lock() discards the browser's promise. Handle rejection here so
+    // embedded/unsupported browsers can still use keyboard movement and look.
+    try {
+      Promise.resolve(renderer.domElement.requestPointerLock()).catch(() => {
+        if (walkthroughMode) walkthroughMouseUnavailable = true;
+      });
+    } catch {
+      walkthroughMouseUnavailable = true;
+    }
   }
 
 
@@ -2096,6 +2110,8 @@
       cancelAnimationFrame(animId);
       document.removeEventListener('keydown', onKeyDown, false);
       document.removeEventListener('keyup', onKeyUp, false);
+      pointerControls.dispose();
+      controls.dispose();
       renderer.dispose();
     };
   });
@@ -2426,6 +2442,9 @@
     <!-- Controls Panel -->
     <div class="absolute top-4 left-4 z-10 bg-black/70 text-white text-xs rounded-lg backdrop-blur-sm p-3 space-y-2 min-w-[180px]">
       <div class="font-semibold text-white/90 mb-1">Walkthrough Controls</div>
+      {#if walkthroughMouseUnavailable}
+        <p role="status" class="max-w-56 text-amber-200">Mouse look is unavailable in this browser. Use WASD to look and arrow keys to move.</p>
+      {/if}
       <label class="flex items-center justify-between gap-2">
         <span class="text-white/70">Eye Height</span>
         <div class="flex items-center gap-1">

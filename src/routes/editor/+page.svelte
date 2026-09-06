@@ -196,7 +196,8 @@
 {#if ready}
   <div class="h-screen flex flex-col overflow-hidden">
     <TopBar />
-    <div class="flex flex-1 overflow-hidden">
+    <!-- Keep canvas/viewer controls beneath toolbar menus and project dialogs. -->
+    <div class="flex flex-1 overflow-hidden isolate">
       {#if mode === '2d'}
         <!-- Build panel: inline sidebar on md+, off-canvas drawer on phones -->
         {#if buildPanelOpen}

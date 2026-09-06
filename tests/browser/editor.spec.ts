@@ -291,6 +291,17 @@ for (const width of [1440, 390]) {
       await testInfo.attach('upper-floor-walkthrough', { body: await page.screenshot(), contentType: 'image/png' });
       await page.keyboard.press('Escape');
       await expect(page.getByRole('button', { name: 'Enter Walkthrough Mode', exact: true })).toBeVisible();
+      // Browser mouse capture can be denied independently of the editor. A
+      // rejected browser API must leave keyboard walkthrough usable, without
+      // an unhandled rejection. This does not alter project or scene state.
+      await page.evaluate(() => {
+        HTMLCanvasElement.prototype.requestPointerLock = () => Promise.reject(new DOMException('Mouse capture denied', 'NotAllowedError'));
+      });
+      await page.getByRole('button', { name: 'Enter Walkthrough Mode', exact: true }).click();
+      await expect(page.getByRole('status')).toContainText('Mouse look is unavailable');
+      await page.keyboard.press('ArrowUp');
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('button', { name: 'Enter Walkthrough Mode', exact: true })).toBeVisible();
     }
     await selectFloor('Sloped Ground');
     await expect(page.getByText('Sloped Ground · -50.5 cm elevation', { exact: true })).toBeVisible();

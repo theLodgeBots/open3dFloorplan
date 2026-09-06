@@ -23,8 +23,12 @@ the lowest basement, and top-down framing includes elevated geometry. The
 isolated active-floor view retains its existing local zero-height ground.
 
 Settings now fits compact screens, scrolls its tabs, and closes with Escape from
-inside the dialog. The camera preview canvas is reactive so its first mounted
+inside the dialog. Browser testing caught 3D controls blocking the compact floor
+menu; isolating the viewer's stacking context keeps project menus on top.
+The camera preview canvas is reactive so its first mounted
 preview can render; replaced marker geometry is disposed.
+Walkthrough handles rejected mouse capture with a visible keyboard fallback,
+clears placement modes on entry, and releases its controls on unmount.
 
 Validation at implementation: 216 unit tests pass; type checking has zero errors
 and 24 remaining warnings; the production build passes. Tests raycast through
@@ -32,7 +36,7 @@ actual Three.js wall meshes from floor-relative cameras on four mixed-height
 storeys, including a basement, and cover invalid data, legacy defaults, additions,
 removal, persistence and undo/redo. Browser coverage adds desktop and 390 px
 workflows for editing, reset, undo/redo, import/export, save/reload and stacked
-views, plus a desktop walkthrough. Final CI, interactive and rollout results are
+views, plus desktop walkthrough and rejected-mouse-capture coverage. Final CI, interactive and rollout results are
 recorded on the release PR.
 
 No Firebase Storage calls, services, dependencies, IAM permissions or retention
