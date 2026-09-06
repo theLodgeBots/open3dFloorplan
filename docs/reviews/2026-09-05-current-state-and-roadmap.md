@@ -363,3 +363,7 @@ Projects, previews and ten-version histories move into separate IndexedDB stores
 ## Fifteenth batch — complete local library restoration
 
 Current and legacy library backups can be previewed and restored as independent copies, with valid history rebound to each new project ID. Damaged bytes remain in future recovery backups. The whole restore, including destination migration, commits atomically; cancellation and failed writes retain existing data and allow retry. See [implementation and verification](2026-09-06-library-backup-restore.md). Complete iPhone ↔ web file/attachment exchange and image deduplication remain next engineering priorities; issue #30 still covers the iPhone release and Firebase cost controls.
+
+## Sixteenth batch: local iPhone ↔ web project packages
+
+A versioned ZIP carries the current edited plan, referenced attachments and retained native/web data. Both clients preview imports and add independent local copies atomically. Baseline comparisons apply cross-platform edits without flattening untouched web-only fields; actual Swift return fixtures and browser regressions cover both directions. See [package format and fidelity limits](../project-package-v1.md). Equivalent web photo/notes/cost controls and catalog fidelity remain follow-ups; native distribution and Firebase cost controls remain in #30.

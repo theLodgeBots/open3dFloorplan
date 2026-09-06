@@ -7,6 +7,7 @@
   import { createDefaultProject } from '$lib/stores/project';
   import WelcomeScreen from '$lib/components/WelcomeScreen.svelte';
   import LibraryRestoreDialog from '$lib/components/LibraryRestoreDialog.svelte';
+  import ProjectPackageDialog from '$lib/components/ProjectPackageDialog.svelte';
   import { houseTemplates } from '$lib/utils/houseTemplates';
 
   const openingLifetime = new AbortController();
@@ -16,6 +17,7 @@
   let thumbnails = $state<Record<string, string | null>>({});
   let showWelcome = $state(false);
   let restoreOpen = $state(false);
+  let packageOpen = $state(false);
   let loading = $state(true);
   let confirmDeleteId = $state<string | null>(null);
   let renamingId = $state<string | null>(null);
@@ -45,6 +47,7 @@
   }
 
   function openRestore() { showWelcome = false; restoreOpen = true; }
+  function openPackage() { showWelcome = false; packageOpen = true; }
   async function afterRestore() {
     await refreshProjects();
     libraryError = null;
@@ -134,10 +137,11 @@
 <svelte:window onclick={() => { contextMenuId = null; }} />
 
 {#if showWelcome}
-  <WelcomeScreen onRestoreLibrary={openRestore} onDismiss={() => { showWelcome = false; void withLibraryError(refreshProjects); }} />
+  <WelcomeScreen onRestoreLibrary={openRestore} onImportPackage={openPackage} onDismiss={() => { showWelcome = false; void withLibraryError(refreshProjects); }} />
 {/if}
 
 {#if restoreOpen}<LibraryRestoreDialog onclose={() => restoreOpen = false} onrestored={afterRestore} />{/if}
+{#if packageOpen}<ProjectPackageDialog onclose={() => packageOpen = false} onimported={afterRestore} />{/if}
 
 <div class="min-h-screen bg-gray-50">
   <!-- Header -->
@@ -172,6 +176,7 @@
       <div class="flex flex-wrap gap-4">
         {#if !libraryError}<button class="font-semibold text-blue-600 underline" onclick={backupLibrary}>Download library backup</button>{/if}
         <button class="font-semibold text-blue-600 underline" onclick={openRestore}>Restore library backup</button>
+        <button class="font-semibold text-blue-600 underline" onclick={openPackage}>Import project package</button>
       </div>
     </div>
     {#if libraryError}

@@ -22,6 +22,7 @@
   onDestroy(() => openingLifetime.abort());
 
   let importError = $state<string | null>(null);
+  let packageError = $state<string | null>(null);
 
   let settingsOpen = $state(false);
   let areaOpen = $state(false);
@@ -161,6 +162,17 @@
     const p = get(currentProject);
     if (p) exportAsJSON(p);
     exportOpen = false;
+  }
+
+  async function onExportPackage() {
+    const project = get(currentProject);
+    exportOpen = false; packageError = null;
+    if (!project) return;
+    const snapshot = structuredClone(project);
+    try {
+      const { downloadProjectPackage } = await import('$lib/services/projectPackage');
+      if (!openingLifetime.signal.aborted) downloadProjectPackage(snapshot);
+    } catch (error) { packageError = error instanceof Error ? error.message : 'Could not export this project package.'; }
   }
 
   function onExportSVG() {
@@ -559,6 +571,8 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
           Download JSON
         </button>
+        <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={onExportPackage}>Download project package</button>
+        <p class="px-3 pb-2 text-xs text-gray-500">For iPhone and web. Includes retained original data and attachments, even when they are not shown here.</p>
         <div class="h-px bg-gray-100 my-1"></div>
         <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center gap-2" onclick={onImportJSON}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -623,3 +637,4 @@
 {#if importError}
   <ImportError title="Couldn’t open plan" message={importError} onDismiss={() => importError = null} />
 {/if}
+{#if packageError}<ImportError title="Couldn’t export package" message={packageError} onDismiss={() => packageError = null} />{/if}

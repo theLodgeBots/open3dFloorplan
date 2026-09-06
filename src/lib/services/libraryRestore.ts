@@ -15,7 +15,6 @@ export interface LibraryRestorePreview {
 }
 
 const newId = () => globalThis.crypto?.randomUUID?.() ?? `restore-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-const copyName = (name: string) => `${name || 'Untitled Project'} (Restored copy)`;
 
 function stringMap(value: unknown, label: string): StringMap {
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.values(value).some(raw => typeof raw !== 'string')) {
@@ -63,7 +62,8 @@ function parseBackup(raw: string): Record<string, unknown> {
 /** Pure validation and preview. Private serialized candidates cannot be changed by
  * UI state while restoration waits for a transaction. No database access here.
  */
-export function prepareLibraryRestore(raw: string, sourceName = 'Library backup'): LibraryRestorePreview {
+export function prepareLibraryRestore(raw: string, sourceName = 'Library backup', suffix = 'Restored copy'): LibraryRestorePreview {
+  const copyName = (name: string) => `${name || 'Untitled Project'} (${suffix})`;
   const data = parseBackup(raw);
   const bundle = data.format === 'openplan3d-library';
   if (bundle && data.version !== 1) throw new Error('This library backup version is not supported. No projects were restored.');
