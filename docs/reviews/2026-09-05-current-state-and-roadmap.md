@@ -296,3 +296,12 @@ full aggregate enforcement still requires client release and rule cutover.
 Keep the current recovery policy based on the measured retained bytes. A billing
 administrator and monthly budget target remain outstanding. See
 [the sixth-batch report](2026-09-05-cost-controls-and-browser-ci.md).
+
+### Seventh batch — variable-height walls
+
+Integrates community PR #13 with tested sloped mesh generation, opening-span
+clipping and warnings, reversal that preserves door orientation, interpolated
+split/exterior-copy heights, per-room ceiling decisions and consistent curved
+walls in stacked views. The suite has 207 unit tests and a fourth browser
+workflow. This work adds no Firebase Storage traffic. See the
+[implementation and validation report](2026-09-05-variable-height-walls.md).

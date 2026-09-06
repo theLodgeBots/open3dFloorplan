@@ -15,6 +15,8 @@
   import { activeFloor, elevationWallId, selectedElementId, selectedElementIds, selectedRoomId, updateDoor, updateWindow, beginUndoGroup, endUndoGroup } from '$lib/stores/project';
   import { projectSettings, formatLength } from '$lib/stores/settings';
   import type { Door, Window as Win } from '$lib/models/types';
+  import { openingOnWall } from '$lib/utils/wallProfiles';
+  import { getWallStartHeight, getWallEndHeight, getWallHeightAt } from '$lib/models/types';
 
   const DEFAULT_WALL_HEIGHT = 240; // cm — fallback when a wall has no height
   const DEFAULT_DOOR_HEIGHT = 210; // cm
@@ -67,7 +69,9 @@
     return Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
   });
 
-  let wallH = $derived(wall ? (wall.height || DEFAULT_WALL_HEIGHT) : DEFAULT_WALL_HEIGHT);
+  let startH = $derived(wall ? getWallStartHeight(wall) : DEFAULT_WALL_HEIGHT);
+  let endH = $derived(wall ? getWallEndHeight(wall) : DEFAULT_WALL_HEIGHT);
+  let maxH = $derived(Math.max(startH, endH, 1));
 
   /** Global selection, narrowed to an opening on this wall (drives highlight + dims) */
   let selectedOpeningId = $derived.by(() => {
@@ -152,9 +156,9 @@
     if (!wall || wallLen <= 0 || cw < PAD_L + PAD_R + 40 || ch < PAD_T + PAD_B + 40) return null;
     const availW = cw - PAD_L - PAD_R;
     const availH = ch - PAD_T - PAD_B;
-    const scale = Math.min(availW / wallLen, availH / wallH);
+    const scale = Math.min(availW / wallLen, availH / maxH);
     const ox = PAD_L + (availW - wallLen * scale) / 2;
-    const floorY = PAD_T + (availH - wallH * scale) / 2 + wallH * scale;
+    const floorY = PAD_T + (availH - maxH * scale) / 2 + maxH * scale;
     return { scale, ox, floorY };
   });
 
@@ -170,14 +174,12 @@
   function openingRects(): OpeningRect[] {
     if (!wall) return [];
     const rects: OpeningRect[] = [];
-    for (const d of doors) {
-      const h = Math.min(d.height ?? DEFAULT_DOOR_HEIGHT, wallH);
-      rects.push({ id: d.id, kind: 'door', x: d.position * wallLen - d.width / 2, y: 0, w: d.width, h });
-    }
-    for (const w of windows) {
-      const sill = w.sillHeight ?? DEFAULT_SILL;
-      const h = Math.min(w.height, Math.max(0, wallH - sill));
-      rects.push({ id: w.id, kind: 'window', x: w.position * wallLen - w.width / 2, y: sill, w: w.width, h });
+    for (const [kind, items] of [['door', doors], ['window', windows]] as const) {
+      for (const item of items) {
+        const bottom = kind === 'door' ? 0 : (item as Win).sillHeight ?? DEFAULT_SILL;
+        const rect = openingOnWall(wallLen, startH, endH, item.position, item.width, bottom, item.height ?? DEFAULT_DOOR_HEIGHT);
+        if (rect) rects.push({ id: item.id, kind, x: rect.left, y: rect.bottom, w: rect.right - rect.left, h: rect.top - rect.bottom });
+      }
     }
     return rects;
   }
@@ -266,7 +268,9 @@
       if (drag.kind === 'door') {
         updateDoor(drag.id, { position: newPos });
       } else {
-        const maxSill = Math.max(0, wallH - drag.winH);
+        const half = drag.width / 2 / wallLen;
+        const currentWallH = Math.min(getWallHeightAt(wall, newPos - half), getWallHeightAt(wall, newPos + half));
+        const maxSill = Math.max(0, currentWallH - drag.winH);
         const newSill = Math.round(Math.max(0, Math.min(maxSill, drag.startSill + dyCm)));
         updateWindow(drag.id, { position: newPos, sillHeight: newSill });
       }
@@ -355,25 +359,36 @@
     const xAt = (cm: number) => ox + cm * scale;
     const yAt = (cmUp: number) => floorY - cmUp * scale;
     const wallRight = xAt(wallLen);
-    const wallTop = yAt(wallH);
+    const yStart = yAt(startH);
+    const yEnd = yAt(endH);
 
-    // Wall face
+    // Wall face (trapezoid polygon)
     ctx.fillStyle = '#f8fafc';
-    ctx.fillRect(ox, wallTop, wallLen * scale, wallH * scale);
+    ctx.beginPath();
+    ctx.moveTo(ox, floorY);
+    ctx.lineTo(wallRight, floorY);
+    ctx.lineTo(wallRight, yEnd);
+    ctx.lineTo(ox, yStart);
+    ctx.closePath();
+    ctx.fill();
 
-    // 0.5 m grid (light), clipped to the wall face
+    // 0.5 m grid (light), clipped to the wall face polygon
     ctx.save();
     ctx.beginPath();
-    ctx.rect(ox, wallTop, wallLen * scale, wallH * scale);
+    ctx.moveTo(ox, floorY);
+    ctx.lineTo(wallRight, floorY);
+    ctx.lineTo(wallRight, yEnd);
+    ctx.lineTo(ox, yStart);
+    ctx.closePath();
     ctx.clip();
     ctx.strokeStyle = '#e2e8f0';
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let x = GRID_STEP; x < wallLen; x += GRID_STEP) {
-      ctx.moveTo(xAt(x), wallTop);
-      ctx.lineTo(xAt(x), floorY);
+      ctx.moveTo(xAt(x), floorY);
+      ctx.lineTo(xAt(x), yAt(getWallHeightAt(wall, x / wallLen)));
     }
-    for (let y = GRID_STEP; y < wallH; y += GRID_STEP) {
+    for (let y = GRID_STEP; y < maxH; y += GRID_STEP) {
       ctx.moveTo(ox, yAt(y));
       ctx.lineTo(wallRight, yAt(y));
     }
@@ -420,7 +435,14 @@
     // Wall outline + heavier floor line
     ctx.strokeStyle = '#475569';
     ctx.lineWidth = 2;
-    ctx.strokeRect(ox, wallTop, wallLen * scale, wallH * scale);
+    ctx.beginPath();
+    ctx.moveTo(ox, floorY);
+    ctx.lineTo(wallRight, floorY);
+    ctx.lineTo(wallRight, yEnd);
+    ctx.lineTo(ox, yStart);
+    ctx.closePath();
+    ctx.stroke();
+
     ctx.strokeStyle = '#1e293b';
     ctx.lineWidth = 3.5;
     ctx.beginPath();
@@ -430,7 +452,12 @@
 
     // Overall wall dimensions
     drawDimH(ctx, ox, wallRight, floorY + 28, formatLength(wallLen, u));
-    drawDimV(ctx, ox - 28, wallTop, floorY, formatLength(wallH, u));
+    if (startH === endH) {
+      drawDimV(ctx, ox - 28, yStart, floorY, formatLength(startH, u));
+    } else {
+      drawDimV(ctx, ox - 28, yStart, floorY, formatLength(startH, u));
+      drawDimV(ctx, wallRight + 28, yEnd, floorY, formatLength(endH, u));
+    }
 
     // Selected opening: highlight + width / height / sill dimensions
     const selRect = sel ? rects.find((r) => r.id === sel) : undefined;
@@ -477,7 +504,7 @@
         title="Next wall"
         aria-label="Next wall"
       >›</button>
-      <span class="text-xs text-gray-400 ml-1">{formatLength(wallLen, units)} × {formatLength(wallH, units)}</span>
+      <span class="text-xs text-gray-400 ml-1">{formatLength(wallLen, units)} × {startH === endH ? formatLength(startH, units) : `${formatLength(startH, units)} → ${formatLength(endH, units)}`}</span>
       <div class="flex-1"></div>
       <span class="text-[11px] text-gray-400 max-lg:hidden">Drag openings to move · drag windows up/down for sill · Esc for plan</span>
     </div>

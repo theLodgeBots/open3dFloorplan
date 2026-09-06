@@ -165,3 +165,60 @@ test('catalog and 3D use bounded, cacheable assets with zero startup model downl
   await page.getByRole('button', { name: '2D', exact: true }).click();
   expect(errors).toEqual([]);
 });
+
+test('sloped walls preserve heights and openings through edits, reversal, elevation and reload', async ({ page }, testInfo) => {
+  const errors: string[] = [];
+  const externalRequests: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('request', request => {
+    if (/^https?:/.test(request.url()) && new URL(request.url()).origin !== 'http://127.0.0.1:4188') externalRequests.push(request.url());
+  });
+  await page.goto('/editor');
+  await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
+  await importJSON(page, resolve('tests/fixtures/sloped-walls.openplan.json'));
+  await expect(page.getByRole('application')).toContainText('4 walls');
+  await page.getByRole('button', { name: 'Toggle Layers Panel', exact: true }).click();
+  await page.getByRole('button', { name: /Wall 1$/ }).click();
+  const start = page.getByRole('spinbutton', { name: 'Start Height (cm)', exact: true });
+  const end = page.getByRole('spinbutton', { name: 'End Height (cm)', exact: true });
+  await expect(start).toHaveValue('160');
+  await expect(end).toHaveValue('340');
+  await expect(page.getByRole('status')).toContainText('Some openings do not fit');
+  await start.fill('180'); await start.press('Tab');
+  await end.fill('320'); await end.press('Tab');
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect(start).toHaveValue('180');
+  await expect(end).toHaveValue('340');
+  await page.getByRole('button', { name: 'Redo', exact: true }).click();
+  await expect(end).toHaveValue('320');
+  for (const invalid of ['-1', '']) {
+    await start.fill(invalid); await start.press('Tab');
+    await expect(start).toHaveValue('180');
+  }
+  const before = await exportJSON(page);
+  const originalWall = before.floors[0].walls[0];
+  expect(originalWall).toMatchObject({ startHeight: 180, endHeight: 320, height: 320 });
+  await page.getByRole('button', { name: /Reverse direction/ }).click();
+  await expect(start).toHaveValue('320'); await expect(end).toHaveValue('180');
+  const reversed = await exportJSON(page);
+  expect(reversed.floors[0].walls[0]).toMatchObject({ start: originalWall.end, end: originalWall.start, startHeight: 320, endHeight: 180, height: 320 });
+  expect(reversed.floors[0].doors[0]).toMatchObject({ position: 0.4, swingDirection: 'right', flipSide: true, width: 100, height: 210 });
+  expect(reversed.floors[0].windows[0]).toMatchObject({ position: 0.8, width: 100, height: 150, sillHeight: 90 });
+  await page.getByTitle('View this wall face-on and edit its doors and windows', { exact: true }).click();
+  await expect(page.getByText('6 m × 3.2 m → 1.8 m', { exact: true })).toBeVisible();
+  await testInfo.attach('sloped-elevation', { body: await page.screenshot(), contentType: 'image/png' });
+  await page.getByRole('button', { name: 'Plan', exact: true }).click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.reload();
+  expect((await exportJSON(page)).floors).toEqual(reversed.floors);
+  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await expect(page.getByRole('region', { name: '3D floor plan viewer' }).locator('canvas').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Show All Floors Stacked', exact: true }).click();
+  await page.waitForLoadState('networkidle');
+  await testInfo.attach('sloped-stacked-3d', { body: await page.screenshot(), contentType: 'image/png' });
+  await page.getByRole('combobox', { name: 'Current floor' }).selectOption({ label: 'Curved Upper' });
+  await page.getByRole('button', { name: 'Active Floor Only', exact: true }).click();
+  await page.getByRole('button', { name: '2D', exact: true }).click();
+  expect(errors).toEqual([]);
+  expect(externalRequests).toEqual([]);
+});

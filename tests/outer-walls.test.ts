@@ -50,7 +50,9 @@ it('retains the exposed part of a wall that is mostly a partition', () => {
     wall('upperTop', { x: 0, y: -300 }, { x: 500, y: -300 }),
     wall('upperRight', { x: 500, y: -300 }, { x: 500, y: 0 }),
   ];
+  walls[0].startHeight = 100; walls[0].endHeight = 400;
   const outer = getOuterWalls(walls);
+  expect(outer.find(w => w.id === 'r0')).toMatchObject({ startHeight: 350, endHeight: 400, height: 400 });
   expect(outer).toHaveLength(7);
   expect(outer.find(w => w.id === 'r0')).toMatchObject({ start: { x: 500, y: 0 }, end: { x: 600, y: 0 } });
   expect(detectRooms(outer)).toMatchObject([{ area: 45 }]);

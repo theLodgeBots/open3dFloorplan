@@ -2,12 +2,14 @@
   import { onDestroy } from 'svelte';
   import { catalogAssetUrl } from '$lib/utils/catalogAssetUrl';
 
-  import { activeFloor, selectedElementId, selectedRoomId, updateWall, updateDoor, updateWindow, updateRoom, updateFurniture, detectedRoomsStore, updateStair, updateColumn, updateBackgroundImage, setBackgroundImage, calibrationMode, calibrationPoints, updateTextAnnotation, toggleFurnitureLock, updateEntourageItem, removeElement, elevationWallId } from '$lib/stores/project';
+  import { activeFloor, selectedElementId, selectedRoomId, updateWall, reverseWall, updateDoor, updateWindow, updateRoom, updateFurniture, detectedRoomsStore, updateStair, updateColumn, updateBackgroundImage, setBackgroundImage, calibrationMode, calibrationPoints, updateTextAnnotation, toggleFurnitureLock, updateEntourageItem, removeElement, elevationWallId } from '$lib/stores/project';
+  import { openingOnWall } from '$lib/utils/wallProfiles';
   import { getEntourageDef } from '$lib/utils/entourageCatalog';
   import { floorMaterials, wallColors } from '$lib/utils/materials';
   import { getCatalogItem } from '$lib/utils/furnitureCatalog';
   import { projectSettings, formatLength, formatArea } from '$lib/stores/settings';
     import type { Floor, Wall, Door, Window as Win, Room, FurnitureItem, Stair, Column, RoomCategory, TextAnnotation } from '$lib/models/types';
+  import { getWallStartHeight, getWallEndHeight } from '$lib/models/types';
 
   let floor = $state<Floor | null>(null);
   let selId: string | null = $state(null);
@@ -103,9 +105,34 @@
     if (!selectedWall) return;
     updateWall(selectedWall.id, { thickness: inputToCm(Number((e.target as HTMLInputElement).value)) });
   }
-  function onWallHeight(e: Event) {
+  let clippedOpenings = $derived.by(() => {
+    if (!selectedWall || !floor) return false;
+    const wall = selectedWall;
+    const length = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
+    return [...floor.doors.filter(d => d.wallId === wall.id).map(d => ({ ...d, bottom: 0 })),
+      ...floor.windows.filter(w => w.wallId === wall.id).map(w => ({ ...w, bottom: w.sillHeight ?? 90 }))].some(item => {
+      const rect = openingOnWall(length, getWallStartHeight(wall), getWallEndHeight(wall), item.position, item.width, item.bottom, item.height);
+      return !rect || rect.right - rect.left < item.width - 0.01 || rect.top - rect.bottom < item.height - 0.01;
+    });
+  });
+  function onWallStartHeight(e: Event) {
     if (!selectedWall) return;
-    updateWall(selectedWall.id, { height: inputToCm(Number((e.target as HTMLInputElement).value)) });
+    const input = e.target as HTMLInputElement;
+    if (!input.value.trim() || !input.validity.valid) { if (e.type === 'blur') input.value = String(displayValue(getWallStartHeight(selectedWall))); return; }
+    const height = inputToCm(input.valueAsNumber);
+    if (height !== getWallStartHeight(selectedWall)) updateWall(selectedWall.id, { startHeight: height });
+  }
+  function onWallEndHeight(e: Event) {
+    if (!selectedWall) return;
+    const input = e.target as HTMLInputElement;
+    if (!input.value.trim() || !input.validity.valid) { if (e.type === 'blur') input.value = String(displayValue(getWallEndHeight(selectedWall))); return; }
+    const height = inputToCm(input.valueAsNumber);
+    if (height !== getWallEndHeight(selectedWall)) updateWall(selectedWall.id, { endHeight: height });
+  }
+  function equalizeWallHeights() {
+    if (!selectedWall) return;
+    const startH = getWallStartHeight(selectedWall);
+    updateWall(selectedWall.id, { startHeight: startH, endHeight: startH, height: startH });
   }
   function onWallColor(e: Event) {
     if (!selectedWall) return;
@@ -338,10 +365,36 @@
         <span class="text-xs text-gray-500">Thickness ({unitLabel()})</span>
         <input type="number" value={displayValue(selectedWall.thickness)} oninput={onWallThickness} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
-      <label class="block">
-        <span class="text-xs text-gray-500">Height ({unitLabel()})</span>
-        <input type="number" value={displayValue(selectedWall.height)} oninput={onWallHeight} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
-      </label>
+      <div class="grid grid-cols-2 gap-2">
+        <label class="block">
+          <span class="text-xs text-gray-500">Start Height ({unitLabel()})</span>
+          <input type="number" value={displayValue(getWallStartHeight(selectedWall))} min="0" step="any" oninput={onWallStartHeight} onblur={onWallStartHeight} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        </label>
+        <label class="block">
+          <span class="text-xs text-gray-500">End Height ({unitLabel()})</span>
+          <input type="number" value={displayValue(getWallEndHeight(selectedWall))} min="0" step="any" oninput={onWallEndHeight} onblur={onWallEndHeight} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        </label>
+      </div>
+      {#if clippedOpenings}
+        <p role="status" class="text-xs text-amber-800 bg-amber-50 rounded p-2">Some openings do not fit this wall. Elevation and 3D clip their preview; saved dimensions stay unchanged. Raise the wall or resize/reposition the openings.</p>
+      {/if}
+      <div class="flex items-center gap-2">
+        {#if getWallStartHeight(selectedWall) !== getWallEndHeight(selectedWall)}
+          <button
+            onclick={equalizeWallHeights}
+            class="text-xs text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
+          >
+            ↔️ Equalize ({displayValue(getWallStartHeight(selectedWall))} {unitLabel()})
+          </button>
+        {/if}
+        <button
+          onclick={() => { if (selectedWall) reverseWall(selectedWall.id); }}
+          class="text-xs text-gray-600 hover:text-gray-900 border border-gray-200 px-2 py-0.5 rounded flex items-center gap-1 ml-auto"
+          title="Reverse wall direction (swap start/end points and heights)"
+        >
+          🔄 Reverse direction
+        </button>
+      </div>
       <button
         class="w-full py-1.5 text-sm rounded-md bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors flex items-center justify-center gap-1.5"
         onclick={() => { if (selectedWall) elevationWallId.set(selectedWall.id); }}
