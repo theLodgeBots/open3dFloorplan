@@ -1863,6 +1863,7 @@
   }
 
   function enterWalkthroughMode() {
+    cancelAIRender();
     cameraPlacementMode = false;
     cameraPreviewOpen = false;
     furniturePlacementMode = false;

@@ -43,7 +43,7 @@
   <p class="text-xs text-gray-500 dark:text-gray-400">Your key stays in this browser. When you load models or generate, the key and request go directly to the provider below. Provider charges may apply. Images are not stored by OpenPlan3D.</p>
   <label class="block text-sm">
     Provider base URL
-    <input type="url" bind:value={baseUrl} oninput={changeDestination} placeholder="https://api.openai.com/v1" autocomplete="off" spellcheck="false"
+    <input type="url" bind:value={baseUrl} oninput={(event) => { baseUrl = event.currentTarget.value; changeDestination(); }} placeholder="https://api.openai.com/v1" autocomplete="off" spellcheck="false"
       class="mt-1 w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700" />
   </label>
   <p class="text-xs text-gray-500 dark:text-gray-400">Blank uses OpenAI. Custom providers need browser CORS access. HTTP is supported for loopback addresses such as localhost; local network access depends on your browser.</p>

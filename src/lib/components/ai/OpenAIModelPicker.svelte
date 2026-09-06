@@ -38,7 +38,7 @@
 <div class="space-y-2">
   <label for={id} class="block text-xs font-medium">OpenAI model</label>
   <div class="flex gap-2">
-    <input {id} list={`${id}-models`} bind:value={model} {disabled} {onchange} aria-label="OpenAI model"
+    <input {id} list={`${id}-models`} bind:value={model} {disabled} onblur={onchange} aria-label="OpenAI model"
       placeholder={DEFAULT_OPENAI_MODEL} autocomplete="off" spellcheck="false"
       class="min-w-0 flex-1 rounded-lg border border-gray-500/50 bg-transparent px-2 py-1.5 text-sm" />
     <button type="button" onclick={loadModels} disabled={disabled || loading}
