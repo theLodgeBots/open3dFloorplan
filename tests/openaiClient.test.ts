@@ -36,6 +36,15 @@ describe('direct AI providers', () => {
     expect(init).toMatchObject({ method: 'POST', credentials: 'omit', referrerPolicy: 'no-referrer', redirect: 'error', cache: 'no-store', headers: { Authorization: 'Bearer test-secret' } });
     expect(JSON.parse(init!.body as string)).toMatchObject({ model: config.model, store: false, input: [{ content: [{ type: 'input_image', image_url: `data:image/png;base64,${png}` }, { type: 'input_text', text: 'Keep geometry' }] }], tools: [{ type: 'image_generation', output_format: 'png' }], tool_choice: { type: 'image_generation' } });
   });
+  it('uses a text Responses model by default and never sends requests to the app origin', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(json({ output: [{ type: 'image_generation_call', result: png }] }));
+    await generateOpenAIRenderImage({ apiKey: 'test-key' }, png, 'prompt', fetcher);
+    expect(fetcher.mock.calls[0][0]).toBe('https://api.openai.com/v1/responses');
+    expect(JSON.parse(fetcher.mock.calls[0][1]!.body as string).model).toBe('gpt-4.1');
+    vi.stubGlobal('window', { location: { origin: 'https://app.example' } });
+    await expect(fetchOpenAIModels({ baseUrl: 'https://app.example/api' }, fetcher)).rejects.toThrow('does not host an AI proxy');
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
   it('supports keyless local providers without Authorization and lists models independently of the selected model', async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(json({ data: [{ id: ' local ' }] }));
     expect(await fetchOpenAIModels({ baseUrl: 'http://localhost:8000/v1', model: 'anything' }, fetcher)).toEqual(['local']);

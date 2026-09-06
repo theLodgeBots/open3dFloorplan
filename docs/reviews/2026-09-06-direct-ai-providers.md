@@ -52,7 +52,7 @@ app does not supply a proxy.
 
 ## Validation
 
-255 unit tests pass, including direct request shape, invalid destinations,
+256 unit tests pass, including direct request shape, invalid destinations,
 keyless providers, bounded/malformed responses, timeout/cancellation, no retry,
 legacy migration, removal, and failure-safe settings writes. Svelte check reports
 0 errors and 24 pre-existing warnings; production build succeeds.
@@ -67,3 +67,7 @@ claimed by these tests. Existing project/floor/cache workflows remain in CI.
 
 Issue #30 remains open for the iPhone release/legacy-rule migration and billing
 budget administration. This batch changes neither Storage rules nor iOS clients.
+
+Interactive production-build checks also verified the settings and camera panel at
+390px, manual-model persistence, image display/download, and cancellation. The
+camera panel now stays above the 3D toolbar so controls do not overlap its content.
