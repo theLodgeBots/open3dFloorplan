@@ -140,6 +140,13 @@ it('rejects extreme finite coordinates, dimensions and angles before rendering',
     expect(() => validatePackagePlan(plan)).toThrow(/invalid geometry/);
   }
 });
+it('rejects attachment directories that collide with native session files', () => {
+  const files: Record<string, Uint8Array> = nativeFiles(); files['assets/plan-json/photo.png'] = pixel;
+  const bytes = writePackageZip(files);
+  // Model an external archive: alter both filename headers without changing file CRCs.
+  for (const offset of [...Buffer.from(bytes).toString('latin1').matchAll(/assets\/plan-json\/photo.png/g)].map(match => match.index!)) bytes[offset + 11] = 46;
+  expect(() => readProjectPackage(bytes)).toThrow(/unsafe file path/);
+});
 it.each(['missing-photo', 'duplicate-key', 'future-version', 'damaged-geometry', 'incomplete-return', 'reserved-attachment'])('rejects %s before importing anything', async kind => {
   const files: Record<string, Uint8Array> = nativeFiles();
   if (kind === 'missing-photo') delete files['assets/chair.png'];

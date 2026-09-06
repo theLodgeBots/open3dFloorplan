@@ -59,7 +59,7 @@ export function projectPackageBytes(value: Project): Uint8Array {
   let assetSize = 0;
   if (Object.keys(state?.assets ?? {}).length > 507) packageError('Too many attachments.');
   for (const [name, raw] of Object.entries(state?.assets ?? {})) {
-    if (!name.startsWith('assets/') || !safePackagePath(name) || reservedAssets.has(name.slice(7).toLowerCase())) packageError('Invalid retained attachment path.');
+    if (!name.startsWith('assets/') || !safePackagePath(name) || reservedAssets.has(name.slice(7).split('/')[0].toLowerCase())) packageError('Invalid retained attachment path.');
     assetSize += typeof raw === 'string' ? raw.length * 3 / 4 : PACKAGE_LIMIT;
     if (assetSize > PACKAGE_LIMIT) packageError('Attachments exceed 64 MiB.');
     assets[name] = decode64(raw);
@@ -90,7 +90,7 @@ export function projectPackageBytes(value: Project): Uint8Array {
 export function readProjectPackage(bytes: Uint8Array): { project: Project; assets: number; warnings: string[] } {
   const files = readPackageZip(bytes), manifest = packageJSON(files['manifest.json']);
   if (manifest.format !== 'openplan3d-project' || manifest.version !== 1 || !['web', 'ios'].includes(manifest.producer) || typeof manifest.title !== 'string' || manifest.title.length > 1000) packageError('Unsupported manifest. Choose an OpenPlan3D project package, not a capture dataset or library backup.');
-  for (const name of Object.keys(files)) if (!docs.includes(name) && (!name.startsWith('assets/') || reservedAssets.has(name.slice(7).toLowerCase()))) packageError(`Unrecognized package file: ${name}.`);
+  for (const name of Object.keys(files)) if (!docs.includes(name) && (!name.startsWith('assets/') || reservedAssets.has(name.slice(7).split('/')[0].toLowerCase()))) packageError(`Unrecognized package file: ${name}.`);
   const plan = validatePackagePlan(packageJSON(files['plan.json']));
   const assets = Object.fromEntries(Object.entries(files).filter(([name]) => name.startsWith('assets/')));
   for (const filename of nativeAssetNames(plan)) if (!assets[`assets/${filename}`]) packageError(`Missing attachment: ${filename}.`);
