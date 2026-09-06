@@ -11,7 +11,7 @@
   const openingLifetime = new AbortController();
   onDestroy(() => openingLifetime.abort());
 
-  let { onDismiss }: { onDismiss: () => void } = $props();
+  let { onDismiss, onRestoreLibrary }: { onDismiss: () => void; onRestoreLibrary?: () => void } = $props();
 
   let importError = $state<string | null>(null);
   let showTour = $state(false);
@@ -189,6 +189,9 @@
           </div>
         </button>
       </div>
+      {#if onRestoreLibrary}
+        <button onclick={onRestoreLibrary} class="mt-5 text-sm font-semibold text-blue-600 underline">Restore a library backup</button>
+      {/if}
     </div>
   {/if}
 </div>

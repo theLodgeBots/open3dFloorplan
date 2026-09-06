@@ -6,6 +6,7 @@
   import { openProject } from '$lib/services/projectOpening';
   import { createDefaultProject } from '$lib/stores/project';
   import WelcomeScreen from '$lib/components/WelcomeScreen.svelte';
+  import LibraryRestoreDialog from '$lib/components/LibraryRestoreDialog.svelte';
   import { houseTemplates } from '$lib/utils/houseTemplates';
 
   const openingLifetime = new AbortController();
@@ -14,6 +15,8 @@
   let projects = $state<{ id: string; name: string; updatedAt: string }[]>([]);
   let thumbnails = $state<Record<string, string | null>>({});
   let showWelcome = $state(false);
+  let restoreOpen = $state(false);
+  let loading = $state(true);
   let confirmDeleteId = $state<string | null>(null);
   let renamingId = $state<string | null>(null);
   let renameValue = $state('');
@@ -33,10 +36,18 @@
   }
 
   async function refreshProjects() {
-    projects = await localStore.list();
-    // Sort by most recent
-    projects.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-    thumbnails = await localStore.getThumbnails();
+    loading = true;
+    try {
+      projects = await localStore.list();
+      projects.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      thumbnails = await localStore.getThumbnails();
+    } finally { loading = false; }
+  }
+
+  function openRestore() { showWelcome = false; restoreOpen = true; }
+  async function afterRestore() {
+    await refreshProjects();
+    libraryError = null;
   }
 
   onMount(() => {
@@ -123,8 +134,10 @@
 <svelte:window onclick={() => { contextMenuId = null; }} />
 
 {#if showWelcome}
-  <WelcomeScreen onDismiss={() => { showWelcome = false; void withLibraryError(refreshProjects); }} />
+  <WelcomeScreen onRestoreLibrary={openRestore} onDismiss={() => { showWelcome = false; void withLibraryError(refreshProjects); }} />
 {/if}
+
+{#if restoreOpen}<LibraryRestoreDialog onclose={() => restoreOpen = false} onrestored={afterRestore} />{/if}
 
 <div class="min-h-screen bg-gray-50">
   <!-- Header -->
@@ -132,7 +145,7 @@
     <div class="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-bold text-white">Floor Plan Editor</h1>
-        <p class="text-sm text-white/50 mt-0.5">{projects.length} project{projects.length !== 1 ? 's' : ''}</p>
+        <p class="text-sm text-white/50 mt-0.5">{loading ? 'Loading projects…' : `${projects.length} project${projects.length !== 1 ? 's' : ''}`}</p>
       </div>
       <div class="flex items-center gap-3">
         <button
@@ -154,12 +167,13 @@
   </div>
 
   <div class="max-w-5xl mx-auto px-6 py-8">
-    {#if !libraryError && projects.length > 0}
-      <div class="mb-5 flex flex-wrap items-center justify-between gap-2 text-sm text-gray-500">
-        <p>Projects and version history are saved in this browser.</p>
-        <button class="font-semibold text-blue-600 underline" onclick={backupLibrary}>Download library backup</button>
+    <div class="mb-5 flex flex-wrap items-center justify-between gap-3 text-sm text-gray-500">
+      <p>Projects and version history are saved in this browser.</p>
+      <div class="flex flex-wrap gap-4">
+        {#if !libraryError}<button class="font-semibold text-blue-600 underline" onclick={backupLibrary}>Download library backup</button>{/if}
+        <button class="font-semibold text-blue-600 underline" onclick={openRestore}>Restore library backup</button>
       </div>
-    {/if}
+    </div>
     {#if libraryError}
       <div role="alert" class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-900">
         <p>{libraryError}</p>
@@ -169,7 +183,9 @@
         </div>
       </div>
     {/if}
-    {#if projects.length === 0 && !libraryError}
+    {#if loading && projects.length === 0}
+      <p role="status" class="py-12 text-center text-gray-500">Loading saved projects…</p>
+    {:else if projects.length === 0 && !libraryError}
       <div class="text-center py-24">
         <div class="w-16 h-16 bg-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-gray-400"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
