@@ -1,3 +1,4 @@
+import { readProject } from '$lib/utils/projectValidation';
 import type { Project } from '$lib/models/types';
 
 export interface DataStore {
@@ -61,19 +62,9 @@ export const localStore: DataStore = {
     const all = getAll();
     const raw = all[id];
     if (!raw) return null;
-    const p = JSON.parse(raw);
-    p.createdAt = new Date(p.createdAt);
-    p.updatedAt = new Date(p.updatedAt);
-    // Migrate floors: ensure all array fields exist
-    for (const floor of (p.floors ?? [])) {
-      if (!floor.rooms) floor.rooms = [];
-      if (!floor.doors) floor.doors = [];
-      if (!floor.windows) floor.windows = [];
-      if (!floor.furniture) floor.furniture = [];
-      if (!floor.stairs) floor.stairs = [];
-      if (!floor.columns) floor.columns = [];
-    }
-    return p as Project;
+    const project = readProject(JSON.parse(raw));
+    if (project.id !== id) throw new Error('The saved project ID does not match its library entry. Download a library backup before recovery.');
+    return project;
   },
 
   async list() {

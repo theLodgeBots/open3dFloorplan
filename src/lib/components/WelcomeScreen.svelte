@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { isRoomPlanJson } from '$lib/utils/roomplanValidation';
+  import { readProject } from '$lib/utils/projectValidation';
+  import ImportError from '$lib/components/ImportError.svelte';
   import { goto } from '$app/navigation';
   import { base } from '$app/paths';
   import { autoSave } from '$lib/stores/saveStatus';
@@ -7,6 +10,7 @@
 
   let { onDismiss }: { onDismiss: () => void } = $props();
 
+  let importError = $state<string | null>(null);
   let showTour = $state(false);
   let tourStep = $state(0);
 
@@ -52,21 +56,22 @@
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
+    importError = null;
     try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-      // If it looks like a project, load it
-      if (data.id && data.floors) {
-        data.updatedAt = new Date();
-        loadProject(data);
-        await autoSave();
-        markSeen();
-        goto(`${base}/editor?id=${data.id}`);
-      } else {
-        alert('Unrecognized file format');
-      }
-    } catch {
-      alert('Failed to parse file');
+      const data = JSON.parse(await file.text());
+      const project = isRoomPlanJson(data)
+        ? (await import('$lib/utils/roomplanImport')).createProjectFromRoomPlan(data, file.name.replace(/\.json$/i, ''))
+        : readProject(data);
+      project.updatedAt = new Date();
+      loadProject(project);
+      await autoSave();
+      markSeen();
+      goto(`${base}/editor?id=${encodeURIComponent(project.id)}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not read this file.';
+      importError = message.includes('No project was imported.') ? message : `${message} No project was imported.`;
+    } finally {
+      input.value = '';
     }
   }
 
@@ -86,6 +91,8 @@
 </script>
 
 <input type="file" accept=".json" class="hidden" bind:this={fileInput} onchange={onFileSelected} />
+
+{#if importError}<ImportError message={importError} onDismiss={() => importError = null} />{/if}
 
 <!-- Backdrop -->
 <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">

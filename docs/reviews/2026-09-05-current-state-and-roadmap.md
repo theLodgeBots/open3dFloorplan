@@ -331,3 +331,11 @@ length changes. It adds fixed-endpoint selection, invalid/blank dimension recove
 fractional lengths, consistent undo/redo, and simultaneous access to layers and
 properties on desktop. See [the batch report](2026-09-06-connected-wall-dimensions.md).
 No Firebase Storage or iPhone schema changes are introduced.
+
+## Eleventh batch: native project validation and recovery
+
+Issue #47 validates native JSON before replacing the active plan, supports older
+files with missing arrays, and protects reopening/duplicate/version-restoration
+paths from malformed geometry. Damaged files and history retain raw-backup paths.
+See [the batch report](2026-09-06-native-project-validation.md). All processing
+remains local with no added Firebase Storage usage.

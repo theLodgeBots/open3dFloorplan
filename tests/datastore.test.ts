@@ -70,3 +70,20 @@ describe('local project persistence', () => {
     expect(data.get(key)).toBe(before);
   });
 });
+
+it('rejects damaged nested geometry on load and duplicate without rewriting the library', async () => {
+  const project = createDefaultProject('Damaged');
+  const damaged: any = JSON.parse(JSON.stringify(project));
+  damaged.floors[0].walls = [{ id: 'wall', start: null, end: { x: 200, y: 0 }, thickness: 15 }];
+  const raw = JSON.stringify({ [project.id]: JSON.stringify(damaged) }); data.set(key, raw);
+  await expect(localStore.load(project.id)).rejects.toThrow('walls[0].start');
+  await expect(localStore.duplicate(project.id)).rejects.toThrow('walls[0].start');
+  expect(data.get(key)).toBe(raw); expect(setItem).not.toHaveBeenCalled();
+});
+
+it('does not load a project under another library entry ID', async () => {
+  const project = createDefaultProject();
+  data.set(key, JSON.stringify({ wrong: JSON.stringify(project) }));
+  await expect(localStore.load('wrong')).rejects.toThrow('does not match');
+  expect(setItem).not.toHaveBeenCalled();
+});

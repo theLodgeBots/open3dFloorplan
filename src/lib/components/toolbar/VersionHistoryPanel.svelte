@@ -1,12 +1,13 @@
 <script lang="ts">
-  import { snapshotsStore, refreshSnapshots, restoreSnapshot, deleteAllSnapshots, type Snapshot } from '$lib/stores/versionHistory';
+  import { onDestroy } from 'svelte';
+  import { snapshotError, downloadSnapshotBackup, snapshotsStore, refreshSnapshots, restoreSnapshot, deleteAllSnapshots, type Snapshot } from '$lib/stores/versionHistory';
   import { currentProject } from '$lib/stores/project';
   import { get } from 'svelte/store';
 
   let { open = $bindable(false) } = $props();
 
   let snapshots: Snapshot[] = $state([]);
-  snapshotsStore.subscribe(v => { snapshots = v; });
+  onDestroy(snapshotsStore.subscribe(v => { snapshots = v; }));
 
   $effect(() => {
     if (open) refreshSnapshots();
@@ -26,15 +27,21 @@
     const p = get(currentProject);
     if (!p) return;
     if (!confirm('Restore this version? Current unsaved changes will be lost.')) return;
-    restoreSnapshot(p.id, index);
-    open = false;
+    if (restoreSnapshot(p.id, index)) open = false;
   }
 
   function onClearAll() {
     const p = get(currentProject);
     if (!p) return;
     if (!confirm('Delete all version history for this project?')) return;
-    deleteAllSnapshots(p.id);
+    try { deleteAllSnapshots(p.id); }
+    catch { snapshotError.set('Could not clear version history. Allow site storage and try again.'); }
+  }
+  function backupHistory() {
+    const project = get(currentProject);
+    if (!project) return;
+    try { downloadSnapshotBackup(project.id); }
+    catch (error) { snapshotError.set(error instanceof Error ? error.message : 'Could not download version history.'); }
   }
 </script>
 
@@ -42,7 +49,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center" onclick={() => open = false} onkeydown={(e) => { if (e.key === 'Escape') open = false; }}>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="bg-white rounded-xl shadow-2xl w-96 max-h-[70vh] flex flex-col" onclick={(e) => e.stopPropagation()} onkeydown={() => {}}>
+  <div role="dialog" aria-label="Version History" aria-modal="true" tabindex="-1" class="bg-white rounded-xl shadow-2xl w-96 max-w-[calc(100vw-2rem)] max-h-[70vh] flex flex-col" onclick={(e) => e.stopPropagation()} onkeydown={() => {}}>
     <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
       <h2 class="text-sm font-semibold text-gray-800 flex items-center gap-2">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -53,21 +60,27 @@
       </button>
     </div>
 
+    {#if $snapshotError}
+      <div role="alert" class="mx-4 my-2 rounded-lg bg-red-50 p-3 text-sm text-red-800">
+        <p>{$snapshotError}</p>
+        <button class="mt-2 underline font-semibold" onclick={backupHistory}>Download version backup</button>
+      </div>
+    {/if}
     <div class="flex-1 overflow-y-auto px-4 py-2">
-      {#if snapshots.length === 0}
+      {#if snapshots.length === 0 && !$snapshotError}
         <p class="text-sm text-gray-400 text-center py-8">No snapshots yet.<br>Versions are saved automatically every 5 minutes.</p>
       {:else}
         <div class="space-y-1">
           {#each [...snapshots].reverse() as snap, i}
             {@const realIndex = snapshots.length - 1 - i}
-            <div class="flex items-center justify-between py-2 px-2 rounded-lg hover:bg-gray-50 group transition-colors">
+            <div role="group" aria-label={snap.description} class="flex items-center justify-between py-2 px-2 rounded-lg hover:bg-gray-50 group transition-colors">
               <div class="flex-1 min-w-0">
                 <div class="text-sm font-medium text-gray-700 truncate">{snap.description}</div>
                 <div class="text-xs text-gray-400">{formatTime(snap.timestamp)}</div>
               </div>
               <button
                 onclick={() => onRestore(realIndex)}
-                class="text-xs px-2.5 py-1 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors opacity-0 group-hover:opacity-100 font-medium shrink-0 ml-2"
+                class="text-xs px-2.5 py-1 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 font-medium shrink-0 ml-2"
               >
                 Restore
               </button>
@@ -77,7 +90,7 @@
       {/if}
     </div>
 
-    {#if snapshots.length > 0}
+    {#if snapshots.length > 0 || $snapshotError}
       <div class="px-4 py-2 border-t border-gray-100">
         <button onclick={onClearAll} class="text-xs text-red-400 hover:text-red-600 transition-colors">
           Clear all versions
