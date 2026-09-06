@@ -73,9 +73,9 @@
     <div class="space-y-4 overflow-y-auto px-5 py-4">
       {#if result}
         <div role="status" class="rounded-lg bg-green-50 p-4 text-sm text-green-900">
-          <p class="font-semibold">{result.projects.length} project{result.projects.length === 1 ? '' : 's'} restored.</p>
+          <p class="font-semibold">{result.projects.length ? `${result.projects.length} project${result.projects.length === 1 ? '' : 's'} restored.` : 'Recovery data saved.'}</p>
           {#if result.recoveryArchives}<p class="mt-1">Recovery data is included when you download a library backup.</p>{/if}
-          <p class="mt-1">Close this dialog to open a restored copy from the library.</p>
+          {#if result.projects.length}<p class="mt-1">Close this dialog to open a restored copy from the library.</p>{/if}
         </div>
       {:else}
         <input type="file" accept=".json,application/json" class="hidden" bind:this={input} onchange={selectFile} disabled={restoring} />
