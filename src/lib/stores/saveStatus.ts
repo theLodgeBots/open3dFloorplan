@@ -1,13 +1,16 @@
 import { writable, get } from 'svelte/store';
-import { currentProject } from './project';
-import { localStore, storageErrorMessage } from '$lib/services/datastore';
+import { currentProject, loadProject } from './project';
+import { localStore, storageErrorMessage, ProjectConflictError, PROJECTS_STORAGE_KEY } from '$lib/services/datastore';
 import { saveSnapshot } from '$lib/stores/versionHistory';
+import type { Project } from '$lib/models/types';
 
 export type SaveState = 'saved' | 'unsaved' | 'saving';
 
 export const saveState = writable<SaveState>('saved');
 export const lastSavedAt = writable<Date | null>(null);
 export const saveError = writable<string | null>(null);
+export const saveConflict = writable(false);
+export const savingCopy = writable(false);
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 let stopWatching: (() => void) | null = null;
@@ -28,12 +31,29 @@ export function initAutoSave() {
       projectId = _p.id;
       lastSavedAt.set(null);
       saveError.set(null);
+      saveConflict.set(false);
     }
     markDirty();
   });
+  const onStorage = (event: StorageEvent) => {
+    if (event.key !== null && event.key !== PROJECTS_STORAGE_KEY) return;
+    if (event.storageArea && event.storageArea !== localStorage) return;
+    const project = get(currentProject);
+    if (!project) return;
+    try { localStore.assertCurrent(project.id); }
+    catch (error) {
+      clearSaveTimer();
+      saveAttempt++;
+      saveState.set('unsaved');
+      saveError.set(storageErrorMessage(error));
+      saveConflict.set(error instanceof ProjectConflictError);
+    }
+  };
+  if (typeof window !== 'undefined') window.addEventListener('storage', onStorage);
   const stop = () => {
     unsubscribe();
     clearSaveTimer();
+    if (typeof window !== 'undefined') window.removeEventListener('storage', onStorage);
     if (stopWatching === stop) stopWatching = null;
   };
   stopWatching = stop;
@@ -50,6 +70,7 @@ export function markDirty() {
   revision++;
   saveState.set('unsaved');
   clearSaveTimer();
+  if (get(saveConflict)) return;
   debounceTimer = setTimeout(() => {
     void autoSave();
   }, 1000);
@@ -71,6 +92,16 @@ function captureThumbnail(projectId: string) {
   } catch {}
 }
 
+function scheduleThumbnail(project: Project) {
+  const renderedRevision = revision, attempt = saveAttempt;
+  if (typeof requestAnimationFrame !== 'function') return;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (attempt === saveAttempt && renderedRevision === revision && get(currentProject) === project) {
+      captureThumbnail(project.id);
+    }
+  }));
+}
+
 /** Saves remain local; failures leave the current project available for export. */
 async function persist(manual: boolean): Promise<boolean> {
   clearSaveTimer();
@@ -79,6 +110,7 @@ async function persist(manual: boolean): Promise<boolean> {
   if (lastProjectId !== p.id) {
     lastSavedAt.set(null);
     saveError.set(null);
+    saveConflict.set(false);
     lastProjectId = p.id;
   }
   const savingRevision = revision;
@@ -91,16 +123,11 @@ async function persist(manual: boolean): Promise<boolean> {
       // The canvas may still show the previous plan immediately after an import.
       // Let reactive updates, zoom-to-fit and a paint finish before taking a preview.
       // Preview work must not delay the save or capture a newer revision/project.
-      if (typeof requestAnimationFrame === 'function') {
-        requestAnimationFrame(() => requestAnimationFrame(() => {
-          if (attempt === saveAttempt && savingRevision === revision && get(currentProject) === p) {
-            captureThumbnail(p.id);
-          }
-        }));
-      }
+      scheduleThumbnail(p);
       if (manual) saveSnapshot(p, 'Manual save');
       saveState.set('saved');
       saveError.set(null);
+      saveConflict.set(false);
       lastSavedAt.set(new Date());
     }
     return true;
@@ -108,6 +135,7 @@ async function persist(manual: boolean): Promise<boolean> {
     if (attempt === saveAttempt && get(currentProject) === p) {
       saveState.set('unsaved');
       saveError.set(storageErrorMessage(e));
+      saveConflict.set(e instanceof ProjectConflictError);
     }
     return false;
   }
@@ -118,6 +146,33 @@ export function autoSave() { return persist(false); }
 /** Manual save */
 export function manualSave() { return persist(true); }
 
+/** Preserve this tab's version under a fresh ID before changing editor state. */
+export async function saveCurrentAsCopy(): Promise<boolean> {
+  if (get(savingCopy)) return false;
+  const project = get(currentProject);
+  if (!project) return false;
+  clearSaveTimer();
+  saveAttempt++;
+  const copyingRevision = revision;
+  savingCopy.set(true);
+  try {
+    const copy = await localStore.saveCopy(project);
+    if (get(currentProject)?.id !== project.id) return false;
+    if (revision !== copyingRevision || get(currentProject) !== project) {
+      if (get(saveState) !== 'saved') saveError.set('A copy was saved, but you made more edits while it was saving. Save another copy to keep the latest version.');
+      return false;
+    }
+    loadProject(copy);
+    markClean();
+    lastSavedAt.set(new Date());
+    scheduleThumbnail(copy);
+    return true;
+  } catch (error) {
+    if (get(currentProject)?.id === project.id) saveError.set(storageErrorMessage(error));
+    return false;
+  } finally { savingCopy.set(false); }
+}
+
 /** Call after loading a project that is already persisted. */
 export function markClean() {
   clearSaveTimer();
@@ -125,6 +180,7 @@ export function markClean() {
   saveAttempt++;
   saveState.set('saved');
   saveError.set(null);
+  saveConflict.set(false);
   lastSavedAt.set(null);
   lastProjectId = get(currentProject)?.id;
 }

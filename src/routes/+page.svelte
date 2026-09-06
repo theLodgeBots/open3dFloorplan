@@ -223,7 +223,9 @@
             <!-- Actions menu button -->
             <button
               onclick={(e) => { e.stopPropagation(); contextMenuId = contextMenuId === project.id ? null : project.id; }}
-              class="absolute top-3 right-3 w-8 h-8 bg-white/90 backdrop-blur rounded-lg shadow-sm border border-gray-200 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-50"
+              aria-label={`Project actions for ${project.name || 'Untitled Project'}`}
+              aria-expanded={contextMenuId === project.id}
+              class="absolute top-3 right-3 w-8 h-8 bg-white/90 backdrop-blur rounded-lg shadow-sm border border-gray-200 flex items-center justify-center md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:bg-gray-50"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" class="text-gray-500"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
             </button>

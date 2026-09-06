@@ -347,3 +347,11 @@ replace the active plan. Duplicate imported IDs open as separate local copies;
 failed saves retain backup/retry paths, and superseded file reads cannot replace
 newer work. See [the batch report](2026-09-06-safe-project-opening.md). There are
 no new Firebase Storage operations or iPhone schema changes.
+
+## Thirteenth batch: local save conflicts
+
+Issue #51 prevents older tabs from silently overwriting newer saved edits or
+recreating deleted projects. Current tabs coordinate library writes, retain
+conflicting work for backup and offer Save as copy. Recovery preserves later
+edits and failed-copy paths. See [the batch report](2026-09-06-local-save-conflicts.md)
+for browser compatibility limits and validation. All processing remains local.

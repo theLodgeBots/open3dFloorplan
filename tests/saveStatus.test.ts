@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
-import { localStore } from '$lib/services/datastore';
+import type { Project } from '$lib/models/types';
+import { localStore, ProjectConflictError } from '$lib/services/datastore';
 import { createDefaultProject, currentProject, updateProjectName } from '$lib/stores/project';
-import { autoSave, initAutoSave, lastSavedAt, manualSave, markClean, saveError, saveState } from '$lib/stores/saveStatus';
+import { autoSave, initAutoSave, lastSavedAt, manualSave, markClean, saveError, saveState, saveConflict, saveCurrentAsCopy, savingCopy } from '$lib/stores/saveStatus';
 
 vi.mock('$lib/stores/versionHistory', () => ({ saveSnapshot: vi.fn() }));
 let stop: () => void;
@@ -142,4 +143,80 @@ it('discards delayed thumbnail work after a later edit or project switch', async
   markClean();
   frames.shift()!(32); frames.shift()!(48);
   expect(querySelector).not.toHaveBeenCalled();
+});
+
+it('keeps conflicting edits unsaved without repeatedly autosaving over another tab', async () => {
+  vi.mocked(localStore.save).mockRejectedValue(new ProjectConflictError());
+  updateProjectName('My version');
+  expect(await manualSave()).toBe(false);
+  expect(get(saveConflict)).toBe(true);
+  expect(get(saveError)).toContain('another tab');
+  updateProjectName('More local edits');
+  await vi.advanceTimersByTimeAsync(2000);
+  expect(localStore.save).toHaveBeenCalledOnce();
+  expect(get(saveState)).toBe('unsaved');
+});
+
+it('notifies about external project changes without replacing local work and removes its listener', async () => {
+  stop();
+  const events = new EventTarget();
+  vi.stubGlobal('window', events);
+  const removed = vi.spyOn(events, 'removeEventListener');
+  const check = vi.spyOn(localStore, 'assertCurrent').mockImplementation(() => { throw new ProjectConflictError(); });
+  stop = initAutoSave();
+  const before = get(currentProject);
+  events.dispatchEvent(Object.assign(new Event('storage'), { key: 'floorplan_projects' }));
+  expect(get(saveState)).toBe('unsaved'); expect(get(saveConflict)).toBe(true);
+  expect(get(currentProject)).toBe(before);
+  stop(); expect(removed).toHaveBeenCalledWith('storage', expect.any(Function));
+  events.dispatchEvent(Object.assign(new Event('storage'), { key: 'floorplan_projects' }));
+  expect(check).toHaveBeenCalledOnce();
+});
+
+it('ignores unrelated storage events and other project writes', () => {
+  stop();
+  const events = new EventTarget(); vi.stubGlobal('window', events);
+  const check = vi.spyOn(localStore, 'assertCurrent').mockImplementation(() => {});
+  stop = initAutoSave();
+  events.dispatchEvent(Object.assign(new Event('storage'), { key: 'settings' }));
+  expect(check).not.toHaveBeenCalled();
+  events.dispatchEvent(Object.assign(new Event('storage'), { key: 'floorplan_projects' }));
+  expect(get(saveState)).toBe('saved'); expect(get(saveConflict)).toBe(false);
+});
+
+it('switches to a recovery copy only after that copy is saved', async () => {
+  updateProjectName('Recover me'); saveConflict.set(true);
+  const copy = { ...get(currentProject)!, id: 'recovered', name: 'Recover me (Recovered copy)' };
+  vi.spyOn(localStore, 'saveCopy').mockResolvedValue(copy);
+  expect(await saveCurrentAsCopy()).toBe(true);
+  expect(get(currentProject)).toBe(copy);
+  expect(get(saveState)).toBe('saved'); expect(get(saveConflict)).toBe(false);
+  expect(get(lastSavedAt)).toBeInstanceOf(Date); expect(get(savingCopy)).toBe(false);
+  await vi.advanceTimersByTimeAsync(2000);
+  expect(localStore.save).not.toHaveBeenCalled();
+});
+
+it('retains conflicting work and its retry option if saving a copy fails', async () => {
+  updateProjectName('Keep me in memory'); saveConflict.set(true);
+  const before = get(currentProject);
+  vi.spyOn(localStore, 'saveCopy').mockRejectedValue(new DOMException('Full', 'QuotaExceededError'));
+  expect(await saveCurrentAsCopy()).toBe(false);
+  expect(get(currentProject)).toBe(before);
+  expect(get(saveState)).toBe('unsaved'); expect(get(saveConflict)).toBe(true);
+  expect(get(saveError)).toContain('Browser storage is full');
+  expect(get(savingCopy)).toBe(false);
+});
+
+it('does not discard edits made while a recovery copy is being saved', async () => {
+  updateProjectName('Copy this revision'); saveConflict.set(true);
+  let finish!: (value: Project) => void;
+  const copy = { ...get(currentProject)!, id: 'recovered' };
+  vi.spyOn(localStore, 'saveCopy').mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  const pending = saveCurrentAsCopy();
+  expect(await saveCurrentAsCopy()).toBe(false);
+  updateProjectName('Later edits');
+  finish(copy); expect(await pending).toBe(false);
+  expect(get(currentProject)!.name).toBe('Later edits');
+  expect(get(saveError)).toContain('made more edits');
+  expect(get(saveState)).toBe('unsaved'); expect(get(saveConflict)).toBe(true);
 });

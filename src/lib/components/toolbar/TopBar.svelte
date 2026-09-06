@@ -1,5 +1,6 @@
 <script lang="ts">
   import { openProject } from '$lib/services/projectOpening';
+  import { saveConflict, savingCopy, saveCurrentAsCopy } from '$lib/stores/saveStatus';
   import ImportError from '$lib/components/ImportError.svelte';
   import { onMount, onDestroy } from 'svelte';
   import { base } from '$app/paths';
@@ -591,7 +592,11 @@
 {#if $saveError}
   <div role="alert" class="flex flex-wrap items-center gap-3 bg-red-50 border-b border-red-200 px-4 py-3 text-sm text-red-900">
     <span class="flex-1 min-w-48">Changes are not saved. {$saveError}</span>
-    <button class="font-semibold underline" onclick={save}>Retry save</button>
+    {#if $saveConflict}
+      <button class="font-semibold underline disabled:opacity-50" disabled={$savingCopy} onclick={saveCurrentAsCopy}>{$savingCopy ? 'Saving copy…' : 'Save as copy'}</button>
+    {:else}
+      <button class="font-semibold underline" onclick={save}>Retry save</button>
+    {/if}
     <button class="font-semibold underline" onclick={onExportJSON}>Download JSON backup</button>
   </div>
 {/if}
