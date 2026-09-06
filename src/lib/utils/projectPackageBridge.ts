@@ -28,7 +28,7 @@ const object = (v: any) => v && typeof v === 'object' && !Array.isArray(v);
 export function validatePackagePlan(plan: any): ObjectMap {
   const fail = () => packageError('The edited iPhone plan contains invalid geometry or references.');
   const num = (n: any, min = -Infinity, positive = false) => { if (typeof n !== 'number' || !Number.isFinite(n) || n < min || positive && n <= min) fail(); };
-  const xy = (p: any) => { if (!object(p)) fail(); num(p.x); num(p.y); };
+  const xy = (p: any) => { if (!object(p)) fail(); num(p.x); num(p.y); if (Math.abs(p.x) > 10_000 || Math.abs(p.y) > 10_000) fail(); };
   if (!object(plan) || !Array.isArray(plan.walls)) fail();
   const result = structuredClone(plan), seen = new Set<string>();
   let count = 0;
@@ -39,11 +39,14 @@ export function validatePackagePlan(plan: any): ObjectMap {
     for (const item of items) {
       if (!object(item) || typeof item.id !== 'string' || !uuidPattern.test(item.id) || seen.has(key(item.id)) || ++count > 5000) fail();
       seen.add(key(item.id));
-      for (const field of ['height', 'thickness', 'width', 'depth', 'ceilingHeight', 'fontSize']) if (item[field] != null) num(item[field], 0, true);
+      for (const field of ['height', 'thickness', 'width', 'depth', 'ceilingHeight', 'fontSize']) if (item[field] != null) {
+        num(item[field], 0, true); if (item[field] > (field === 'thickness' ? 10 : 10_000)) fail();
+      }
       for (const field of ['price', 'sillHeight']) if (item[field] != null) num(item[field], 0);
-      for (const field of ['angle']) if (item[field] != null) num(item[field]);
+      if (item.sillHeight != null && item.sillHeight > 10_000) fail();
+      for (const field of ['angle']) if (item[field] != null) { num(item[field]); if (Math.abs(item[field]) > 100_000) fail(); }
       for (const field of ['name', 'text', 'note', 'material', 'style', 'category', 'colorHex']) if (item[field] != null && typeof item[field] !== 'string') fail();
-      if (item.level != null && !Number.isSafeInteger(item.level)) fail();
+      if (item.level != null && (!Number.isSafeInteger(item.level) || Math.abs(item.level) > 1000)) fail();
       if (item.photos != null && (!Array.isArray(item.photos) || item.photos.some((name: any) => typeof name !== 'string' || !safePackagePath(name)))) fail();
       for (const field of ['hingeLeft', 'opensInward']) if (item[field] != null && typeof item[field] !== 'boolean') fail();
       if (kind === 'walls') { xy(item.start); xy(item.end); if (equal(item.start, item.end)) fail(); }
@@ -57,18 +60,20 @@ export function validatePackagePlan(plan: any): ObjectMap {
         if (item.type != null && !['livingRoom', 'bedroom', 'kitchen', 'bathroom', 'diningRoom', 'laundryRoom', 'office', 'hallway', 'garage', 'closet', 'pantry', 'entryway'].includes(item.type)) fail();
       }
       if (kind === 'notes') { xy(item.position); if (typeof item.text !== 'string') fail(); }
-      if (kind === 'levels' && (typeof item.name !== 'string' || !Number.isSafeInteger(item.index))) fail();
+      if (kind === 'levels' && (typeof item.name !== 'string' || !Number.isSafeInteger(item.index) || Math.abs(item.index) > 1000)) fail();
     }
   }
   if (new Set(result.levels.map((l: any) => l.index)).size !== result.levels.length) fail();
   if (result.planNotes != null && typeof result.planNotes !== 'string') fail();
   if (result.defaults != null) {
     if (!object(result.defaults)) fail();
-    for (const field of ['ceilingHeight', 'interiorWallThickness', 'exteriorWallThickness']) if (result.defaults[field] != null) num(result.defaults[field], 0, true);
+    for (const field of ['ceilingHeight', 'interiorWallThickness', 'exteriorWallThickness']) if (result.defaults[field] != null) {
+      num(result.defaults[field], 0, true); if (result.defaults[field] > (field === 'ceilingHeight' ? 10_000 : 10)) fail();
+    }
   }
   if (result.underlay != null) {
     if (!object(result.underlay) || typeof result.underlay.imageFilename !== 'string' || !safePackagePath(result.underlay.imageFilename)) fail();
-    xy(result.underlay.center); num(result.underlay.widthMeters, 0, true);
+    xy(result.underlay.center); num(result.underlay.widthMeters, 0, true); if (result.underlay.widthMeters > 10_000) fail();
   }
   return result;
 }

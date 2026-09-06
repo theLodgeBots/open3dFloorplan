@@ -128,6 +128,18 @@ it('does not fetch or activate external project images through package exchange'
   const files = readPackageZip(projectPackageBytes(webFixture())); files['web.json'] = jsonBytes(project);
   expect(() => readProjectPackage(writePackageZip(files))).toThrow(/embedded raster images/);
 });
+it('rejects extreme finite coordinates, dimensions and angles before rendering', () => {
+  for (const damage of [
+    (plan: any) => { plan.walls[0].start.x = 1e200; },
+    (plan: any) => { plan.walls[0].thickness = 20; },
+    (plan: any) => { plan.furniture[0].angle = 1e200; },
+    (plan: any) => { plan.openings[0].sillHeight = 1e200; },
+    (plan: any) => { plan.levels[0].index = 10000000; },
+  ]) {
+    const plan = native(); damage(plan);
+    expect(() => validatePackagePlan(plan)).toThrow(/invalid geometry/);
+  }
+});
 it.each(['missing-photo', 'duplicate-key', 'future-version', 'damaged-geometry', 'incomplete-return', 'reserved-attachment'])('rejects %s before importing anything', async kind => {
   const files: Record<string, Uint8Array> = nativeFiles();
   if (kind === 'missing-photo') delete files['assets/chair.png'];
