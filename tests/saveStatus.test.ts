@@ -108,3 +108,38 @@ it('does not show another project\'s save time if creation fails outside the edi
   expect(get(lastSavedAt)).toBeNull();
   expect(get(saveError)).toContain('Browser storage is full');
 });
+
+it('saves immediately but captures a thumbnail only after the canvas redraws', async () => {
+  const frames: FrameRequestCallback[] = [];
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => frames.push(callback));
+  let renderedPlan = 'previous plan';
+  const drawImage = vi.fn();
+  vi.stubGlobal('document', {
+    querySelector: () => ({ width: 600, height: 400 }),
+    createElement: () => ({ getContext: () => ({ drawImage }), toDataURL: () => renderedPlan }),
+  });
+  const preview = vi.spyOn(localStore, 'saveThumbnail').mockImplementation(() => {});
+  expect(await autoSave()).toBe(true);
+  expect(get(saveState)).toBe('saved');
+  expect(preview).not.toHaveBeenCalled();
+  frames.shift()!(0);
+  renderedPlan = 'current plan';
+  frames.shift()!(16);
+  expect(preview).toHaveBeenCalledWith(get(currentProject)!.id, 'current plan');
+});
+
+it('discards delayed thumbnail work after a later edit or project switch', async () => {
+  const frames: FrameRequestCallback[] = [];
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => frames.push(callback));
+  const querySelector = vi.fn();
+  vi.stubGlobal('document', { querySelector });
+  await autoSave();
+  updateProjectName('Newer revision');
+  frames.shift()!(0); frames.shift()!(16);
+  expect(querySelector).not.toHaveBeenCalled();
+  await autoSave();
+  currentProject.set(createDefaultProject('Another plan'));
+  markClean();
+  frames.shift()!(32); frames.shift()!(48);
+  expect(querySelector).not.toHaveBeenCalled();
+});

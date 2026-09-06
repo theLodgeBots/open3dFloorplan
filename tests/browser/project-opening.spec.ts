@@ -63,18 +63,19 @@ for (const width of [1440, 390]) {
   test(`same-ID imports preserve pending edits and reopen as separate copies at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     const check = observe(page), source = await seed(page);
+    const normalized = await exportJSON(page);
     await rename(page, 'Latest original edits');
     expect((await library(page))[source.id].name).toBe(source.name);
     await importJSON(page);
     await expect(page.getByTitle('Click to rename', { exact: true })).toHaveText(`${source.name} (Imported copy)`);
     const copy = await exportJSON(page);
     expect(copy.id).not.toBe(source.id);
-    expect(copy.floors).toEqual(source.floors);
+    expect(copy.floors).toEqual(normalized.floors);
     expect(copy.extensions).toEqual(source.extensions);
     const saved = await library(page);
     expect(Object.keys(saved)).toHaveLength(2);
     expect(saved[source.id].name).toBe('Latest original edits');
-    expect(saved[copy.id].floors).toEqual(source.floors);
+    expect(saved[copy.id].floors).toEqual(normalized.floors);
     await page.reload();
     expect((await exportJSON(page)).id).toBe(copy.id);
     await page.getByRole('link', { name: width < 768 ? 'Back to Projects' : 'Projects', exact: true }).click();
@@ -118,12 +119,13 @@ test('a failed current save blocks import and New Project, with backup and retry
 
 test('a failed candidate save keeps the import in memory and its original safe in the library', async ({ page }) => {
   const check = observe(page), source = await seed(page);
+  const normalized = await exportJSON(page);
   await failWrites(page);
   await importJSON(page);
   await expect(page.getByTitle('Click to rename', { exact: true })).toHaveText(`${source.name} (Imported copy)`);
   await expect(page.getByRole('alert')).toContainText('Browser storage is full');
   const copy = await exportJSON(page);
-  expect(copy.id).not.toBe(source.id); expect(copy.floors).toEqual(source.floors);
+  expect(copy.id).not.toBe(source.id); expect(copy.floors).toEqual(normalized.floors);
   expect(Object.keys(await library(page))).toEqual([source.id]);
   expect((await library(page))[source.id]).toEqual(source);
   await page.evaluate(() => { (window as any).failProjectWrites = false; });
@@ -142,6 +144,8 @@ test('sidebar RoomPlan import and toolbar New Project preserve pending predecess
   await expect(page.getByRole('combobox', { name: 'Current floor' }).locator('option')).toHaveText(['Entry', 'Loft', 'Future Floor']);
   expect((await library(page))[source.id].name).toBe('Before RoomPlan import');
   const imported = await exportJSON(page);
+  const importedPreview = await page.evaluate(id => localStorage.getItem(`floorplan_thumb_${id}`), imported.id);
+  expect(importedPreview).toBeTruthy();
   await rename(page, 'Before New Project');
   expect((await library(page))[imported.id].name).toBe(imported.name);
   await page.getByRole('button', { name: 'Export', exact: true }).click();
@@ -149,6 +153,8 @@ test('sidebar RoomPlan import and toolbar New Project preserve pending predecess
   await expect(page.getByRole('application')).toContainText('0 walls');
   const created = await exportJSON(page);
   expect(created.id).not.toBe(imported.id);
+  await expect.poll(() => page.evaluate(id => localStorage.getItem(`floorplan_thumb_${id}`), created.id)).toBeTruthy();
+  expect(await page.evaluate(id => localStorage.getItem(`floorplan_thumb_${id}`), created.id)).not.toBe(importedPreview);
   expect((await library(page))[imported.id].name).toBe('Before New Project');
   await page.reload(); expect((await exportJSON(page)).id).toBe(created.id);
   check();

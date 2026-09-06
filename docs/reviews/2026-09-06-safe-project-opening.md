@@ -25,6 +25,10 @@ are ignored. Component teardown cancels pending reads before they can replace
 work after navigation. New Project uses the same save protection and the editor's
 existing SvelteKit URL synchronization.
 
+Saved library previews wait for the canvas to redraw and fit the new plan. A
+delayed preview is discarded after a newer edit or project switch, preventing
+New Project from displaying the previous plan's thumbnail.
+
 If the candidate itself cannot be saved, it stays available in memory for JSON
 export and retry. When the library cannot be read, a fresh candidate ID avoids
 assuming any stored ID is free, and existing storage error feedback remains
@@ -33,7 +37,7 @@ consume additional local browser storage; there is no automatic eviction.
 
 ## Validation and costs
 
-365 unit tests pass, including 15 new cases covering pending edits, validation
+367 unit tests pass, including 17 new cases covering pending edits, validation
 before writes, duplicate IDs, damaged entries, unavailable storage, candidate
 write failure, concurrent edits, superseded reads and navigation cancellation.
 New browser workflows cover desktop/390 px copies, library reopening, JSON
