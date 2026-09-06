@@ -6,6 +6,9 @@ export interface Wall {
   end: Point;
   thickness: number;
   height: number;
+  /** Endpoint heights in centimetres. Missing values use the legacy height. */
+  startHeight?: number;
+  endHeight?: number;
   color: string;
   /** Optional quadratic bezier control point for curved walls */
   curvePoint?: Point;
@@ -17,6 +20,26 @@ export interface Wall {
   exteriorColor?: string;
   exteriorTexture?: string;
 }
+
+export function validWallHeight(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
+export function getWallStartHeight(wall: Wall): number {
+  return validWallHeight(wall.startHeight) ? wall.startHeight : validWallHeight(wall.height) ? wall.height : 280;
+}
+
+export function getWallEndHeight(wall: Wall): number {
+  return validWallHeight(wall.endHeight) ? wall.endHeight : validWallHeight(wall.height) ? wall.height : 280;
+}
+
+export function getWallHeightAt(wall: Wall, t: number): number {
+  const s = getWallStartHeight(wall);
+  const e = getWallEndHeight(wall);
+  const clampedT = Math.max(0, Math.min(1, Number.isFinite(t) ? t : 0));
+  return s + (e - s) * clampedT;
+}
+
 
 export type RoomCategory = 'indoor' | 'outdoor' | 'garage' | 'utility';
 

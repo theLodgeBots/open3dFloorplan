@@ -53,15 +53,15 @@ function rectWalls(x: number, y: number, w: number, h: number, thickness = 15, h
   const br = { x: x + w, y: y + h };
   const bl = { x, y: y + h };
   return [
-    { id: uid(), start: tl, end: tr, thickness, height, color: '#444444' }, // top
-    { id: uid(), start: tr, end: br, thickness, height, color: '#444444' }, // right
-    { id: uid(), start: br, end: bl, thickness, height, color: '#444444' }, // bottom
-    { id: uid(), start: bl, end: tl, thickness, height, color: '#444444' }, // left
+    { id: uid(), start: tl, end: tr, thickness, height, startHeight: height, endHeight: height, color: '#444444' }, // top
+    { id: uid(), start: tr, end: br, thickness, height, startHeight: height, endHeight: height, color: '#444444' }, // right
+    { id: uid(), start: br, end: bl, thickness, height, startHeight: height, endHeight: height, color: '#444444' }, // bottom
+    { id: uid(), start: bl, end: tl, thickness, height, startHeight: height, endHeight: height, color: '#444444' }, // left
   ];
 }
 
 function wall(x1: number, y1: number, x2: number, y2: number, thickness = 15, height = 280): Wall {
-  return { id: uid(), start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, thickness, height, color: '#444444' };
+  return { id: uid(), start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, thickness, height, startHeight: height, endHeight: height, color: '#444444' };
 }
 
 function door(wallId: string, position: number, type: Door['type'] = 'single', width = 90): Door {

@@ -634,6 +634,8 @@ export function importRoomPlan(jsonData: any, options: RoomPlanImportOptions = r
       // Apple scans often report zero depth; edited iOS plans supply the actual thickness.
       thickness: rw.dimensions[2] > 0 ? centimetres(rw.dimensions[2]) : 15,
       height,
+      startHeight: height,
+      endHeight: height,
       color: '#444444',
     });
   }

@@ -2,6 +2,7 @@ import { writable, derived, get } from 'svelte/store';
 import type { Project, Floor, Wall, Door, Window as Win, FurnitureItem, Point, Stair, Column, BackgroundImage, GuideLine, ElementGroup, EntourageItem } from '$lib/models/types';
 import { getOuterWalls } from '$lib/utils/outerWalls';
 import { nextFloorLevel } from '$lib/utils/floors';
+import { getWallStartHeight, getWallEndHeight, getWallHeightAt, validWallHeight } from '$lib/models/types';
 
 
 function uid(): string {
@@ -238,10 +239,11 @@ function mutate(fn: (floor: Floor) => void, description?: string, coalesceKey?: 
 export function addWall(start: Point, end: Point): string {
   const id = uid();
   mutate((f) => {
-    f.walls.push({ id, start, end, thickness: 15, height: 280, color: '#444444' });
+    f.walls.push({ id, start, end, thickness: 15, height: 280, startHeight: 280, endHeight: 280, color: '#444444' });
   }, 'Added wall');
-  // Onboarding tip
-  import('$lib/stores/onboarding.svelte').then(m => m.triggerTip('first-wall', end.x > 400 ? 300 : end.x + 20, 120));
+  if (typeof window !== 'undefined') {
+    import('$lib/stores/onboarding.svelte').then(m => m.triggerTip('first-wall', end.x > 400 ? 300 : end.x + 20, 120)).catch(() => {});
+  }
   return id;
 }
 
@@ -269,8 +271,9 @@ export function addDoor(wallId: string, position: number, doorType: Door['type']
   mutate((f) => {
     f.doors.push({ id, wallId, position, width, height, type: doorType, swingDirection: 'left', flipSide: false });
   }, `Added ${doorType} door`);
-  // Onboarding tip
-  import('$lib/stores/onboarding.svelte').then(m => m.triggerTip('first-door', 300, 120));
+  if (typeof window !== 'undefined') {
+    import('$lib/stores/onboarding.svelte').then(m => m.triggerTip('first-door', 300, 120)).catch(() => {});
+  }
   return id;
 }
 
@@ -295,8 +298,9 @@ export function addFurniture(catalogId: string, position: Point): string {
   mutate((f) => {
     f.furniture.push({ id, catalogId, position, rotation: 0, scale: { x: 1, y: 1, z: 1 } });
   }, `Added ${catalogId}`);
-  // Onboarding tip
-  import('$lib/stores/onboarding.svelte').then(m => m.triggerTip('first-furniture', position.x + 20, position.y + 20));
+  if (typeof window !== 'undefined') {
+    import('$lib/stores/onboarding.svelte').then(m => m.triggerTip('first-furniture', position.x + 20, position.y + 20)).catch(() => {});
+  }
   return id;
 }
 
@@ -559,10 +563,54 @@ export function moveWallEndpoint(id: string, endpoint: 'start' | 'end', position
 }
 
 export function updateWall(id: string, updates: Partial<Wall>) {
+  if (['height', 'startHeight', 'endHeight'].some(key => key in updates && !validWallHeight(updates[key as keyof Wall]))) return;
   mutate((f) => {
     const w = f.walls.find((w) => w.id === id);
-    if (w) Object.assign(w, updates);
+    if (w) {
+      Object.assign(w, updates);
+      if (updates.height !== undefined && updates.startHeight === undefined && updates.endHeight === undefined) {
+        w.startHeight = updates.height;
+        w.endHeight = updates.height;
+      } else {
+        const startH = getWallStartHeight(w);
+        const endH = getWallEndHeight(w);
+        w.startHeight = startH;
+        w.endHeight = endH;
+        w.height = Math.max(startH, endH);
+      }
+    }
   }, undefined, coalesceKeyFor('wall', id, updates));
+}
+
+export function reverseWall(id: string) {
+  mutate((f) => {
+    const w = f.walls.find((w) => w.id === id);
+    if (!w) return;
+    const oldStart = { ...w.start };
+    w.start = { ...w.end };
+    w.end = oldStart;
+
+    const startH = getWallStartHeight(w);
+    const endH = getWallEndHeight(w);
+    w.startHeight = endH;
+    w.endHeight = startH;
+    w.height = Math.max(startH, endH);
+    [w.interiorColor, w.exteriorColor] = [w.exteriorColor, w.interiorColor];
+    [w.interiorTexture, w.exteriorTexture] = [w.exteriorTexture, w.interiorTexture];
+
+    for (const d of f.doors) {
+      if (d.wallId === id) {
+        d.position = 1 - d.position;
+        d.swingDirection = d.swingDirection === 'left' ? 'right' : 'left';
+        d.flipSide = !d.flipSide;
+      }
+    }
+    for (const win of f.windows) {
+      if (win.wallId === id) {
+        win.position = 1 - win.position;
+      }
+    }
+  }, 'Reversed wall direction');
 }
 
 export function updateDoor(id: string, updates: Partial<Door>) {
@@ -783,17 +831,37 @@ export function splitWall(id: string, t: number): string | null {
   if (!floor) return null;
   const w = floor.walls.find((w) => w.id === id);
   if (!w || w.curvePoint) return null; // don't split curved walls
-  if (t <= 0.001 || t >= 0.999) return null; // prevent division by zero at extremes
+  if (!Number.isFinite(t) || t <= 0.001 || t >= 0.999) return null; // prevent division by zero at extremes
   snapshot('Split wall');
   const midPt: Point = {
     x: w.start.x + (w.end.x - w.start.x) * t,
     y: w.start.y + (w.end.y - w.start.y) * t,
   };
+  const startH = getWallStartHeight(w);
+  const endH = getWallEndHeight(w);
+  const midH = getWallHeightAt(w, t);
   const newId = uid();
   // New wall from midpoint to original end
-  floor.walls.push({ id: newId, start: { ...midPt }, end: { ...w.end }, thickness: w.thickness, height: w.height, color: w.color });
+  floor.walls.push({
+    ...w,
+    id: newId,
+    start: { ...midPt },
+    end: { ...w.end },
+    thickness: w.thickness,
+    height: Math.max(midH, endH),
+    startHeight: midH,
+    endHeight: endH,
+    color: w.color,
+    interiorColor: w.interiorColor,
+    interiorTexture: w.interiorTexture,
+    exteriorColor: w.exteriorColor,
+    exteriorTexture: w.exteriorTexture,
+  });
   // Shorten original wall to midpoint
   w.end = { ...midPt };
+  w.startHeight = startH;
+  w.endHeight = midH;
+  w.height = Math.max(startH, midH);
   // Move doors/windows on the original wall: adjust positions
   for (const d of floor.doors) {
     if (d.wallId === id) {

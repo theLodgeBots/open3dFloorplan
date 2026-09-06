@@ -9,6 +9,7 @@
  * Used to seed a new storey with the footprint below it, and to tint the
  * floor-below ghost so the envelope reads apart from the partitions.
  */
+import { getWallHeightAt } from '$lib/models/types';
 import type { Wall, Point } from '$lib/models/types';
 import { detectRooms, getRoomPolygon } from '$lib/utils/roomDetection';
 
@@ -93,7 +94,8 @@ function sliceWall(wall: Wall, from: number, to: number, index: number): Wall {
       y: (1 - t) ** 2 * wall.start.y + 2 * (1 - t) * t * c.y + t * t * wall.end.y };
   };
   const start = pointAt(from), end = pointAt(to);
-  const segment = { ...wall, id: index ? `${wall.id}:outer:${index}` : wall.id, start, end };
+  const startHeight = getWallHeightAt(wall, from), endHeight = getWallHeightAt(wall, to);
+  const segment = { ...wall, startHeight, endHeight, height: Math.max(startHeight, endHeight), id: index ? `${wall.id}:outer:${index}` : wall.id, start, end };
   if (wall.curvePoint) {
     // Restricted quadratic Bezier: Q1 = Q0 + (to-from) * B'(from) / 2.
     const c = wall.curvePoint;

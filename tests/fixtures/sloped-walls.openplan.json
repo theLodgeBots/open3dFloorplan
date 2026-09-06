@@ -1,0 +1,150 @@
+{
+  "id": "qa-sloped-walls",
+  "name": "QA Sloped Walls",
+  "floors": [
+    {
+      "id": "qa-floor",
+      "name": "Sloped Ground",
+      "level": 0,
+      "walls": [
+        {
+          "id": "qa-wall-0",
+          "start": {
+            "x": 0,
+            "y": 0
+          },
+          "end": {
+            "x": 600,
+            "y": 0
+          },
+          "thickness": 20,
+          "height": 340,
+          "color": "#94a3b8",
+          "startHeight": 160,
+          "endHeight": 340
+        },
+        {
+          "id": "qa-wall-1",
+          "start": {
+            "x": 600,
+            "y": 0
+          },
+          "end": {
+            "x": 600,
+            "y": 400
+          },
+          "thickness": 20,
+          "height": 340,
+          "color": "#94a3b8",
+          "startHeight": 340,
+          "endHeight": 340
+        },
+        {
+          "id": "qa-wall-2",
+          "start": {
+            "x": 600,
+            "y": 400
+          },
+          "end": {
+            "x": 0,
+            "y": 400
+          },
+          "thickness": 20,
+          "height": 340,
+          "color": "#94a3b8",
+          "startHeight": 340,
+          "endHeight": 160
+        },
+        {
+          "id": "qa-wall-3",
+          "start": {
+            "x": 0,
+            "y": 400
+          },
+          "end": {
+            "x": 0,
+            "y": 0
+          },
+          "thickness": 20,
+          "height": 160,
+          "color": "#94a3b8",
+          "startHeight": 160,
+          "endHeight": 160
+        }
+      ],
+      "rooms": [],
+      "doors": [
+        {
+          "id": "slope-door",
+          "wallId": "qa-wall-0",
+          "position": 0.6,
+          "width": 100,
+          "height": 210,
+          "type": "single",
+          "swingDirection": "left",
+          "flipSide": false
+        }
+      ],
+      "windows": [
+        {
+          "id": "slope-window",
+          "wallId": "qa-wall-0",
+          "position": 0.2,
+          "width": 100,
+          "height": 150,
+          "sillHeight": 90,
+          "type": "standard"
+        }
+      ],
+      "furniture": [],
+      "stairs": [],
+      "columns": [],
+      "guides": [],
+      "measurements": [],
+      "annotations": [],
+      "textAnnotations": [],
+      "groups": []
+    },
+    {
+      "id": "qa-sloped-upper",
+      "name": "Curved Upper",
+      "level": 1,
+      "walls": [
+        {
+          "id": "upper-curve",
+          "start": {
+            "x": 0,
+            "y": 0
+          },
+          "end": {
+            "x": 600,
+            "y": 0
+          },
+          "curvePoint": {
+            "x": 300,
+            "y": 300
+          },
+          "thickness": 20,
+          "height": 350,
+          "startHeight": 0,
+          "endHeight": 350,
+          "color": "#a78bfa"
+        }
+      ],
+      "rooms": [],
+      "doors": [],
+      "windows": [],
+      "furniture": [],
+      "stairs": [],
+      "columns": [],
+      "guides": [],
+      "measurements": [],
+      "annotations": [],
+      "textAnnotations": [],
+      "groups": []
+    }
+  ],
+  "activeFloorId": "qa-floor",
+  "createdAt": "2026-09-05T00:00:00.000Z",
+  "updatedAt": "2026-09-05T00:00:00.000Z"
+}
