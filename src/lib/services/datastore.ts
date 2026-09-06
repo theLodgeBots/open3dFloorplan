@@ -21,7 +21,8 @@ function getAll(): Record<string, string> {
         Object.values(all).some(value => typeof value !== 'string')) {
       throw new Error('Invalid project library');
     }
-    return all;
+    // Imported IDs are data, including names such as "__proto__" and "constructor".
+    return Object.assign(Object.create(null), all);
   } catch {
     throw new Error('The saved project library could not be read. Download a backup before attempting recovery.');
   }

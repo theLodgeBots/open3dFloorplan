@@ -176,3 +176,23 @@ test('unreadable history remains downloadable and is not replaced by the session
   expect(await page.evaluate(id => localStorage.getItem(`vh_${id}`), source.id)).toBe('{damaged history bytes');
   check();
 });
+
+test('imported reserved and punctuated IDs save and reopen through project-library links', async ({ page }) => {
+  const check = observe(page), source = JSON.parse(await readFile(fixture, 'utf8'));
+  await page.goto('/editor');
+  for (const [i, id] of ['__proto__', 'qa project?#& spaces'].entries()) {
+    const project = { ...source, id, name: `QA unusual ID ${i}` };
+    await importProject(page, project);
+    await expect(page.getByRole('application')).toContainText('1 room');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(page.getByText('Saved ✓', { exact: true })).toBeVisible();
+    await page.getByRole('link', { name: 'Projects', exact: true }).click();
+    await page.getByRole('link', { name: project.name, exact: true }).click();
+    await expect(page.getByRole('application')).toContainText('1 room');
+    expect(new URL(page.url()).searchParams.get('id')).toBe(id);
+    const loaded = await exportProject(page);
+    expect(loaded.id).toBe(id); expect(loaded.name).toBe(project.name);
+    expect(loaded.floors[0].walls).toEqual(project.floors[0].walls);
+  }
+  check();
+});

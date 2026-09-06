@@ -28,7 +28,9 @@ nested validation.
   alert, and the file input resets so selecting the same file can retry.
 - Saved-project reopening validates before loading and verifies the library entry
   ID. No read migrates or rewrites stored bytes. Damaged projects remain available
-  through the existing raw-library backup; other entries are unchanged.
+  through the existing raw-library backup; other entries are unchanged. Library
+  maps treat reserved object-property names as project IDs, and project links
+  encode IDs so imported punctuation cannot cause a false save or broken link.
 - Snapshot restoration validates before replacing the current plan, verifies the
   project ID and leaves the history panel open on failure. Raw version history
   can be downloaded for recovery. Unreadable history containers are not replaced
@@ -37,7 +39,7 @@ nested validation.
 
 ## Validation and cost
 
-345 unit tests pass, including 64 new cases covering the reader, all shipped
+350 unit tests pass, including 69 new cases covering the reader, all shipped
 house templates, generated iPhone handoffs, legacy defaults, rejected fields,
 local-load failures and snapshot recovery. Added desktop and phone-width browser
 workflows cover atomic native import rejection, unchanged saved bytes, undo/redo,

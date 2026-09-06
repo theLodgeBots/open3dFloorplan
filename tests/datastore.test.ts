@@ -87,3 +87,19 @@ it('does not load a project under another library entry ID', async () => {
   await expect(localStore.load('wrong')).rejects.toThrow('does not match');
   expect(setItem).not.toHaveBeenCalled();
 });
+
+it.each(['__proto__', 'constructor', 'toString', 'a project?with#punctuation&spaces'])('round trips an imported project ID as data: %s', async id => {
+  const neighbor = createDefaultProject('Keep me'); await localStore.save(neighbor);
+  const project = { ...createDefaultProject('Imported'), id };
+  await localStore.save(project);
+  expect(await localStore.load(id)).toEqual(project);
+  expect(await localStore.load(neighbor.id)).toEqual(neighbor);
+  expect(await localStore.list()).toHaveLength(2);
+  await localStore.delete(id); expect(await localStore.load(id)).toBeNull();
+  expect(await localStore.load(neighbor.id)).toEqual(neighbor);
+});
+
+it('does not mistake inherited object properties for saved projects', async () => {
+  await expect(localStore.load('constructor')).resolves.toBeNull();
+  await expect(localStore.load('__proto__')).resolves.toBeNull();
+});
