@@ -80,7 +80,7 @@ test('package cancellation, invalid file and quota retry preserve the existing l
   await page.goto('/');
   await page.getByRole('button', { name: 'New Project', exact: true }).click();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await page.getByRole('link', { name: 'Back to Projects', exact: true }).click();
+  await page.getByRole('link', { name: 'Projects', exact: true }).click();
   const before = await storedRecords(page);
   await page.getByRole('button', { name: 'Import project package', exact: true }).click();
   await choose(page); await expect(page.getByRole('dialog')).toContainText('QA Project Package');
