@@ -311,6 +311,6 @@ workflow. This work adds no Firebase Storage traffic. See the
 Issue #42 adds independent floor elevations with legacy 300 cm defaults, local
 persistence and undo/redo. Stacked geometry, placement and cameras follow the
 same elevations, including basements. Settings supports compact screens. The
-suite has 216 unit tests and adds desktop/390 px browser workflows without new
+suite has 220 unit tests and adds desktop/390 px browser workflows without new
 Firebase Storage operations. See the
 [floor elevation report](2026-09-05-floor-elevations.md).

@@ -11,6 +11,7 @@
   import { buildWallSegments, openingOnWall, roomCeilingHeight, wallPathSpans, doorPanelPose } from '$lib/utils/wallProfiles';
   import { assembleFloorStack } from '$lib/utils/floorStack';
   import { setFloorCameraPose } from '$lib/utils/floorCamera';
+  import { frameScene } from '$lib/utils/frameScene';
   import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
   import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
   import MaterialPicker from './MaterialPicker.svelte';
@@ -1033,20 +1034,8 @@
     }
   }
 
-  function autoCenterCamera(floor: Floor) {
-    if (floor.walls.length === 0) return;
-    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    for (const w of floor.walls) {
-      for (const p of [w.start, w.end]) {
-        minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
-        minZ = Math.min(minZ, p.y); maxZ = Math.max(maxZ, p.y);
-      }
-    }
-    const cx = (minX + maxX) / 2;
-    const cz = (minZ + maxZ) / 2;
-    const size = Math.max(maxX - minX, maxZ - minZ, 200);
-    controls.target.set(cx, 100, cz);
-    camera.position.set(cx + size * 1.8, size * 1.4, cz + size * 1.8);
+  function autoCenterCamera() {
+    frameScene(camera, new THREE.Box3().setFromObject(wallGroup), controls.target);
     controls.update();
   }
 
@@ -1714,7 +1703,7 @@
     // Columns
     buildColumns(floor);
 
-    autoCenterCamera(floor);
+    autoCenterCamera();
   }
 
   /** Build all floors stacked vertically in 3D */
@@ -1738,7 +1727,7 @@
     floorPlane.constant = -activeFloorElevation;
     // Keep the presentation ground below basements as well as above-ground floors.
     sceneGround.position.y = Math.min(0, ...entries.map(entry => entry.yOffset)) - 1;
-    autoCenterCameraAllFloors();
+    autoCenterCamera();
   }
 
   function addFloorLabel(name: string, yOffset: number, labelX: number, labelZ: number) {
@@ -1850,16 +1839,6 @@
         group.add(mesh);
       }
     }
-  }
-
-  function autoCenterCameraAllFloors() {
-    const box = new THREE.Box3().setFromObject(wallGroup);
-    const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z, 400);
-    controls.target.copy(center);
-    camera.position.set(center.x + maxDim * 1.2, center.y + maxDim * 0.8, center.z + maxDim * 1.2);
-    controls.update();
   }
 
   function rebuildScene() {

@@ -21,6 +21,8 @@ previews follow elevation edits and stacking toggles. Floor switches clear the
 old interior camera and exit walkthrough. The presentation ground moves beneath
 the lowest basement, and top-down framing includes elevated geometry. The
 isolated active-floor view retains its existing local zero-height ground.
+Initial perspective framing fits the complete scene using both fields of view,
+so portrait screens do not clip the building. Empty floors have a useful default.
 
 Settings now fits compact screens, scrolls its tabs, and closes with Escape from
 inside the dialog. Browser testing caught 3D controls blocking the compact floor
@@ -30,10 +32,11 @@ preview can render; replaced marker geometry is disposed.
 Walkthrough handles rejected mouse capture with a visible keyboard fallback,
 clears placement modes on entry, and releases its controls on unmount.
 
-Validation at implementation: 216 unit tests pass; type checking has zero errors
+Validation at implementation: 220 unit tests pass; type checking has zero errors
 and 24 remaining warnings; the production build passes. Tests raycast through
 actual Three.js wall meshes from floor-relative cameras on four mixed-height
-storeys, including a basement, and cover invalid data, legacy defaults, additions,
+storeys, including a basement, project all eight bounds corners into portrait and
+landscape camera views, and cover invalid data, legacy defaults, additions,
 removal, persistence and undo/redo. Browser coverage adds desktop and 390 px
 workflows for editing, reset, undo/redo, import/export, save/reload and stacked
 views, plus desktop walkthrough and rejected-mouse-capture coverage. Final CI, interactive and rollout results are
