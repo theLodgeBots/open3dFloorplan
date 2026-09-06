@@ -1,6 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { get } from 'svelte/store';
+  import { openAISettings, setOpenAIModel } from '$lib/stores/aiKeys';
+  import { generateOpenAIRenderImage, validateOpenAIConfig, getEffectiveModel, normalizeBaseUrl } from '$lib/utils/openaiClient';
+  import OpenAIModelPicker from '$lib/components/ai/OpenAIModelPicker.svelte';
   import { activeFloor, currentProject, selectedElementId } from '$lib/stores/project';
   import type { Floor, Wall, Door, Window as Win, Stair } from '$lib/models/types';
   import { getWallStartHeight, getWallEndHeight } from '$lib/models/types';
@@ -130,13 +133,24 @@
     { id: 'gemini-2.5-flash-image', name: 'Nano Banana (2.5 Flash)', desc: 'Fast & efficient image gen ✓' },
     { id: 'gemini-3-pro-image-preview', name: 'Nano Banana Pro (3 Pro)', desc: 'Best quality, thinking, up to 4K ✓' },
   ];
-  let openaiModel = $state('gpt-image-1');
-  const OPENAI_MODELS = [
-    { id: 'gpt-5.2', name: 'GPT-5.2', desc: 'Latest model' },
-    { id: 'gpt-image-1', name: 'GPT Image 1', desc: 'Best image quality' },
-    { id: 'gpt-4.1', name: 'GPT-4.1', desc: 'Vision + image gen' },
-    { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', desc: 'Fast & affordable' },
-  ];
+  let openaiModel = $state('');
+  let renderController: AbortController | null = null;
+
+  function cancelAIRender() {
+    if (!renderController) return;
+    renderController.abort(); renderController = null; aiRendering = false;
+    aiRenderError = 'Request cancelled. The provider may still finish and charge for work already started.';
+  }
+
+  function saveRenderModel() {
+    try { setOpenAIModel(openaiModel); }
+    catch { aiRenderError = 'Browser storage is unavailable. This model will be used for this render only.'; }
+  }
+
+  function providerDestination(): string {
+    try { return normalizeBaseUrl($openAISettings.baseUrl); }
+    catch { return 'Invalid provider URL. Update Settings → AI.'; }
+  }
 
   function buildAIPrompt(): string {
     let prompt = `Transform this interior 3D floor plan render into a ${aiRenderStyle} image. `;
@@ -157,136 +171,86 @@
     offRenderer.shadowMap.enabled = true;
     offRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
     offRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-    if (cameraHelper) cameraHelper.visible = false;
-    setSpritesVisible(false);
-    offRenderer.render(scene!, interiorCamera!);
-    if (cameraHelper) cameraHelper.visible = true;
-    setSpritesVisible(true);
-    const dataUrl = offRenderer.domElement.toDataURL('image/png');
-    offRenderer.dispose();
-    return dataUrl;
+    const helperVisible = cameraHelper?.visible ?? true;
+    try {
+      if (cameraHelper) cameraHelper.visible = false;
+      setSpritesVisible(false);
+      offRenderer.render(scene!, interiorCamera!);
+      return offRenderer.domElement.toDataURL('image/png');
+    } finally {
+      if (cameraHelper) cameraHelper.visible = helperVisible;
+      setSpritesVisible(true);
+      offRenderer.dispose();
+    }
   }
 
   async function runAIRender() {
-    if (!scene || !interiorCamera) return;
-
-    if (aiProvider === 'gemini') {
-      await runGeminiRender();
-    } else {
-      await runOpenAIRender();
+    if (!scene || !interiorCamera || aiRendering) return;
+    const controller = new AbortController();
+    renderController = controller; aiRendering = true;
+    aiRenderResult = null; aiRenderError = null;
+    try {
+      const result = aiProvider === 'gemini' ? await runGeminiRender(controller.signal) : await runOpenAIRender(controller.signal);
+      if (renderController === controller) aiRenderResult = result;
+    } catch (error) {
+      if (renderController === controller) aiRenderError = error instanceof Error ? error.message : 'Rendering failed.';
+    } finally {
+      if (renderController === controller) { aiRendering = false; renderController = null; }
     }
   }
 
-  async function runGeminiRender() {
+  async function runGeminiRender(signal: AbortSignal): Promise<string> {
     const geminiKey = localStorage.getItem('o3d_gemini_key');
     if (!geminiKey) {
-      alert('Please add your Gemini API key in Settings > AI tab first.');
-      return;
+      throw new Error('Please add your Gemini API key in Settings → AI first.');
     }
 
-    aiRendering = true;
-    aiRenderResult = null; aiRenderError = null;
+    const imageDataUrl = captureSceneBase64(1024, 576);
+    const base64Image = imageDataUrl.split(',')[1];
+    const prompt = buildAIPrompt();
 
-    try {
-      const imageDataUrl = captureSceneBase64(1024, 576);
-      const base64Image = imageDataUrl.split(',')[1];
-      const prompt = buildAIPrompt();
-
-      const requestBody: any = {
-        contents: [{
-          parts: [
-            { inlineData: { mimeType: 'image/png', data: base64Image } },
-            { text: prompt }
-          ]
-        }],
-        generationConfig: {
-          responseModalities: ['TEXT', 'IMAGE'],
-        }
-      };
-      requestBody.generationConfig.imageConfig = { aspectRatio: '16:9' };
-
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${aiModel}:generateContent?key=${geminiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (!response.ok) {
-        const err = await response.text();
-        throw new Error(`API error: ${response.status} — ${err}`);
+    const requestBody: any = {
+      contents: [{
+        parts: [
+          { inlineData: { mimeType: 'image/png', data: base64Image } },
+          { text: prompt }
+        ]
+      }],
+      generationConfig: {
+        responseModalities: ['TEXT', 'IMAGE'],
       }
+    };
+    requestBody.generationConfig.imageConfig = { aspectRatio: '16:9' };
 
-      const data = await response.json();
-      const parts = data.candidates?.[0]?.content?.parts ?? [];
-      const imagePart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
-      if (imagePart) {
-        aiRenderResult = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
-      } else {
-        const textPart = parts.find((p: any) => p.text && !p.thought);
-        throw new Error(textPart?.text || 'No image returned. Try a different model or prompt.');
-      }
-    } catch (e: any) {
-      aiRenderError = e.message;
-    } finally {
-      aiRendering = false;
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${aiModel}:generateContent?key=${geminiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+      signal: AbortSignal.any([signal, AbortSignal.timeout(180_000)]),
+      credentials: 'omit', referrerPolicy: 'no-referrer', redirect: 'error',
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(`API error: ${response.status} — ${err}`);
+    }
+
+    const data = await response.json();
+    const parts = data.candidates?.[0]?.content?.parts ?? [];
+    const imagePart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
+    if (imagePart) {
+      return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+    } else {
+      const textPart = parts.find((p: any) => p.text && !p.thought);
+      throw new Error(textPart?.text || 'No image returned. Try a different model or prompt.');
     }
   }
 
-  async function runOpenAIRender() {
-    const openaiKey = localStorage.getItem('o3d_openai_key');
-    if (!openaiKey) {
-      alert('Please add your OpenAI API key in Settings > AI tab first.');
-      return;
-    }
-
-    aiRendering = true;
-    aiRenderResult = null; aiRenderError = null;
-
-    try {
-      const imageDataUrl = captureSceneBase64(1024, 576);
-      const base64Image = imageDataUrl.split(',')[1];
-      const prompt = buildAIPrompt();
-
-      // Use OpenAI Responses API with image_generation tool
-      const requestBody = {
-        model: openaiModel,
-        input: [
-          { role: 'user', content: [
-            { type: 'input_image', image_url: `data:image/png;base64,${base64Image}` },
-            { type: 'input_text', text: prompt }
-          ]}
-        ],
-        tools: [{ type: 'image_generation', quality: 'high', size: '1536x1024' }]
-      };
-
-      const response = await fetch('https://api.openai.com/v1/responses', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openaiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (!response.ok) {
-        const err = await response.text();
-        throw new Error(`OpenAI API error: ${response.status} — ${err}`);
-      }
-
-      const data = await response.json();
-      const imageOutput = data.output?.find((o: any) => o.type === 'image_generation_call');
-      if (imageOutput?.result) {
-        aiRenderResult = `data:image/png;base64,${imageOutput.result}`;
-      } else {
-        const textOutput = data.output?.find((o: any) => o.type === 'message');
-        const msg = textOutput?.content?.[0]?.text || JSON.stringify(data.output);
-        throw new Error(`No image returned. Response: ${msg}`);
-      }
-    } catch (e: any) {
-      aiRenderError = e.message;
-    } finally {
-      aiRendering = false;
-    }
+  async function runOpenAIRender(signal: AbortSignal): Promise<string> {
+    const config = { ...get(openAISettings), model: openaiModel };
+    validateOpenAIConfig(config);
+    const imageDataUrl = captureSceneBase64(1024, 576);
+    return generateOpenAIRenderImage(config, imageDataUrl.split(',')[1], buildAIPrompt(), fetch, signal);
   }
 
   function downloadAIRender() {
@@ -2020,6 +1984,10 @@
   }
 
   onMount(() => {
+    const stopAISettings = openAISettings.subscribe(config => {
+      cancelAIRender();
+      openaiModel = getEffectiveModel(config);
+    });
     init();
     animate();
 
@@ -2033,6 +2001,7 @@
 
     const unsub = activeFloor.subscribe((f) => {
       if (currentFloor?.id !== f?.id) {
+        cancelAIRender();
         if (walkthroughMode) exitWalkthroughMode();
         cameraPlaced = false;
         cameraPreviewOpen = false;
@@ -2082,6 +2051,8 @@
     });
 
     return () => {
+      cancelAIRender();
+      stopAISettings();
       stopTextures();
       resizeObs.disconnect();
       unsub();
@@ -2239,10 +2210,10 @@
       <div class="flex items-center justify-between px-3 py-2 border-b border-gray-700">
         <span class="text-white text-sm font-medium">📷 Interior Camera</span>
         <div class="flex gap-2">
-          <button class="text-xs text-blue-400 hover:text-blue-300" onclick={() => { aiRenderOpen = !aiRenderOpen; }}>
+          <button class="text-xs text-blue-400 hover:text-blue-300" onclick={() => { cancelAIRender(); aiRenderOpen = !aiRenderOpen; }}>
             {aiRenderOpen ? 'Hide AI' : '✨ AI Render'}
           </button>
-          <button class="text-gray-400 hover:text-white text-lg leading-none" onclick={() => { cameraPreviewOpen = false; if (cameraHelper) { wallGroup.remove(cameraHelper); cameraHelper = null; } cameraPlaced = false; aiRenderOpen = false; aiRenderResult = null; aiRenderError = null; }} aria-label="Close camera">✕</button>
+          <button class="text-gray-400 hover:text-white text-lg leading-none" onclick={() => { cancelAIRender(); cameraPreviewOpen = false; if (cameraHelper) { wallGroup.remove(cameraHelper); cameraHelper = null; } cameraPlaced = false; aiRenderOpen = false; aiRenderResult = null; aiRenderError = null; }} aria-label="Close camera">✕</button>
         </div>
       </div>
       <!-- Preview canvas with drag-to-rotate -->
@@ -2313,26 +2284,28 @@
           <div class="flex rounded-lg overflow-hidden border border-gray-700">
             <button
               class="flex-1 text-xs py-1.5 font-medium transition-colors {aiProvider === 'gemini' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-gray-200'}"
-              onclick={() => { aiProvider = 'gemini'; }}
+              onclick={() => { cancelAIRender(); aiProvider = 'gemini'; }}
             >Gemini</button>
             <button
               class="flex-1 text-xs py-1.5 font-medium transition-colors {aiProvider === 'openai' ? 'bg-green-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-gray-200'}"
-              onclick={() => { aiProvider = 'openai'; }}
+              onclick={() => { cancelAIRender(); aiProvider = 'openai'; }}
             >OpenAI</button>
           </div>
 
-          <label class="block">
-            <span class="text-[10px] text-gray-400 block mb-1">Model</span>
-            {#if aiProvider === 'gemini'}
-              <select bind:value={aiModel} class="w-full bg-gray-800 text-gray-200 text-xs rounded px-1.5 py-1.5 border border-gray-700">
+          {#if aiProvider === 'gemini'}
+            <label class="block">
+              <span class="text-[10px] text-gray-400 block mb-1">Model</span>
+              <select bind:value={aiModel} disabled={aiRendering} class="w-full bg-gray-800 text-gray-200 text-xs rounded px-1.5 py-1.5 border border-gray-700">
                 {#each AI_MODELS as m}<option value={m.id}>{m.name} — {m.desc}</option>{/each}
               </select>
-            {:else}
-              <select bind:value={openaiModel} class="w-full bg-gray-800 text-gray-200 text-xs rounded px-1.5 py-1.5 border border-gray-700">
-                {#each OPENAI_MODELS as m}<option value={m.id}>{m.name} — {m.desc}</option>{/each}
-              </select>
-            {/if}
-          </label>
+            </label>
+          {:else}
+            <div class="text-gray-200 space-y-2">
+              <p class="text-xs break-all">Provider: {providerDestination()}</p>
+              <OpenAIModelPicker config={$openAISettings} bind:model={openaiModel} id="render-openai-model" disabled={aiRendering} onchange={saveRenderModel} />
+              <p class="text-xs text-gray-400">The camera image goes directly to this provider. Provider charges may apply.</p>
+            </div>
+          {/if}
 
           <div class="grid grid-cols-3 gap-2">
             <label class="block">
@@ -2377,6 +2350,10 @@
               ✨ Generate Photorealistic Render
             {/if}
           </button>
+
+          {#if aiRendering}
+            <button type="button" onclick={cancelAIRender} class="w-full py-2 text-sm text-gray-200 border border-gray-600 rounded-lg">Cancel render</button>
+          {/if}
 
           {#if aiRenderError}
             <div class="bg-red-900/30 border border-red-700 rounded-lg p-3 space-y-2">

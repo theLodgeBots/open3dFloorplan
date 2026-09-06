@@ -4,6 +4,7 @@
   import { currentProject, updateProjectName } from '$lib/stores/project';
   import type { Project } from '$lib/models/types';
   import { themePreference, type ThemePreference } from '$lib/stores/theme';
+  import OpenAISettings from '$lib/components/ai/OpenAISettings.svelte';
   import FloorElevations from './FloorElevations.svelte';
 
   let { open = $bindable(false) }: { open: boolean } = $props();
@@ -33,14 +34,10 @@
   let geminiKey = $state('');
   let geminiKeyVisible = $state(false);
   let geminiKeySaved = $state(false);
-  let openaiKey = $state('');
-  let openaiKeyVisible = $state(false);
-  let openaiKeySaved = $state(false);
 
   // Load API keys from localStorage
   if (typeof window !== 'undefined') {
     geminiKey = localStorage.getItem('o3d_gemini_key') ?? '';
-    openaiKey = localStorage.getItem('o3d_openai_key') ?? '';
   }
 
   function saveGeminiKey() {
@@ -62,27 +59,6 @@
     }
     geminiKeySaved = true;
     setTimeout(() => { geminiKeySaved = false; }, 2000);
-  }
-
-  function saveOpenAIKey() {
-    if (typeof window !== 'undefined') {
-      if (openaiKey.trim()) {
-        localStorage.setItem('o3d_openai_key', openaiKey.trim());
-      } else {
-        localStorage.removeItem('o3d_openai_key');
-      }
-      openaiKeySaved = true;
-      setTimeout(() => { openaiKeySaved = false; }, 2000);
-    }
-  }
-
-  function clearOpenAIKey() {
-    openaiKey = '';
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('o3d_openai_key');
-    }
-    openaiKeySaved = true;
-    setTimeout(() => { openaiKeySaved = false; }, 2000);
   }
 
   let currentTheme = $state<ThemePreference>('system');
@@ -364,53 +340,7 @@
               </ol>
             </div>
 
-            <!-- OpenAI API Key -->
-            <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">OpenAI API Key</span>
-              <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Optional — enables OpenAI image generation as an alternative to Gemini. Stored locally only.</p>
-              <div class="flex gap-2">
-                <div class="relative flex-1">
-                  <input
-                    type={openaiKeyVisible ? 'text' : 'password'}
-                    value={openaiKey}
-                    oninput={(e) => { openaiKey = (e.target as HTMLInputElement).value; }}
-                    class="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-mono focus:ring-2 focus:ring-slate-500 focus:border-slate-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-100"
-                    placeholder="sk-..."
-                  />
-                  <button
-                    class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-sm"
-                    onclick={() => openaiKeyVisible = !openaiKeyVisible}
-                    aria-label={openaiKeyVisible ? 'Hide key' : 'Show key'}
-                  >
-                    {openaiKeyVisible ? '🙈' : '👁️'}
-                  </button>
-                </div>
-              </div>
-              <div class="flex gap-2 mt-3">
-                <button
-                  class="px-4 py-2 text-sm font-medium bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors"
-                  onclick={saveOpenAIKey}
-                >
-                  {openaiKeySaved ? '✓ Saved' : 'Save Key'}
-                </button>
-                {#if openaiKey}
-                  <button
-                    class="px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                    onclick={clearOpenAIKey}
-                  >
-                    Remove
-                  </button>
-                {/if}
-              </div>
-              <div class="mt-3">
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">How to get an OpenAI key</span>
-                <ol class="text-xs text-gray-500 dark:text-gray-400 space-y-1 list-decimal list-inside">
-                  <li>Go to <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" class="text-blue-500 hover:underline">OpenAI Platform</a></li>
-                  <li>Click "Create new secret key"</li>
-                  <li>Copy and paste it above</li>
-                </ol>
-              </div>
-            </div>
+            <OpenAISettings />
           </div>
         {/if}
       </div>
