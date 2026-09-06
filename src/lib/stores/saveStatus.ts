@@ -1,6 +1,6 @@
 import { writable, get } from 'svelte/store';
 import { currentProject, loadProject } from './project';
-import { localStore, storageErrorMessage, ProjectConflictError, PROJECTS_STORAGE_KEY } from '$lib/services/datastore';
+import { localStore, storageErrorMessage, ProjectConflictError, PROJECTS_STORAGE_KEY, LIBRARY_CHANGE_KEY } from '$lib/services/datastore';
 import { saveSnapshot } from '$lib/stores/versionHistory';
 import type { Project } from '$lib/models/types';
 
@@ -35,13 +35,14 @@ export function initAutoSave() {
     }
     markDirty();
   });
-  const onStorage = (event: StorageEvent) => {
-    if (event.key !== null && event.key !== PROJECTS_STORAGE_KEY) return;
-    if (event.storageArea && event.storageArea !== localStorage) return;
+  let disposed = false;
+  const checkCurrent = async () => {
     const project = get(currentProject);
     if (!project) return;
-    try { localStore.assertCurrent(project.id); }
+    const attempt = saveAttempt;
+    try { await localStore.assertCurrent(project.id); }
     catch (error) {
+      if (disposed || get(currentProject) !== project || attempt !== saveAttempt) return;
       clearSaveTimer();
       saveAttempt++;
       saveState.set('unsaved');
@@ -49,11 +50,23 @@ export function initAutoSave() {
       saveConflict.set(error instanceof ProjectConflictError);
     }
   };
-  if (typeof window !== 'undefined') window.addEventListener('storage', onStorage);
+  const onStorage = (event: StorageEvent) => {
+    if (event.key !== null && event.key !== PROJECTS_STORAGE_KEY && event.key !== LIBRARY_CHANGE_KEY) return;
+    if (event.storageArea && event.storageArea !== localStorage) return;
+    void checkCurrent();
+  };
+  if (typeof window !== 'undefined') {
+    window.addEventListener('storage', onStorage);
+    window.addEventListener('focus', checkCurrent);
+  }
   const stop = () => {
+    disposed = true;
     unsubscribe();
     clearSaveTimer();
-    if (typeof window !== 'undefined') window.removeEventListener('storage', onStorage);
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('focus', checkCurrent);
+    }
     if (stopWatching === stop) stopWatching = null;
   };
   stopWatching = stop;

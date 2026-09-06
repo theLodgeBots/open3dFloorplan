@@ -23,24 +23,24 @@
     return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
-  function onRestore(index: number) {
+  async function onRestore(index: number, snapshot: Snapshot) {
     const p = get(currentProject);
     if (!p) return;
     if (!confirm('Restore this version? Current unsaved changes will be lost.')) return;
-    if (restoreSnapshot(p.id, index)) open = false;
+    if (await restoreSnapshot(p.id, index, snapshot)) open = false;
   }
 
-  function onClearAll() {
+  async function onClearAll() {
     const p = get(currentProject);
     if (!p) return;
     if (!confirm('Delete all version history for this project?')) return;
-    try { deleteAllSnapshots(p.id); }
+    try { await deleteAllSnapshots(p.id); }
     catch { snapshotError.set('Could not clear version history. Allow site storage and try again.'); }
   }
-  function backupHistory() {
+  async function backupHistory() {
     const project = get(currentProject);
     if (!project) return;
-    try { downloadSnapshotBackup(project.id); }
+    try { await downloadSnapshotBackup(project.id); }
     catch (error) { snapshotError.set(error instanceof Error ? error.message : 'Could not download version history.'); }
   }
 </script>
@@ -79,7 +79,7 @@
                 <div class="text-xs text-gray-400">{formatTime(snap.timestamp)}</div>
               </div>
               <button
-                onclick={() => onRestore(realIndex)}
+                onclick={() => onRestore(realIndex, snap)}
                 class="text-xs px-2.5 py-1 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 font-medium shrink-0 ml-2"
               >
                 Restore

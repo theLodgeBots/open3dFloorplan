@@ -54,8 +54,8 @@
   let importError = $state<string | null>(null);
   let loadError = $state<string | null>(null);
 
-  function backupLibrary() {
-    try { downloadLibraryBackup(); }
+  async function backupLibrary() {
+    try { await downloadLibraryBackup(); }
     catch (error) { loadError = storageErrorMessage(error); }
   }
 

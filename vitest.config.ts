@@ -12,6 +12,7 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    setupFiles: ['tests/fixtures/indexeddb.ts'],
     include: ['tests/**/*.test.ts'],
     restoreMocks: true,
     unstubGlobals: true,

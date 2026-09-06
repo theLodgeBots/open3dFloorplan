@@ -1,3 +1,4 @@
+import { savedProjects as saved, failProjectWrites } from './storage';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -27,10 +28,6 @@ async function exported(page: Page) {
   const pending = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download JSON', exact: true }).click();
   return JSON.parse(await readFile((await (await pending).path())!, 'utf8'));
-}
-async function saved(page: Page) {
-  return page.evaluate(() => Object.fromEntries(Object.entries(JSON.parse(localStorage.getItem('floorplan_projects')!))
-    .map(([id, raw]) => [id, JSON.parse(raw as string)])));
 }
 function observe(page: Page) {
   const errors: string[] = [], external: string[] = [];
@@ -67,14 +64,7 @@ for (const width of [1440, 390]) {
 
     // A full-storage recovery failure must leave the conflicting plan in memory.
     if (width === 1440) {
-      await other.evaluate(() => {
-        const original = Storage.prototype.setItem;
-        (window as any).failCopyWrite = true;
-        Storage.prototype.setItem = function(key, value) {
-          if (key === 'floorplan_projects' && (window as any).failCopyWrite) throw new DOMException('Full', 'QuotaExceededError');
-          return original.call(this, key, value);
-        };
-      });
+      await failProjectWrites(other, 'failCopyWrite');
       await other.getByRole('button', { name: 'Save as copy', exact: true }).click();
       await expect(other.getByRole('alert')).toContainText('Browser storage is full');
       expect((await exported(other)).id).toBe(source.id);

@@ -355,3 +355,7 @@ recreating deleted projects. Current tabs coordinate library writes, retain
 conflicting work for backup and offer Save as copy. Recovery preserves later
 edits and failed-copy paths. See [the batch report](2026-09-06-local-save-conflicts.md)
 for browser compatibility limits and validation. All processing remains local.
+
+## Fourteenth batch — IndexedDB local library
+
+Projects, previews and ten-version histories move into separate IndexedDB stores with atomic migration, retained legacy recovery bytes, transaction-complete save status and old-tab recovery copies. Full-library backups are available from the library. This removes localStorage's project-size bottleneck without adding Firebase storage. See [implementation and verification](2026-09-06-indexeddb-library.md). Whole-library restore UI, image deduplication and complete two-way iPhone file exchange remain follow-up work; issue #30 still covers the device release, quota cutover and billing controls.

@@ -119,7 +119,7 @@ it('saves immediately but captures a thumbnail only after the canvas redraws', a
     querySelector: () => ({ width: 600, height: 400 }),
     createElement: () => ({ getContext: () => ({ drawImage }), toDataURL: () => renderedPlan }),
   });
-  const preview = vi.spyOn(localStore, 'saveThumbnail').mockImplementation(() => {});
+  const preview = vi.spyOn(localStore, 'saveThumbnail').mockResolvedValue();
   expect(await autoSave()).toBe(true);
   expect(get(saveState)).toBe('saved');
   expect(preview).not.toHaveBeenCalled();
@@ -176,7 +176,7 @@ it('notifies about external project changes without replacing local work and rem
 it('ignores unrelated storage events and other project writes', () => {
   stop();
   const events = new EventTarget(); vi.stubGlobal('window', events);
-  const check = vi.spyOn(localStore, 'assertCurrent').mockImplementation(() => {});
+  const check = vi.spyOn(localStore, 'assertCurrent').mockResolvedValue();
   stop = initAutoSave();
   events.dispatchEvent(Object.assign(new Event('storage'), { key: 'settings' }));
   expect(check).not.toHaveBeenCalled();

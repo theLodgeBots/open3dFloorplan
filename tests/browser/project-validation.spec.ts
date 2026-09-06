@@ -1,3 +1,4 @@
+import { storedRecords } from './storage';
 import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -40,7 +41,7 @@ for (const width of [1440, 390]) {
     await thickness.fill('32.5'); await thickness.press('Tab');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     const saved = await exportProject(page), url = page.url();
-    const library = await page.evaluate(() => localStorage.getItem('floorplan_projects'));
+    const library = await storedRecords(page);
     const changes: [string, (project: any) => void][] = [
       ['walls[0].start', p => p.floors[0].walls[0].start = null],
       ['doors[0].wallId', p => p.floors[0].doors[0].wallId = 'missing'],
@@ -55,7 +56,7 @@ for (const width of [1440, 390]) {
       await expect(page.getByRole('alert')).toContainText('No project was imported.');
       expect(page.url()).toBe(url);
       expect(await exportProject(page)).toEqual(saved);
-      expect(await page.evaluate(() => localStorage.getItem('floorplan_projects'))).toBe(library);
+      expect(await storedRecords(page)).toEqual(library);
       await expect(thickness).toHaveValue('32.5');
       await page.getByRole('button', { name: 'Dismiss import error', exact: true }).click();
     }
@@ -84,7 +85,7 @@ test('welcome import recovers from a damaged file and accepts missing legacy fie
   await (await pending).setFiles(damagedFixture);
   await expect(page.getByRole('alert')).toContainText('walls[0].start');
   await expect(page.getByRole('heading', { name: 'Welcome', exact: true })).toBeVisible();
-  expect(await page.evaluate(() => localStorage.getItem('floorplan_projects'))).toBeNull();
+  expect(await storedRecords(page)).toEqual({});
   await page.getByRole('button', { name: 'Dismiss import error', exact: true }).click();
   const retry = page.waitForEvent('filechooser'); await importButton.click();
   await (await retry).setFiles(resolve('tests/fixtures/legacy-native.openplan.json'));
@@ -109,7 +110,9 @@ test('damaged saved geometry offers an exact raw backup without hiding healthy p
   await expect(page.getByRole('alert')).toContainText('walls[0].start');
   const pending = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download library backup', exact: true }).click();
-  expect(await readFile((await (await pending).path())!, 'utf8')).toBe(raw);
+  const backup = JSON.parse(await readFile((await (await pending).path())!, 'utf8'));
+  expect(backup.projects).toEqual(JSON.parse(raw));
+  expect(backup.legacy.original.floorplan_projects).toBe(raw);
   expect(await page.evaluate(() => localStorage.getItem('floorplan_projects'))).toBe(raw);
   await page.goto('/editor?id=qa-healthy-neighbor');
   await expect(page.getByRole('application')).toContainText('1 room');
@@ -134,7 +137,7 @@ test('a damaged version stays available for backup and cannot replace the curren
   await dialog.getByRole('group', { name: 'Damaged snapshot', exact: true }).getByRole('button', { name: 'Restore', exact: true }).click();
   await expect(dialog.getByRole('alert')).toContainText('walls[0].start');
   await expect(dialog.getByRole('alert')).toContainText('Your current plan has not changed.');
-  const raw = await page.evaluate(id => localStorage.getItem(`vh_${id}`), source.id);
+  const raw = (await storedRecords(page, 'history'))[source.id];
   const pending = page.waitForEvent('download');
   await dialog.getByRole('button', { name: 'Download version backup', exact: true }).click();
   expect(await readFile((await (await pending).path())!, 'utf8')).toBe(raw);
