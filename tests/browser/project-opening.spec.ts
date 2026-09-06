@@ -1,3 +1,4 @@
+import { savedProjects as library, storedRecords, failProjectWrites as failWrites } from './storage';
 import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -36,10 +37,6 @@ async function exportJSON(page: Page) {
   await page.getByRole('button', { name: 'Download JSON', exact: true }).click();
   return JSON.parse(await readFile((await (await pending).path())!, 'utf8'));
 }
-async function library(page: Page) {
-  return page.evaluate(() => Object.fromEntries(Object.entries(JSON.parse(localStorage.getItem('floorplan_projects')!))
-    .map(([id, raw]) => [id, JSON.parse(raw as string)])));
-}
 function observe(page: Page) {
   const errors: string[] = [], external: string[] = [];
   page.on('pageerror', e => errors.push(e.message));
@@ -48,17 +45,6 @@ function observe(page: Page) {
   });
   return () => { expect(errors).toEqual([]); expect(external).toEqual([]); };
 }
-async function failWrites(page: Page) {
-  await page.evaluate(() => {
-    const setItem = Storage.prototype.setItem;
-    (window as any).failProjectWrites = true;
-    Storage.prototype.setItem = function(key, value) {
-      if (key === 'floorplan_projects' && (window as any).failProjectWrites) throw new DOMException('Full', 'QuotaExceededError');
-      return setItem.call(this, key, value);
-    };
-  });
-}
-
 for (const width of [1440, 390]) {
   test(`same-ID imports preserve pending edits and reopen as separate copies at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
@@ -144,7 +130,7 @@ test('sidebar RoomPlan import and toolbar New Project preserve pending predecess
   await expect(page.getByRole('combobox', { name: 'Current floor' }).locator('option')).toHaveText(['Entry', 'Loft', 'Future Floor']);
   expect((await library(page))[source.id].name).toBe('Before RoomPlan import');
   const imported = await exportJSON(page);
-  const importedPreview = await page.evaluate(id => localStorage.getItem(`floorplan_thumb_${id}`), imported.id);
+  const importedPreview = (await storedRecords(page, 'thumbnails'))[imported.id];
   expect(importedPreview).toBeTruthy();
   await rename(page, 'Before New Project');
   expect((await library(page))[imported.id].name).toBe(imported.name);
@@ -153,8 +139,8 @@ test('sidebar RoomPlan import and toolbar New Project preserve pending predecess
   await expect(page.getByRole('application')).toContainText('0 walls');
   const created = await exportJSON(page);
   expect(created.id).not.toBe(imported.id);
-  await expect.poll(() => page.evaluate(id => localStorage.getItem(`floorplan_thumb_${id}`), created.id)).toBeTruthy();
-  expect(await page.evaluate(id => localStorage.getItem(`floorplan_thumb_${id}`), created.id)).not.toBe(importedPreview);
+  await expect.poll(async () => (await storedRecords(page, 'thumbnails'))[created.id]).toBeTruthy();
+  expect((await storedRecords(page, 'thumbnails'))[created.id]).not.toBe(importedPreview);
   expect((await library(page))[imported.id].name).toBe('Before New Project');
   await page.reload(); expect((await exportJSON(page)).id).toBe(created.id);
   check();

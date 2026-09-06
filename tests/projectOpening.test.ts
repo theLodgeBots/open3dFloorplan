@@ -1,3 +1,4 @@
+import { rawRecords, putRaw } from './fixtures/indexeddb';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
 import { openProject } from '$lib/services/projectOpening';
@@ -17,7 +18,7 @@ function deferred<T>() {
 }
 
 beforeEach(async () => {
-  vi.useFakeTimers();
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
   storage = new Map();
   vi.stubGlobal('localStorage', {
     getItem: (key: string) => storage.get(key) ?? null,
@@ -52,23 +53,23 @@ it('does not write the previous project again when it is already saved', async (
 
 it('validates before any save or state change, even with pending current edits', async () => {
   updateProjectName('Unsaved but safe');
-  const before = get(currentProject), raw = storage.get('floorplan_projects');
+  const before = get(currentProject), raw = await rawRecords();
   const candidate: any = roomProject(); candidate.floors[0].walls[0].start = null;
   const saved = vi.spyOn(localStore, 'save');
   await expect(openProject(() => candidate)).rejects.toThrow('walls[0].start');
   expect(saved).not.toHaveBeenCalled();
   expect(get(currentProject)).toBe(before);
-  expect(storage.get('floorplan_projects')).toBe(raw);
+  expect(await rawRecords()).toEqual(raw);
   expect(get(saveState)).toBe('unsaved');
 });
 
 it('retains current work and refuses replacement after a failed current save', async () => {
   updateProjectName('Cannot lose this');
-  const before = get(currentProject), raw = storage.get('floorplan_projects');
+  const before = get(currentProject), raw = await rawRecords();
   vi.spyOn(localStore, 'save').mockRejectedValue(new DOMException('Full', 'QuotaExceededError'));
   await expect(openProject(roomProject)).rejects.toThrow('Your current plan could not be saved. Browser storage is full');
   expect(get(currentProject)).toBe(before);
-  expect(storage.get('floorplan_projects')).toBe(raw);
+  expect(await rawRecords()).toEqual(raw);
   expect(get(saveState)).toBe('unsaved');
 });
 
@@ -86,13 +87,11 @@ it('imports a current-ID collision as a copy without changing the input or losin
 
 it('preserves a different saved entry with a colliding ID, including unreadable geometry', async () => {
   const candidate = roomProject(); candidate.id = '__proto__';
-  const raw = JSON.parse(storage.get('floorplan_projects')!);
-  Object.defineProperty(raw, candidate.id, { value: '{original damaged bytes', enumerable: true });
-  storage.set('floorplan_projects', JSON.stringify(raw));
+  await putRaw('projects', candidate.id, '{original damaged bytes');
   expect(await localStore.has(candidate.id)).toBe(true);
   const opened = await openProject(() => candidate);
   expect(opened!.id).not.toBe(candidate.id);
-  expect(JSON.parse(storage.get('floorplan_projects')!)[candidate.id]).toBe('{original damaged bytes');
+  expect((await rawRecords())[candidate.id]).toBe('{original damaged bytes');
 });
 
 it('keeps a candidate available for export if its own save fails after preserving the old work', async () => {

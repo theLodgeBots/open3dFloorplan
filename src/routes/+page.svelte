@@ -27,8 +27,8 @@
     catch (error) { libraryError = storageErrorMessage(error); }
   }
 
-  function backupLibrary() {
-    try { downloadLibraryBackup(); }
+  async function backupLibrary() {
+    try { await downloadLibraryBackup(); }
     catch (error) { libraryError = storageErrorMessage(error); }
   }
 
@@ -36,12 +36,7 @@
     projects = await localStore.list();
     // Sort by most recent
     projects.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-    // Load thumbnails
-    const thumbs: Record<string, string | null> = {};
-    for (const p of projects) {
-      thumbs[p.id] = localStore.getThumbnail(p.id);
-    }
-    thumbnails = thumbs;
+    thumbnails = await localStore.getThumbnails();
   }
 
   onMount(() => {
@@ -79,7 +74,7 @@
       const dup = await localStore.duplicate(id);
       if (dup) {
         projects = (await localStore.list()).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-        thumbnails = { ...thumbnails, [dup.id]: localStore.getThumbnail(dup.id) };
+        thumbnails = { ...thumbnails, [dup.id]: await localStore.getThumbnail(dup.id) };
       }
       contextMenuId = null;
     });
@@ -159,6 +154,12 @@
   </div>
 
   <div class="max-w-5xl mx-auto px-6 py-8">
+    {#if !libraryError && projects.length > 0}
+      <div class="mb-5 flex flex-wrap items-center justify-between gap-2 text-sm text-gray-500">
+        <p>Projects and version history are saved in this browser.</p>
+        <button class="font-semibold text-blue-600 underline" onclick={backupLibrary}>Download library backup</button>
+      </div>
+    {/if}
     {#if libraryError}
       <div role="alert" class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-900">
         <p>{libraryError}</p>

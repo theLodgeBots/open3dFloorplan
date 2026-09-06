@@ -2,6 +2,8 @@ import { writable, get } from 'svelte/store';
 import { currentProject, loadProject } from './project';
 import { readProject } from '$lib/utils/projectValidation';
 import type { Project } from '$lib/models/types';
+import { readRecord, updateRecord } from '$lib/services/localDatabase';
+import { storageErrorMessage } from '$lib/services/datastore';
 
 export interface Snapshot {
   timestamp: number;
@@ -12,14 +14,9 @@ export interface Snapshot {
 const MAX_SNAPSHOTS = 10;
 const SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
-function storageKey(projectId: string): string {
-  return `vh_${projectId}`;
-}
-
 export const snapshotError = writable<string | null>(null);
 
-export function getSnapshots(projectId: string): Snapshot[] {
-  const raw = localStorage.getItem(storageKey(projectId));
+function parseSnapshots(raw: string | null): Snapshot[] {
   if (raw === null) return [];
   try {
     const snapshots = JSON.parse(raw);
@@ -32,9 +29,13 @@ export function getSnapshots(projectId: string): Snapshot[] {
   }
 }
 
+export async function getSnapshots(projectId: string): Promise<Snapshot[]> {
+  return parseSnapshots(await readRecord('history', projectId));
+}
+
 /** Keep the raw history bytes available even if a snapshot cannot be opened. */
-export function downloadSnapshotBackup(projectId: string) {
-  const raw = localStorage.getItem(storageKey(projectId));
+export async function downloadSnapshotBackup(projectId: string) {
+  const raw = await readRecord('history', projectId);
   if (raw === null) throw new Error('No saved version history was found.');
   const url = URL.createObjectURL(new Blob([raw], { type: 'application/json' }));
   const link = document.createElement('a');
@@ -42,102 +43,88 @@ export function downloadSnapshotBackup(projectId: string) {
   URL.revokeObjectURL(url);
 }
 
-function persistSnapshots(projectId: string, snapshots: Snapshot[]) {
+export const snapshotsStore = writable<Snapshot[]>([]);
+let refreshRequest = 0;
+const writeErrors = new Map<string, string>();
+
+export async function saveSnapshot(project: Project, description: string) {
+  // Freeze now: the editor may keep changing while storage is busy.
+  const snapshot = { timestamp: Date.now(), description, data: JSON.stringify(project) };
   try {
-    localStorage.setItem(storageKey(projectId), JSON.stringify(snapshots));
-  } catch (e) {
-    // localStorage full — prune harder
-    console.warn('[VersionHistory] Storage full, pruning to 5 snapshots');
-    const pruned = snapshots.slice(-5);
-    try {
-      localStorage.setItem(storageKey(projectId), JSON.stringify(pruned));
-    } catch {
-      console.error('[VersionHistory] Cannot save snapshots');
+    await updateRecord('history', project.id, raw => {
+      const snapshots = parseSnapshots(raw);
+      return JSON.stringify([...snapshots, snapshot].slice(-MAX_SNAPSHOTS));
+    });
+    writeErrors.delete(project.id);
+    if (get(currentProject)?.id === project.id) await refreshSnapshots();
+    return true;
+  } catch (error) {
+    const message = storageErrorMessage(error);
+    writeErrors.set(project.id, message);
+    if (get(currentProject)?.id === project.id) snapshotError.set(message);
+    return false; // Failed writes retain all previous versions, with no pruning retry.
+  }
+}
+
+export async function restoreSnapshot(projectId: string, index: number, expected?: Snapshot): Promise<boolean> {
+  const before = get(currentProject);
+  try {
+    const snapshots = await getSnapshots(projectId);
+    if (get(currentProject) !== before || before?.id !== projectId) return false;
+    if (!Number.isInteger(index) || index < 0 || index >= snapshots.length ||
+        (expected && JSON.stringify(snapshots[index]) !== JSON.stringify(expected))) {
+      throw new Error('This version changed. Close and reopen version history, then choose it again.');
     }
-  }
-}
-
-export function saveSnapshot(project: Project, description: string) {
-  let snapshots: Snapshot[];
-  try { snapshots = getSnapshots(project.id); }
-  catch (error) {
-    snapshotError.set(error instanceof Error ? error.message : 'Could not read version history.');
-    return; // Never replace an unreadable history with a new, empty one.
-  }
-  snapshots.push({
-    timestamp: Date.now(),
-    description,
-    data: JSON.stringify(project),
-  });
-  // Prune to keep last MAX_SNAPSHOTS
-  while (snapshots.length > MAX_SNAPSHOTS) {
-    snapshots.shift();
-  }
-  persistSnapshots(project.id, snapshots);
-  snapshotsStore.set(snapshots);
-}
-
-export function restoreSnapshot(projectId: string, index: number): boolean {
-  try {
-    const snapshots = getSnapshots(projectId);
-    if (!Number.isInteger(index) || index < 0 || index >= snapshots.length) throw new Error('This version is no longer available.');
     const project = readProject(JSON.parse(snapshots[index].data));
     if (project.id !== projectId) throw new Error('This version belongs to a different project.');
     loadProject(project);
     snapshotError.set(null);
     return true;
   } catch (error) {
-    snapshotError.set(`${error instanceof Error ? error.message : 'Could not read this version.'} Your current plan has not changed.`);
+    if (get(currentProject) === before) snapshotError.set(`${error instanceof Error ? error.message : 'Could not read this version.'} Your current plan has not changed.`);
     return false;
   }
 }
 
-export function deleteAllSnapshots(projectId: string) {
-  localStorage.removeItem(storageKey(projectId));
-  snapshotsStore.set([]);
-  snapshotError.set(null);
+export async function deleteAllSnapshots(projectId: string) {
+  await updateRecord('history', projectId, () => null);
+  writeErrors.delete(projectId);
+  if (get(currentProject)?.id === projectId) await refreshSnapshots();
 }
 
-// Reactive store for current project's snapshots
-export const snapshotsStore = writable<Snapshot[]>([]);
-
-// Refresh snapshots store for current project
-export function refreshSnapshots() {
-  snapshotError.set(null);
-  const p = get(currentProject);
-  try { snapshotsStore.set(p ? getSnapshots(p.id) : []); }
-  catch (error) {
+export async function refreshSnapshots() {
+  const request = ++refreshRequest, p = get(currentProject);
+  try {
+    const snapshots = p ? await getSnapshots(p.id) : [];
+    if (request === refreshRequest && get(currentProject)?.id === p?.id) {
+      snapshotsStore.set(snapshots);
+      snapshotError.set(p ? writeErrors.get(p.id) ?? null : null);
+    }
+  } catch (error) {
+    if (request !== refreshRequest || get(currentProject)?.id !== p?.id) return;
     snapshotsStore.set([]);
-    snapshotError.set(error instanceof Error ? error.message : 'Could not read version history.');
+    snapshotError.set(storageErrorMessage(error));
   }
 }
 
-// Auto-snapshot timer
 let intervalId: ReturnType<typeof setInterval> | null = null;
 
 export function initVersionHistory() {
   if (intervalId) return;
-  // Take a snapshot every 5 minutes
   intervalId = setInterval(() => {
     const p = get(currentProject);
-    if (p) saveSnapshot(p, 'Auto-save');
+    if (p) void saveSnapshot(p, 'Auto-save');
   }, SNAPSHOT_INTERVAL_MS);
-  // Initial snapshot
   const p = get(currentProject);
-  if (p) {
-    saveSnapshot(p, 'Session start');
-  }
+  if (p) void saveSnapshot(p, 'Session start');
 }
 
 export function stopVersionHistory() {
-  if (intervalId) {
-    clearInterval(intervalId);
-    intervalId = null;
-  }
+  if (intervalId) clearInterval(intervalId);
+  intervalId = null;
 }
 
-/** Create a snapshot on major actions (call manually) */
 export function snapshotOnAction(description: string) {
   const p = get(currentProject);
-  if (p) saveSnapshot(p, description);
+  if (p) void saveSnapshot(p, description);
 }

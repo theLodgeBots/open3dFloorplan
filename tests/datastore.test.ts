@@ -1,3 +1,4 @@
+import { mockStorage, rawRecords, failWrites } from './fixtures/indexeddb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { localStore } from '$lib/services/datastore';
 import { createDefaultProject } from '$lib/stores/project';
@@ -7,13 +8,8 @@ let data: Map<string, string>;
 let setItem: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
-  data = new Map();
-  setItem = vi.fn((key: string, value: string) => { data.set(key, value); });
-  vi.stubGlobal('localStorage', {
-    getItem: (key: string) => data.get(key) ?? null,
-    setItem,
-    removeItem: (key: string) => data.delete(key),
-  });
+  data = mockStorage();
+  setItem = vi.mocked(localStorage.setItem);
 });
 
 describe('local project persistence', () => {
@@ -35,17 +31,12 @@ describe('local project persistence', () => {
     const second = createDefaultProject('Second');
     await localStore.save(first);
     await localStore.save(second);
-    const before = data.get(key);
-    // A smaller retry would succeed, reproducing the old destructive fallback.
-    setItem.mockImplementation((key: string, value: string) => {
-      if (Object.keys(JSON.parse(value)).length > 1) throw new DOMException('Full', 'QuotaExceededError');
-      data.set(key, value);
-    });
-    setItem.mockClear();
+    const before = await rawRecords();
+    const restore = failWrites();
     second.name = 'Unsaved change';
     await expect(localStore.save(second)).rejects.toMatchObject({ name: 'QuotaExceededError' });
-    expect(setItem).toHaveBeenCalledTimes(1);
-    expect(data.get(key)).toBe(before);
+    expect(await rawRecords()).toEqual(before);
+    restore();
   });
 
   it.each(['{broken', 'null', '[]', '{"existing":42}'])('refuses to overwrite an unreadable library: %s', async (raw) => {
@@ -64,10 +55,10 @@ describe('local project persistence', () => {
   it('does not create a partial duplicate when storage fills up', async () => {
     const project = createDefaultProject();
     await localStore.save(project);
-    const before = data.get(key);
-    setItem.mockImplementation(() => { throw new DOMException('Full', 'QuotaExceededError'); });
+    const before = await rawRecords();
+    failWrites();
     await expect(localStore.duplicate(project.id)).rejects.toMatchObject({ name: 'QuotaExceededError' });
-    expect(data.get(key)).toBe(before);
+    expect(await rawRecords()).toEqual(before);
   });
 });
 
