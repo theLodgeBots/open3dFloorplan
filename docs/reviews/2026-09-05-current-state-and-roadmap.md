@@ -323,3 +323,11 @@ cancellation, and bounded error handling. Its unrestricted hosted proxy is remov
 no AI image storage or proxy bandwidth is added to Firebase. See
 [direct AI provider review](2026-09-06-direct-ai-providers.md) for the transport
 contract, compatibility limitations, contributor credit and validation.
+
+## Tenth batch: connected wall dimensions
+
+Issue #45 repairs numeric wall resizing so joined corners and room metadata survive
+length changes. It adds fixed-endpoint selection, invalid/blank dimension recovery,
+fractional lengths, consistent undo/redo, and simultaneous access to layers and
+properties on desktop. See [the batch report](2026-09-06-connected-wall-dimensions.md).
+No Firebase Storage or iPhone schema changes are introduced.

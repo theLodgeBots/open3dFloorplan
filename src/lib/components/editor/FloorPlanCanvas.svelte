@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { connectedWallEndpoints } from '$lib/utils/wallEditing';
   import { startAnimationLoop } from '$lib/utils/animationLoop';
   import { activeFloor, selectedTool, selectedElementId, selectedElementIds, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, updateDoor, updateWindow, addFurniture, moveFurniture, transformFurnitureDuringDrag, commitFurnitureMove, rotateFurniture, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateWall, moveWallParallel, splitWall, snapEnabled, placingStair, addStair, moveStair, updateStair, placingColumn, placingColumnShape, addColumn, moveColumn, updateColumn, calibrationMode, calibrationPoints, updateBackgroundImage, setBackgroundImage, canvasZoom, canvasCamX, canvasCamY, panMode, showFurnitureStore, addGuide, moveGuide, removeGuide, beginUndoGroup, endUndoGroup, layerVisibility, updateRoom, addMeasurement, removeMeasurement, addAnnotation, removeAnnotation, updateAnnotation, addTextAnnotation, removeTextAnnotation, updateTextAnnotation, moveTextAnnotation, toggleFurnitureLock, createGroup, ungroupElements, findGroupForElement, placingEntourageId, addEntourageItem, moveEntourage, resizeEntourage, currentProject, elevationWallId, elevationPickMode } from '$lib/stores/project';
   import type { Point, Wall, Door, Window as Win, FurnitureItem, Stair, Column, GuideLine, Measurement, Annotation, TextAnnotation, CustomEntourageDef } from '$lib/models/types';
@@ -286,19 +287,7 @@
 
   /** Find all other wall endpoints that share the same point (within tolerance) */
   function findConnectedEndpoints(pt: Point, excludeWallId: string): { wallId: string; endpoint: 'start' | 'end' }[] {
-    const tolerance = 2;
-    const results: { wallId: string; endpoint: 'start' | 'end' }[] = [];
-    if (!currentFloor) return results;
-    for (const w of currentFloor.walls) {
-      if (w.id === excludeWallId) continue;
-      if (Math.hypot(w.start.x - pt.x, w.start.y - pt.y) < tolerance) {
-        results.push({ wallId: w.id, endpoint: 'start' });
-      }
-      if (Math.hypot(w.end.x - pt.x, w.end.y - pt.y) < tolerance) {
-        results.push({ wallId: w.id, endpoint: 'end' });
-      }
-    }
-    return results;
+    return currentFloor ? connectedWallEndpoints(currentFloor.walls, pt, excludeWallId) : [];
   }
 
   function magneticSnap(p: Point, excludeWallIds?: Set<string>): Point & { snappedToEndpoint?: boolean; snappedToWall?: boolean; snappedWallId?: string } {

@@ -1,5 +1,6 @@
 import { writable, derived, get } from 'svelte/store';
 import type { Project, Floor, Wall, Door, Window as Win, FurnitureItem, Point, Stair, Column, BackgroundImage, GuideLine, ElementGroup, EntourageItem } from '$lib/models/types';
+import { planWallResize, finitePoint, validPositiveDimension, validOpeningPosition, type WallEndpoint } from '$lib/utils/wallEditing';
 import { getOuterWalls } from '$lib/utils/outerWalls';
 import { nextFloorLevel, floorElevations, validFloorElevation, DEFAULT_FLOOR_SPACING } from '$lib/utils/floors';
 import { getWallStartHeight, getWallEndHeight, getWallHeightAt, validWallHeight } from '$lib/models/types';
@@ -562,7 +563,33 @@ export function moveWallEndpoint(id: string, endpoint: 'start' | 'end', position
   }
 }
 
+/** Resize joined corners atomically. Openings keep their normalized wall positions. */
+export function resizeWallLength(id: string, length: number, fixed: WallEndpoint = 'start'): string | null {
+  const floor = get(activeFloor);
+  if (!floor) return 'Select a floor first.';
+  let changes: Map<string, Partial<Wall>>;
+  try { changes = planWallResize(floor.walls, id, length, fixed); }
+  catch (error) { return error instanceof Error ? error.message : 'The wall could not be resized.'; }
+  if (!changes.size) return null;
+  mutate(f => {
+    for (const wall of f.walls) {
+      const updates = changes.get(wall.id);
+      if (updates) Object.assign(wall, updates);
+    }
+  }, 'Resized connected wall', `wall-length:${id}:${fixed}`);
+  return null;
+}
+
+function unchangedFields(current: object, updates: object): boolean {
+  return Object.entries(updates).every(([key, value]) => Object.is((current as Record<string, unknown>)[key], value));
+}
+
 export function updateWall(id: string, updates: Partial<Wall>) {
+  const wall = get(activeFloor)?.walls.find(w => w.id === id);
+  if (!wall || unchangedFields(wall, updates)) return;
+  if ('thickness' in updates && !validPositiveDimension(updates.thickness)) return;
+  if (['start', 'end'].some(key => key in updates && !finitePoint(updates[key as 'start' | 'end']))) return;
+  if (updates.curvePoint !== undefined && !finitePoint(updates.curvePoint)) return;
   if (['height', 'startHeight', 'endHeight'].some(key => key in updates && !validWallHeight(updates[key as keyof Wall]))) return;
   mutate((f) => {
     const w = f.walls.find((w) => w.id === id);
@@ -614,6 +641,10 @@ export function reverseWall(id: string) {
 }
 
 export function updateDoor(id: string, updates: Partial<Door>) {
+  const door = get(activeFloor)?.doors.find(d => d.id === id);
+  if (!door || unchangedFields(door, updates)) return;
+  if (['width', 'height'].some(key => key in updates && !validPositiveDimension(updates[key as 'width' | 'height']))) return;
+  if ('position' in updates && !validOpeningPosition(updates.position)) return;
   mutate((f) => {
     const d = f.doors.find((d) => d.id === id);
     if (d) Object.assign(d, updates);
@@ -621,6 +652,11 @@ export function updateDoor(id: string, updates: Partial<Door>) {
 }
 
 export function updateWindow(id: string, updates: Partial<Win>) {
+  const window = get(activeFloor)?.windows.find(w => w.id === id);
+  if (!window || unchangedFields(window, updates)) return;
+  if (['width', 'height'].some(key => key in updates && !validPositiveDimension(updates[key as 'width' | 'height']))) return;
+  if ('sillHeight' in updates && !validWallHeight(updates.sillHeight)) return;
+  if ('position' in updates && !validOpeningPosition(updates.position)) return;
   mutate((f) => {
     const w = f.windows.find((w) => w.id === id);
     if (w) Object.assign(w, updates);

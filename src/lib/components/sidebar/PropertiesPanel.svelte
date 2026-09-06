@@ -2,7 +2,8 @@
   import { onDestroy } from 'svelte';
   import { catalogAssetUrl } from '$lib/utils/catalogAssetUrl';
 
-  import { activeFloor, selectedElementId, selectedRoomId, updateWall, reverseWall, updateDoor, updateWindow, updateRoom, updateFurniture, detectedRoomsStore, updateStair, updateColumn, updateBackgroundImage, setBackgroundImage, calibrationMode, calibrationPoints, updateTextAnnotation, toggleFurnitureLock, updateEntourageItem, removeElement, elevationWallId } from '$lib/stores/project';
+  import { activeFloor, selectedElementId, selectedRoomId, updateWall, resizeWallLength, reverseWall, updateDoor, updateWindow, updateRoom, updateFurniture, detectedRoomsStore, updateStair, updateColumn, updateBackgroundImage, setBackgroundImage, calibrationMode, calibrationPoints, updateTextAnnotation, toggleFurnitureLock, updateEntourageItem, removeElement, elevationWallId } from '$lib/stores/project';
+  import { wallLength as calcWallLength, MIN_WALL_LENGTH, type WallEndpoint } from '$lib/utils/wallEditing';
   import { openingOnWall } from '$lib/utils/wallProfiles';
   import { getEntourageDef } from '$lib/utils/entourageCatalog';
   import { floorMaterials, wallColors } from '$lib/utils/materials';
@@ -25,7 +26,7 @@
   onDestroy(projectSettings.subscribe((s) => { settings = s; }));
 
   function displayValue(cm: number): number {
-    return settings.units === 'imperial' ? Math.round(cm / 2.54 * 10) / 10 : cm;
+    return settings.units === 'imperial' ? Math.round(cm / 2.54 * 10) / 10 : Math.round(cm * 1000) / 1000;
   }
   function inputToCm(value: number): number {
     return settings.units === 'imperial' ? value * 2.54 : value;
@@ -51,59 +52,41 @@
   let selectedDoorWall = $derived((selectedDoor && floor?.walls?.find(w => w.id === selectedDoor.wallId)) ?? null);
   let selectedWindowWall = $derived((selectedWindow && floor?.walls?.find(w => w.id === selectedWindow.wallId)) ?? null);
 
-  // Helper function to calculate wall length
-  function calcWallLength(wall: Wall): number {
-    if (wall.curvePoint) {
-      let len = 0; const N = 20;
-      let px = wall.start.x, py = wall.start.y;
-      for (let i = 1; i <= N; i++) {
-        const t = i / N, mt = 1 - t;
-        const nx = mt*mt*wall.start.x + 2*mt*t*wall.curvePoint.x + t*t*wall.end.x;
-        const ny = mt*mt*wall.start.y + 2*mt*t*wall.curvePoint.y + t*t*wall.end.y;
-        len += Math.hypot(nx - px, ny - py); px = nx; py = ny;
-      }
-      return len;
-    }
-    return Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
-  }
-
-  let wallLength = $derived(selectedWall ? Math.round(calcWallLength(selectedWall)) : 0);
+  let wallLength = $derived(selectedWall ? Math.round(calcWallLength(selectedWall) * 1000) / 1000 : 0);
+  let fixedEndpoint = $state<WallEndpoint>('start');
+  let wallLengthError = $state<string | null>(null);
+  $effect(() => { void selId; fixedEndpoint = 'start'; wallLengthError = null; });
 
   // Calculate door distances
-  let doorDistFromA = $derived(selectedDoor && selectedDoorWall ? Math.round(calcWallLength(selectedDoorWall) * selectedDoor.position) : 0);
-  let doorDistFromB = $derived(selectedDoor && selectedDoorWall ? Math.round(calcWallLength(selectedDoorWall) * (1 - selectedDoor.position)) : 0);
+  let doorDistFromA = $derived(selectedDoor && selectedDoorWall ? calcWallLength(selectedDoorWall) * selectedDoor.position : 0);
+  let doorDistFromB = $derived(selectedDoor && selectedDoorWall ? calcWallLength(selectedDoorWall) * (1 - selectedDoor.position) : 0);
 
   // Calculate window distances  
-  let windowDistFromA = $derived(selectedWindow && selectedWindowWall ? Math.round(calcWallLength(selectedWindowWall) * selectedWindow.position) : 0);
-  let windowDistFromB = $derived(selectedWindow && selectedWindowWall ? Math.round(calcWallLength(selectedWindowWall) * (1 - selectedWindow.position)) : 0);
+  let windowDistFromA = $derived(selectedWindow && selectedWindowWall ? calcWallLength(selectedWindowWall) * selectedWindow.position : 0);
+  let windowDistFromB = $derived(selectedWindow && selectedWindowWall ? calcWallLength(selectedWindowWall) * (1 - selectedWindow.position) : 0);
 
   function onWallLength(e: Event) {
     if (!selectedWall) return;
-    const target = e.target as HTMLInputElement;
-    const newLen = inputToCm(Number(target.value));
-    if (!isFinite(newLen) || newLen <= 0) return;
-    const currentLen = calcWallLength(selectedWall);
-    if (currentLen < 0.01) return;
-    const scale = newLen / currentLen;
-    const sx = selectedWall.start.x;
-    const sy = selectedWall.start.y;
-    const updates: Partial<Wall> = {
-      end: {
-        x: sx + (selectedWall.end.x - sx) * scale,
-        y: sy + (selectedWall.end.y - sy) * scale,
-      },
-    };
-    if (selectedWall.curvePoint) {
-      updates.curvePoint = {
-        x: sx + (selectedWall.curvePoint.x - sx) * scale,
-        y: sy + (selectedWall.curvePoint.y - sy) * scale,
-      };
-    }
-    updateWall(selectedWall.id, updates);
+    const input = e.target as HTMLInputElement;
+    const current = calcWallLength(selectedWall);
+    if (!input.value.trim() || !input.validity.valid || !Number.isFinite(input.valueAsNumber)) {
+      wallLengthError = 'Enter a wall length of at least 1 cm.';
+    } else if (input.valueAsNumber !== displayValue(current)) {
+      wallLengthError = resizeWallLength(selectedWall.id, inputToCm(input.valueAsNumber), fixedEndpoint);
+    } else { wallLengthError = null; }
+    input.value = String(displayValue(calcWallLength(selectedWall)));
+  }
+
+  /** Blank/invalid drafts leave geometry untouched; restore the saved value on blur. */
+  function dimensionInput(e: Event, current: number, save: (cm: number) => void, zeroAllowed = false, max = Infinity) {
+    const input = e.target as HTMLInputElement;
+    const value = inputToCm(input.valueAsNumber);
+    const valid = input.value.trim() && input.validity.valid && Number.isFinite(value) && (zeroAllowed ? value >= 0 : value > 0) && value <= max;
+    if (valid && input.valueAsNumber !== displayValue(current)) save(value);
+    else if (!valid && e.type === 'blur') input.value = String(displayValue(current));
   }
   function onWallThickness(e: Event) {
-    if (!selectedWall) return;
-    updateWall(selectedWall.id, { thickness: inputToCm(Number((e.target as HTMLInputElement).value)) });
+    if (selectedWall) dimensionInput(e, selectedWall.thickness, value => updateWall(selectedWall!.id, { thickness: value }));
   }
   let clippedOpenings = $derived.by(() => {
     if (!selectedWall || !floor) return false;
@@ -116,18 +99,10 @@
     });
   });
   function onWallStartHeight(e: Event) {
-    if (!selectedWall) return;
-    const input = e.target as HTMLInputElement;
-    if (!input.value.trim() || !input.validity.valid) { if (e.type === 'blur') input.value = String(displayValue(getWallStartHeight(selectedWall))); return; }
-    const height = inputToCm(input.valueAsNumber);
-    if (height !== getWallStartHeight(selectedWall)) updateWall(selectedWall.id, { startHeight: height });
+    if (selectedWall) dimensionInput(e, getWallStartHeight(selectedWall), value => updateWall(selectedWall!.id, { startHeight: value }), true);
   }
   function onWallEndHeight(e: Event) {
-    if (!selectedWall) return;
-    const input = e.target as HTMLInputElement;
-    if (!input.value.trim() || !input.validity.valid) { if (e.type === 'blur') input.value = String(displayValue(getWallEndHeight(selectedWall))); return; }
-    const height = inputToCm(input.valueAsNumber);
-    if (height !== getWallEndHeight(selectedWall)) updateWall(selectedWall.id, { endHeight: height });
+    if (selectedWall) dimensionInput(e, getWallEndHeight(selectedWall), value => updateWall(selectedWall!.id, { endHeight: value }), true);
   }
   function equalizeWallHeights() {
     if (!selectedWall) return;
@@ -139,12 +114,10 @@
     updateWall(selectedWall.id, { color: (e.target as HTMLInputElement).value });
   }
   function onDoorWidth(e: Event) {
-    if (!selectedDoor) return;
-    updateDoor(selectedDoor.id, { width: Math.max(1, inputToCm(Number((e.target as HTMLInputElement).value)) || 1) });
+    if (selectedDoor) dimensionInput(e, selectedDoor.width, value => updateDoor(selectedDoor!.id, { width: value }));
   }
   function onDoorHeight(e: Event) {
-    if (!selectedDoor) return;
-    updateDoor(selectedDoor.id, { height: inputToCm(Number((e.target as HTMLInputElement).value)) });
+    if (selectedDoor) dimensionInput(e, selectedDoor.height ?? 210, value => updateDoor(selectedDoor!.id, { height: value }));
   }
   function onDoorType(e: Event) {
     if (!selectedDoor) return;
@@ -167,16 +140,13 @@
     updateWindow(selectedWindow.id, { type: (e.target as HTMLSelectElement).value as Win['type'] });
   }
   function onWindowWidth(e: Event) {
-    if (!selectedWindow) return;
-    updateWindow(selectedWindow.id, { width: Math.max(1, inputToCm(Number((e.target as HTMLInputElement).value)) || 1) });
+    if (selectedWindow) dimensionInput(e, selectedWindow.width, value => updateWindow(selectedWindow!.id, { width: value }));
   }
   function onWindowHeight(e: Event) {
-    if (!selectedWindow) return;
-    updateWindow(selectedWindow.id, { height: inputToCm(Number((e.target as HTMLInputElement).value)) });
+    if (selectedWindow) dimensionInput(e, selectedWindow.height, value => updateWindow(selectedWindow!.id, { height: value }));
   }
   function onWindowSill(e: Event) {
-    if (!selectedWindow) return;
-    updateWindow(selectedWindow.id, { sillHeight: inputToCm(Number((e.target as HTMLInputElement).value)) });
+    if (selectedWindow) dimensionInput(e, selectedWindow.sillHeight ?? 90, value => updateWindow(selectedWindow!.id, { sillHeight: value }), true);
   }
 
   // Furniture handlers
@@ -215,35 +185,31 @@
   // Door distance handlers
   function onDoorDistFromA(e: Event) {
     if (!selectedDoor || !selectedDoorWall) return;
-    const newDistFromA = inputToCm(Number((e.target as HTMLInputElement).value));
-    const wallLen = calcWallLength(selectedDoorWall);
-    const newPosition = Math.max(0.05, Math.min(0.95, newDistFromA / wallLen));
-    updateDoor(selectedDoor.id, { position: newPosition });
+    const length = calcWallLength(selectedDoorWall);
+    if (!Number.isFinite(length) || length <= 0) return;
+    dimensionInput(e, length * selectedDoor.position, value => updateDoor(selectedDoor!.id, { position: value / length }), true, length);
   }
   
   function onDoorDistFromB(e: Event) {
     if (!selectedDoor || !selectedDoorWall) return;
-    const newDistFromB = inputToCm(Number((e.target as HTMLInputElement).value));
-    const wallLen = calcWallLength(selectedDoorWall);
-    const newPosition = Math.max(0.05, Math.min(0.95, 1 - (newDistFromB / wallLen)));
-    updateDoor(selectedDoor.id, { position: newPosition });
+    const length = calcWallLength(selectedDoorWall);
+    if (!Number.isFinite(length) || length <= 0) return;
+    dimensionInput(e, length * (1 - selectedDoor.position), value => updateDoor(selectedDoor!.id, { position: 1 - value / length }), true, length);
   }
 
   // Window distance handlers
   function onWindowDistFromA(e: Event) {
     if (!selectedWindow || !selectedWindowWall) return;
-    const newDistFromA = inputToCm(Number((e.target as HTMLInputElement).value));
-    const wallLen = calcWallLength(selectedWindowWall);
-    const newPosition = Math.max(0.05, Math.min(0.95, newDistFromA / wallLen));
-    updateWindow(selectedWindow.id, { position: newPosition });
+    const length = calcWallLength(selectedWindowWall);
+    if (!Number.isFinite(length) || length <= 0) return;
+    dimensionInput(e, length * selectedWindow.position, value => updateWindow(selectedWindow!.id, { position: value / length }), true, length);
   }
   
   function onWindowDistFromB(e: Event) {
     if (!selectedWindow || !selectedWindowWall) return;
-    const newDistFromB = inputToCm(Number((e.target as HTMLInputElement).value));
-    const wallLen = calcWallLength(selectedWindowWall);
-    const newPosition = Math.max(0.05, Math.min(0.95, 1 - (newDistFromB / wallLen)));
-    updateWindow(selectedWindow.id, { position: newPosition });
+    const length = calcWallLength(selectedWindowWall);
+    if (!Number.isFinite(length) || length <= 0) return;
+    dimensionInput(e, length * (1 - selectedWindow.position), value => updateWindow(selectedWindow!.id, { position: 1 - value / length }), true, length);
   }
   // Preset colors for rooms and columns
   const roomColorPresets = [
@@ -350,7 +316,7 @@
 </script>
 
 <!-- Right sidebar on md+; slides up as a bottom sheet on phones -->
-<div class="{is3D ? 'w-80' : 'w-64'} shrink-0 bg-white border-l border-gray-200 flex flex-col overflow-y-auto p-3 fixed right-0 top-12 bottom-9 z-40 shadow-lg max-md:top-auto max-md:bottom-0 max-md:left-0 max-md:w-full max-md:max-h-[45vh] max-md:border-l-0 max-md:border-t max-md:rounded-t-xl max-md:shadow-2xl" class:hidden={!hasSelection}>
+<div class="{is3D ? 'w-80' : 'w-64'} shrink-0 bg-white border-l border-gray-200 flex flex-col overflow-y-auto p-3 fixed md:static right-0 top-12 bottom-9 z-40 shadow-lg max-md:top-auto max-md:bottom-0 max-md:left-0 max-md:w-full max-md:max-h-[45vh] max-md:border-l-0 max-md:border-t max-md:rounded-t-xl max-md:shadow-2xl" class:hidden={!hasSelection}>
   {#if selectedWall}
     <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
       <span class="w-6 h-6 bg-gray-200 rounded flex items-center justify-center text-xs">▭</span>
@@ -359,11 +325,20 @@
     <div class="space-y-3">
       <label class="block">
         <span class="text-xs text-gray-500">Length ({unitLabel()})</span>
-        <input type="number" value={displayValue(wallLength)} onchange={onWallLength} min="1" class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        <input type="number" value={displayValue(wallLength)} onblur={onWallLength} onkeydown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }} min={settings.units === 'imperial' ? MIN_WALL_LENGTH / 2.54 : MIN_WALL_LENGTH} step="any" class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
+        <span class="text-xs text-gray-500">Keep fixed</span>
+        <select bind:value={fixedEndpoint} class="w-full px-2 py-1 border border-gray-200 rounded text-sm">
+          <option value="start">Start (A)</option>
+          <option value="end">End (B)</option>
+        </select>
+      </label>
+      <p class="text-xs text-gray-500">Joined corners follow the moving endpoint. Openings keep their relative positions.</p>
+      {#if wallLengthError}<p role="alert" class="text-xs text-red-700">{wallLengthError}</p>{/if}
+      <label class="block">
         <span class="text-xs text-gray-500">Thickness ({unitLabel()})</span>
-        <input type="number" value={displayValue(selectedWall.thickness)} oninput={onWallThickness} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        <input type="number" value={displayValue(selectedWall.thickness)} oninput={onWallThickness} onblur={onWallThickness} step="any" class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <div class="grid grid-cols-2 gap-2">
         <label class="block">
@@ -520,19 +495,19 @@
     <div class="space-y-3">
       <label class="block">
         <span class="text-xs text-gray-500">Width ({unitLabel()})</span>
-        <input type="number" value={displayValue(selectedDoor.width)} oninput={onDoorWidth} min="1" class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        <input type="number" value={displayValue(selectedDoor.width)} oninput={onDoorWidth} onblur={onDoorWidth} step="any" min="0" class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
         <span class="text-xs text-gray-500">Distance from A ({unitLabel()})</span>
-        <input type="number" value={displayValue(doorDistFromA)} oninput={onDoorDistFromA} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        <input type="number" value={displayValue(doorDistFromA)} oninput={onDoorDistFromA} onblur={onDoorDistFromA} step="any" class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
         <span class="text-xs text-gray-500">Distance from B ({unitLabel()})</span>
-        <input type="number" value={displayValue(doorDistFromB)} oninput={onDoorDistFromB} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        <input type="number" value={displayValue(doorDistFromB)} oninput={onDoorDistFromB} onblur={onDoorDistFromB} step="any" class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
         <span class="text-xs text-gray-500">Height ({unitLabel()})</span>
-        <input type="number" value={displayValue(selectedDoor.height ?? 210)} oninput={onDoorHeight} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        <input type="number" value={displayValue(selectedDoor.height ?? 210)} oninput={onDoorHeight} onblur={onDoorHeight} step="any" class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
         <span class="text-xs text-gray-500">Type</span>
@@ -583,23 +558,23 @@
       </label>
       <label class="block">
         <span class="text-xs text-gray-500">Width ({unitLabel()})</span>
-        <input type="number" value={displayValue(selectedWindow.width)} oninput={onWindowWidth} min="1" class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        <input type="number" value={displayValue(selectedWindow.width)} oninput={onWindowWidth} onblur={onWindowWidth} step="any" min="0" class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
         <span class="text-xs text-gray-500">Distance from A ({unitLabel()})</span>
-        <input type="number" value={displayValue(windowDistFromA)} oninput={onWindowDistFromA} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        <input type="number" value={displayValue(windowDistFromA)} oninput={onWindowDistFromA} onblur={onWindowDistFromA} step="any" class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
         <span class="text-xs text-gray-500">Distance from B ({unitLabel()})</span>
-        <input type="number" value={displayValue(windowDistFromB)} oninput={onWindowDistFromB} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        <input type="number" value={displayValue(windowDistFromB)} oninput={onWindowDistFromB} onblur={onWindowDistFromB} step="any" class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
         <span class="text-xs text-gray-500">Height ({unitLabel()})</span>
-        <input type="number" value={displayValue(selectedWindow.height)} oninput={onWindowHeight} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        <input type="number" value={displayValue(selectedWindow.height)} oninput={onWindowHeight} onblur={onWindowHeight} step="any" class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
       <label class="block">
         <span class="text-xs text-gray-500">Sill Height ({unitLabel()})</span>
-        <input type="number" value={displayValue(selectedWindow.sillHeight)} oninput={onWindowSill} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+        <input type="number" value={displayValue(selectedWindow.sillHeight)} oninput={onWindowSill} onblur={onWindowSill} step="any" class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
     </div>
 
