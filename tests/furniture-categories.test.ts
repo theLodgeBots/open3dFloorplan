@@ -101,6 +101,9 @@ it('exporting older saved projects cannot turn retained native categories into c
   expect(packageJSON(files['plan.json']).furniture.map((f: any) => f.category)).toEqual(categories);
   expect(packageJSON(files['plan.json']).furniture[2].width).toBe(1.21875);
   expect(project.floors[0].furniture[2].catalogId).toBe('chair'); // Serialization does not mutate the open editor.
+  const moved = project.floors[0].furniture.splice(2, 1)[0]; project.floors[1].furniture.push(moved);
+  const movedPlan = packageJSON(readPackageZip(projectPackageBytes(project))['plan.json']);
+  expect(movedPlan.furniture.find((f: any) => f.id === moved.id)).toMatchObject({ category: 'bed', width: 1.21875, level: project.floors[1].level });
 });
 it('uses the same mappings for RoomPlan JSON including original unknown names', () => {
   const source = JSON.parse(readFileSync('tests/fixtures/handoff-roomplan.json', 'utf8'));

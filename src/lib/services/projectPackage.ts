@@ -58,7 +58,9 @@ function upgradeLegacyFurniture(project: Project, native: Record<string, any>, m
   // that precise fallback, retaining edits and explicitly different selections.
   for (const entry of mapping.filter(m => m.kind === 'furniture')) {
     const old = native.furniture.find((item: any) => item.id.toLowerCase() === entry.id.toLowerCase());
-    const item = project.floors.find(f => f.id === entry.floorId)?.furniture.find(f => f.id === entry.webId);
+    const candidates = project.floors.flatMap(f => f.furniture).filter(f => f.id === entry.webId);
+    const item = project.floors.find(f => f.id === entry.floorId)?.furniture.find(f => f.id === entry.webId)
+      ?? (candidates.length === 1 ? candidates[0] : undefined);
     const preview = projection.floors.find(f => f.id === entry.floorId)?.furniture.find(f => f.id === entry.webId);
     if (old && !furnitureCatalog.some(def => def.id === old.category) && item?.catalogId === 'chair' && preview) {
       item.catalogId = preview.catalogId;
