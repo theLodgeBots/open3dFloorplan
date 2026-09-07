@@ -4,6 +4,7 @@ import { readProject } from '$lib/utils/projectValidation';
 import type { Project } from '$lib/models/types';
 import { readRecord, updateRecord } from '$lib/services/localDatabase';
 import { storageErrorMessage } from '$lib/services/datastore';
+import { readSnapshotStorage, writeSnapshotStorage } from '$lib/utils/snapshotStorage';
 
 export interface Snapshot {
   timestamp: number;
@@ -19,7 +20,7 @@ export const snapshotError = writable<string | null>(null);
 function parseSnapshots(raw: string | null): Snapshot[] {
   if (raw === null) return [];
   try {
-    const snapshots = JSON.parse(raw);
+    const snapshots = readSnapshotStorage(raw) as Snapshot[];
     if (!Array.isArray(snapshots) || snapshots.some(item => !item ||
         typeof item.timestamp !== 'number' || !Number.isFinite(item.timestamp) ||
         typeof item.description !== 'string' || typeof item.data !== 'string')) throw new Error();
@@ -53,7 +54,7 @@ export async function saveSnapshot(project: Project, description: string) {
   try {
     await updateRecord('history', project.id, raw => {
       const snapshots = parseSnapshots(raw);
-      return JSON.stringify([...snapshots, snapshot].slice(-MAX_SNAPSHOTS));
+      return writeSnapshotStorage([...snapshots, snapshot].slice(-MAX_SNAPSHOTS));
     });
     writeErrors.delete(project.id);
     if (get(currentProject)?.id === project.id) await refreshSnapshots();

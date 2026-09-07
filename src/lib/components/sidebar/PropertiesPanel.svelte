@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
+  import ItemDetailsPanel from './ItemDetailsPanel.svelte';
+  import type { DetailTarget } from '$lib/models/types';
   import { catalogAssetUrl } from '$lib/utils/catalogAssetUrl';
 
   import { activeFloor, selectedElementId, selectedRoomId, updateWall, resizeWallLength, reverseWall, updateDoor, updateWindow, updateRoom, updateFurniture, detectedRoomsStore, updateStair, updateColumn, updateBackgroundImage, setBackgroundImage, calibrationMode, calibrationPoints, updateTextAnnotation, toggleFurnitureLock, updateEntourageItem, removeElement, elevationWallId } from '$lib/stores/project';
@@ -211,6 +213,13 @@
     if (!Number.isFinite(length) || length <= 0) return;
     dimensionInput(e, length * (1 - selectedWindow.position), value => updateWindow(selectedWindow!.id, { position: 1 - value / length }), true, length);
   }
+  let detailTarget = $derived.by((): DetailTarget | null => {
+    if (!floor) return null;
+    for (const [kind, item] of [['walls', selectedWall], ['doors', selectedDoor], ['windows', selectedWindow], ['furniture', selectedFurniture], ['rooms', selectedRoom]] as const) {
+      if (item) return { floorId: floor.id, kind, id: item.id };
+    }
+    return null;
+  });
   // Preset colors for rooms and columns
   const roomColorPresets = [
     { name: 'White', color: '#ffffff' },
@@ -948,6 +957,12 @@
         <input type="number" value={Math.round(selectedTextAnnotation.y)} oninput={(e) => updateTextAnnotation(selectedTextAnnotation!.id, { y: Number((e.target as HTMLInputElement).value) })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
       </label>
     </div>
+  {/if}
+
+  {#if detailTarget}
+    {#key `${detailTarget.floorId}:${detailTarget.kind}:${detailTarget.id}`}
+      <ItemDetailsPanel target={detailTarget} />
+    {/key}
   {/if}
 
   <!-- Background Image Controls (always show when bg image exists) -->

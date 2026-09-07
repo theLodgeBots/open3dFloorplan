@@ -367,3 +367,8 @@ Current and legacy library backups can be previewed and restored as independent 
 ## Sixteenth batch: local iPhone ↔ web project packages
 
 A versioned ZIP carries the current edited plan, referenced attachments and retained native/web data. Both clients preview imports and add independent local copies atomically. Baseline comparisons apply cross-platform edits without flattening untouched web-only fields; actual Swift return fixtures and browser regressions cover both directions. See [package format and fidelity limits](../project-package-v1.md). Equivalent web photo/notes/cost controls and catalog fidelity remain follow-ups; native distribution and Firebase cost controls remain in #30.
+
+
+## Seventeenth batch: local item details and photos
+
+Issue #59 adds web editing for retained item notes, furniture/opening costs, room photos/classification/ceiling metadata and wall construction materials. Local photo import resizes and reuses bytes, with explicit detach/delete behavior and project/history budgets. Saved versions share attachment bytes and retain backup/quota recovery; both old array histories and the new pooled format can be restored. Actual Swift metadata returns, desktop/mobile browser workflows and failure paths verify preservation. See [package and local-storage details](../project-package-v1.md). Catalog/rendering fidelity and native distribution remain further work; Firebase migration/billing gates remain in #30.

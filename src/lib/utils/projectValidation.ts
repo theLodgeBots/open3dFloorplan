@@ -1,4 +1,5 @@
-import type { Project } from '$lib/models/types';
+import type { Project, DetailKind } from '$lib/models/types';
+import { validateItemDetails, validateRetainedDetailState } from './itemDetails';
 
 /** Read untrusted native files without mutating their input or the active editor. */
 export function readProject(value: unknown): Project {
@@ -50,6 +51,11 @@ export function readProject(value: unknown): Project {
   text(project!.id, 'id', true);
   defaults(project!, { name: 'Untitled Project' });
   text(project!.name, 'name'); strings(project!, ['description'], 'document');
+  if (project!.projectPackage !== undefined) validateRetainedDetailState(project!.projectPackage);
+  if (project!.attachmentNames !== undefined) {
+    record(project!.attachmentNames, 'attachmentNames');
+    for (const [name, label] of Object.entries(project!.attachmentNames)) text(label, `attachmentNames.${name}`);
+  }
   const floors = list(project!, 'floors', 'document', false);
   if (floors.length === 0) fail('floors', 'must contain at least one floor');
   const floorIds = new Set<string>();
@@ -69,6 +75,7 @@ export function readProject(value: unknown): Project {
         record(item, itemPath); text(item.id, `${itemPath}.id`, true);
         if (seen.has(item.id)) fail(`${itemPath}.id`, 'duplicates another element on this floor');
         seen.add(item.id); validate(item, itemPath);
+        if (['walls', 'doors', 'windows', 'furniture', 'rooms'].includes(key) && item.details !== undefined) validateItemDetails(item.details, key as DetailKind);
       }
     };
     const positioned = (item: Record<string, any>, path: string) => {

@@ -3,6 +3,7 @@ import { readProject } from '$lib/utils/projectValidation';
 import { PACKAGE_LIMIT, jsonBytes, packageJSON, packageError, readPackageZip, writePackageZip, safePackagePath, crc32 } from '$lib/utils/projectPackageZip';
 import { applyNativeEdits, nativeAssetNames, nativeToWeb, validatePackageMapping, validatePackagePlan, webToNative, type PackageMapping } from '$lib/utils/projectPackageBridge';
 import { prepareLibraryRestore } from './libraryRestore';
+import type { DetailKind } from '$lib/models/types';
 
 type PackageState = { version: 1; native: Record<string, any>; mapping: PackageMapping; assets: Record<string, string> };
 const docs = ['manifest.json', 'plan.json', 'web.json', 'baseline.json', 'mapping.json'];
@@ -13,7 +14,7 @@ function validateLocalImages(project: Project) {
     packageError('Project images must be embedded raster images. Download a JSON backup to preserve external image references.');
   }
 }
-export const PACKAGE_NOTICE = 'Photos, item notes, costs and native details travel with this package. Edit those on iPhone. The iPhone preview simplifies web-only features; their original data stays in the package for return to the web.';
+export const PACKAGE_NOTICE = 'Photos, item notes and costs travel with this package and can be edited in Item details. Retained native metadata stays available on iPhone. The iPhone preview simplifies web-only features; their original data stays in the package for return to the web.';
 const encode64 = (data: Uint8Array) => {
   let text = '';
   for (let i = 0; i < data.length; i += 0x8000) text += String.fromCharCode(...data.subarray(i, i + 0x8000));
@@ -83,7 +84,7 @@ export function projectPackageBytes(value: Project): Uint8Array {
   return writePackageZip({
     'manifest.json': jsonBytes({ format: 'openplan3d-project', version: 1, producer: 'web', title: project.name }),
     'plan.json': jsonBytes(plan), 'web.json': jsonBytes(project),
-    'baseline.json': jsonBytes({ ...plan, openplanUnderlayFloorId: underlayFloorId, openplanAssetChecksums: Object.fromEntries(Object.entries(assets).map(([path, data]) => [path, crc32(data)])) }),
+    'baseline.json': jsonBytes({ ...plan, openplanItemDetailsVersion: 1, openplanUnderlayFloorId: underlayFloorId, openplanAssetChecksums: Object.fromEntries(Object.entries(assets).map(([path, data]) => [path, crc32(data)])) }),
     'mapping.json': jsonBytes({ entries: mapping }), ...assets,
   });
 }
@@ -103,8 +104,20 @@ export function readProjectPackage(bytes: Uint8Array): { project: Project; asset
     validateLocalImages(source);
     if ((source as any).projectPackage !== undefined) packageError('Nested project packages are not supported.');
     const baseline = validatePackagePlan(packageJSON(files['baseline.json']));
+    if (baseline.openplanItemDetailsVersion !== undefined && baseline.openplanItemDetailsVersion !== 1) packageError('Unsupported item-details baseline version.');
     const before = nativeToWeb(baseline, mapping, manifest.title), after = nativeToWeb(plan, mapping, manifest.title);
     project = applyNativeEdits(source, before, after);
+    // Older web releases retain unknown detail fields but cannot apply native
+    // metadata edits to them. Their baseline has no detail-version marker, so
+    // the current native plan is authoritative for the newly shared fields.
+    if (baseline.openplanItemDetailsVersion !== 1) for (const floor of after.floors) {
+      const target = project.floors.find(f => f.id === floor.id);
+      if (!target) continue;
+      for (const kind of ['walls', 'doors', 'windows', 'furniture', 'rooms'] as DetailKind[]) for (const item of floor[kind]) {
+        const found = target[kind].find(i => i.id === item.id);
+        if (found) found.details = { ...found.details, ...item.details };
+      }
+    }
     // Native movement/size changes to a shared underlay update its web placement;
     // unchanged native previews preserve rotation, opacity and other web-only choices.
     const underlayFloor = project.floors.find(f => f.id === baseline.openplanUnderlayFloorId);
@@ -123,6 +136,7 @@ export function readProjectPackage(bytes: Uint8Array): { project: Project; asset
   project.name = manifest.title;
   // Rebuild identities for the current native plan, retaining source web IDs.
   const resolved = webToNative(project, plan, mapping);
+  for (const filename of nativeAssetNames(resolved.plan)) if (!assets[`assets/${filename}`]) packageError(`Missing attachment: ${filename}.`);
   (project as any).projectPackage = { version: 1, native: plan, mapping: resolved.mapping, assets: Object.fromEntries(Object.entries(assets).map(([name, data]) => [name, encode64(data)])) } satisfies PackageState;
   return { project: readProject(project), assets: Object.keys(assets).length, warnings: [PACKAGE_NOTICE, ...(plan.underlay && !underlayBackground(plan, assets) ? ['The tracing image format is retained for iPhone but cannot be previewed here.'] : [])] };
 }

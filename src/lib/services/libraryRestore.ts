@@ -1,4 +1,5 @@
 import { readProject } from '$lib/utils/projectValidation';
+import { readSnapshotStorage, writeSnapshotStorage } from '$lib/utils/snapshotStorage';
 import { migrateLegacy, notifyLibraryChange, request, transaction, withDatabase } from './localDatabase';
 
 type StringMap = Record<string, string>;
@@ -89,7 +90,7 @@ export function prepareLibraryRestore(raw: string, sourceName = 'Library backup'
     if (history[id] !== undefined) {
       let damaged = 0;
       try {
-        const snapshots = JSON.parse(history[id]);
+        const snapshots = readSnapshotStorage(history[id]) as any[];
         if (!Array.isArray(snapshots)) throw new Error();
         for (const item of snapshots) {
           try {
@@ -164,7 +165,7 @@ export function prepareLibraryRestore(raw: string, sourceName = 'Library backup'
             project.id = id; project.name = copyName(project.name);
             return { ...item, data: JSON.stringify(project) };
           });
-          await request(tx.objectStore('history').add(JSON.stringify(versions), id));
+          await request(tx.objectStore('history').add(writeSnapshotStorage(versions), id));
         }
         saved.push({ id, name: project.name });
       }

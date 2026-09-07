@@ -33,7 +33,7 @@ for (const width of [1440, 390]) test(`native package preview/import/edit/reload
   await choose(page);
   await expect(dialog).toContainText('QA Project Package');
   await expect(dialog).toContainText('3 floors · 5 walls · 2 attachment files');
-  await expect(dialog).toContainText('Photos, item notes, costs and native details travel with this package.');
+  await expect(dialog).toContainText('Photos, item notes and costs travel with this package and can be edited in Item details.');
   expect(await storedRecords(page)).toEqual(before);
   await testInfo.attach(`package-preview-${width}`, { body: await page.screenshot(), contentType: 'image/png' });
   await dialog.getByRole('button', { name: 'Import as copy', exact: true }).click();

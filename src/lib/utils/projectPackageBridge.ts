@@ -1,12 +1,13 @@
-import type { Project } from '$lib/models/types';
+import type { Project, DetailKind, PackageMapping } from '$lib/models/types';
 import { createDefaultFloor, createDefaultProject } from '$lib/stores/project';
 import { readProject } from './projectValidation';
 import { detectRooms, getRoomPolygon, roomCentroid } from './roomDetection';
 import { getCatalogItem, getFurnitureSize } from './furnitureCatalog';
 import { packageError, safePackagePath } from './projectPackageZip';
+import { nativeItemDetails, withNativeDetails } from './itemDetails';
 
 type ObjectMap = Record<string, any>;
-export type PackageMapping = { id: string; kind: string; webId: string; floorId?: string }[];
+export type { PackageMapping } from '$lib/models/types';
 const kinds = ['walls', 'openings', 'furniture', 'rooms', 'notes', 'levels'];
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const packageId = () => crypto.randomUUID();
@@ -118,17 +119,17 @@ export function nativeToWeb(plan: ObjectMap, mapping: PackageMapping, title: str
     const meta = plan.levels.find((l: any) => l.index === level), floor = createDefaultFloor(level);
     floor.id = meta ? mapped(meta.id) : `native-floor-${level}`;
     floor.name = meta?.name ?? (level === 0 ? 'Ground Floor' : `Floor ${level}`);
-    floor.walls = plan.walls.filter((w: any) => (w.level ?? 0) === level).map((w: any) => ({ id: mapped(w.id), start: point(w.start), end: point(w.end), thickness: cm(w.thickness ?? plan.defaults?.interiorWallThickness ?? 0.12), height: cm(w.height ?? plan.defaults?.ceilingHeight ?? 2.4), color: '#8e8e93' }));
+    floor.walls = plan.walls.filter((w: any) => (w.level ?? 0) === level).map((w: any) => ({ details: nativeItemDetails(w, 'walls'), id: mapped(w.id), start: point(w.start), end: point(w.end), thickness: cm(w.thickness ?? plan.defaults?.interiorWallThickness ?? 0.12), height: cm(w.height ?? plan.defaults?.ceilingHeight ?? 2.4), color: '#8e8e93' }));
     const wallIds = new Set(plan.walls.filter((w: any) => (w.level ?? 0) === level).map((w: any) => key(w.id)));
     const openings = plan.openings.filter((o: any) => wallIds.has(key(o.wallID)));
-    floor.doors = openings.filter((o: any) => o.kind === 'door').map((o: any) => ({ id: mapped(o.id), wallId: mapped(o.wallID), position: o.position, width: cm(o.width), height: cm(o.height ?? 2), type: ['single', 'double', 'sliding'].includes(o.style) ? o.style : o.style === 'patio' ? 'sliding' : 'single', swingDirection: o.hingeLeft === false ? 'left' : 'right', flipSide: o.opensInward === false }));
-    floor.windows = openings.filter((o: any) => o.kind === 'window').map((o: any) => ({ id: mapped(o.id), wallId: mapped(o.wallID), position: o.position, width: cm(o.width), height: cm(o.height ?? 1.2), sillHeight: cm(o.sillHeight ?? 0.9), type: o.style === 'sliding' ? 'sliding' : 'fixed' }));
-    floor.furniture = plan.furniture.filter((f: any) => (f.level ?? 0) === level).map((f: any) => ({ id: mapped(f.id), catalogId: getCatalogItem(f.category) ? f.category : 'chair', position: point(f.center), rotation: f.angle * 180 / Math.PI, width: cm(f.width), depth: cm(f.depth), scale: { x: 1, y: 1, z: 1 } }));
+    floor.doors = openings.filter((o: any) => o.kind === 'door').map((o: any) => ({ details: nativeItemDetails(o, 'doors'), id: mapped(o.id), wallId: mapped(o.wallID), position: o.position, width: cm(o.width), height: cm(o.height ?? 2), type: ['single', 'double', 'sliding'].includes(o.style) ? o.style : o.style === 'patio' ? 'sliding' : 'single', swingDirection: o.hingeLeft === false ? 'left' : 'right', flipSide: o.opensInward === false }));
+    floor.windows = openings.filter((o: any) => o.kind === 'window').map((o: any) => ({ details: nativeItemDetails(o, 'windows'), id: mapped(o.id), wallId: mapped(o.wallID), position: o.position, width: cm(o.width), height: cm(o.height ?? 1.2), sillHeight: cm(o.sillHeight ?? 0.9), type: o.style === 'sliding' ? 'sliding' : 'fixed' }));
+    floor.furniture = plan.furniture.filter((f: any) => (f.level ?? 0) === level).map((f: any) => ({ details: nativeItemDetails(f, 'furniture'), id: mapped(f.id), catalogId: getCatalogItem(f.category) ? f.category : 'chair', position: point(f.center), rotation: f.angle * 180 / Math.PI, width: cm(f.width), depth: cm(f.depth), scale: { x: 1, y: 1, z: 1 } }));
     const detected = detectRooms(floor.walls);
     floor.rooms = plan.rooms.filter((r: any) => (r.level ?? 0) === level).map((r: any) => {
       const center = point(r.center), match = detected.find(room => inside(center, getRoomPolygon(room, floor.walls)));
       const centroid = match ? roomCentroid(getRoomPolygon(match, floor.walls)) : center;
-      return { id: mapped(r.id), walls: match?.walls ?? [], name: r.name, color: r.colorHex, floorTexture: 'light-oak', area: match?.area ?? 0, labelOffset: { x: center.x - centroid.x, y: center.y - centroid.y } };
+      return { details: nativeItemDetails(r, 'rooms'), id: mapped(r.id), walls: match?.walls ?? [], name: r.name, color: r.colorHex, floorTexture: 'light-oak', area: match?.area ?? 0, labelOffset: { x: center.x - centroid.x, y: center.y - centroid.y } };
     });
     floor.textAnnotations = plan.notes.filter((n: any) => (byId.get(key(n.id))?.floorId ?? firstFloorId) === floor.id).map((n: any) => ({ id: mapped(n.id), text: n.text, x: cm(n.position.x), y: cm(n.position.y), fontSize: cm(n.fontSize ?? 0.16), color: n.colorHex ?? '#1e293b', rotation: (n.angle ?? 0) * 180 / Math.PI }));
     return floor;
@@ -139,7 +140,12 @@ export function nativeToWeb(plan: ObjectMap, mapping: PackageMapping, title: str
 function changedFields(source: any, before: any, after: any): any {
   if (!before) return structuredClone(after);
   const result = structuredClone(source ?? before);
-  for (const field of Object.keys(after)) if (!equal(before[field], after[field])) result[field] = structuredClone(after[field]);
+  for (const field of Object.keys(after)) if (!equal(before[field], after[field])) {
+    if (field === 'details') {
+      result.details = { ...(result.details ?? {}) };
+      for (const key of Object.keys(after.details)) if (!equal(before.details?.[key], after.details[key])) result.details[key] = structuredClone(after.details[key]);
+    } else result[field] = structuredClone(after[field]);
+  }
   return result;
 }
 export function applyNativeEdits(source: Project, before: Project, after: Project): Project {
@@ -218,16 +224,22 @@ export function webToNative(project: Project, original: ObjectMap | undefined, p
       plan.notes.push({ ...old, id, text: note.text, position: { x: meters(note.x), y: meters(note.y) }, fontSize: meters(note.fontSize), colorHex: note.color, angle: note.rotation * Math.PI / 180 });
     }
   }
+  for (const entry of mapping) if (entry.kind !== 'levels' && entry.kind !== 'textAnnotations') {
+    const kind = entry.kind as DetailKind;
+    const item = project.floors.find(f => f.id === entry.floorId)?.[kind].find(i => i.id === entry.webId);
+    const nativeKind = kind === 'doors' || kind === 'windows' ? 'openings' : kind;
+    withNativeDetails(plan[nativeKind].find((i: any) => i.id === entry.id), item?.details, kind);
+  }
   if (project.description !== undefined) plan.planNotes = project.description;
   if (original) {
     // Keep native defaults, pin-vs-label choices and richer fields when the web
     // representation has not changed. Only transfer edits in shared properties.
     const baseline = webToNative(nativeToWeb(validatePackagePlan(original), previousMapping, project.name), undefined, mapping).plan;
     const fields: Record<string, string[]> = {
-      walls: ['start', 'end', 'height', 'thickness', 'level'],
-      openings: ['wallID', 'position', 'width', 'height', 'kind', 'style', 'hingeLeft', 'opensInward', 'sillHeight'],
-      furniture: ['category', 'center', 'angle', 'width', 'depth', 'level'],
-      rooms: ['name', 'center', 'colorHex', 'level'],
+      walls: ['start', 'end', 'height', 'thickness', 'level', 'note', 'material'],
+      openings: ['wallID', 'position', 'width', 'height', 'kind', 'style', 'hingeLeft', 'opensInward', 'sillHeight', 'price'],
+      furniture: ['category', 'center', 'angle', 'width', 'depth', 'level', 'note', 'price', 'photos'],
+      rooms: ['name', 'center', 'colorHex', 'level', 'note', 'photos', 'type', 'ceilingHeight'],
       notes: ['text', 'position', 'fontSize', 'colorHex', 'angle'], levels: ['name', 'index'],
     };
     for (const kind of kinds) for (const item of plan[kind]) {

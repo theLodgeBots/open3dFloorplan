@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { activeFloor, selectedElementId, layerVisibility } from '$lib/stores/project';
+  import { activeFloor, selectedElementId, selectedElementIds, selectedRoomId, detectedRoomsStore, layerVisibility } from '$lib/stores/project';
   import { getCatalogItem } from '$lib/utils/furnitureCatalog';
   import { getEntourageDef } from '$lib/utils/entourageCatalog';
   import type { Floor } from '$lib/models/types';
@@ -26,8 +26,15 @@
   }
 
   function select(id: string) {
+    selectedRoomId.set(null);
     selectedElementId.set(id);
   }
+
+  let rooms = $derived.by(() => {
+    const result = new Map((floor?.rooms ?? []).map(room => [room.id, room]));
+    for (const room of $detectedRoomsStore) result.set(room.id, room);
+    return [...result.values()];
+  });
 
   interface Category {
     key: keyof typeof vis;
@@ -163,6 +170,19 @@
         {/if}
       </div>
     {/each}
+    {#if rooms.length}
+      <div class="border-b border-gray-100">
+        <button onclick={() => toggle('rooms')} class="flex w-full items-center gap-1.5 px-2 py-1.5 text-left hover:bg-gray-50">
+          <span class="w-3 text-[10px] text-gray-400">{collapsed.rooms ? '▸' : '▾'}</span>
+          <span>🏠</span><span class="flex-1 font-medium text-gray-700">Rooms</span><span class="text-gray-400">{rooms.length}</span>
+        </button>
+        {#if !collapsed.rooms}
+          {#each rooms as room (room.id)}
+            <button aria-label={`Select room ${room.name || 'Unnamed room'}`} onclick={() => { selectedElementId.set(null); selectedElementIds.set(new Set()); selectedRoomId.set(room.id); }} class="w-full truncate py-1 pl-7 pr-2 text-left hover:bg-blue-50" class:bg-blue-100={$selectedRoomId === room.id}>{room.name || 'Unnamed room'}</button>
+          {/each}
+        {/if}
+      </div>
+    {/if}
     {#if categories.length === 0}
       <div class="p-4 text-gray-400 text-center">No elements</div>
     {/if}
