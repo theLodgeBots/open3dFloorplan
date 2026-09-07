@@ -22,7 +22,7 @@ intercepting field editing, and preserves furniture dimensions while replacing
 empty/invalid drafts. See [the browser report](docs/reviews/2026-09-07-cross-browser-editing.md)
 and PR checks for final engine results and merge/release status.
 
-Local validation: **541 web unit tests, 53 XCTest tests**, production build and
+Local validation: **544 web unit tests, 53 XCTest tests**, production build and
 audit pass; type checks report zero errors and 23 existing Svelte warnings.
 Desktop and phone-width browser checks cover labels, editing, persistence and
 3D. Native source availability remains separate from TestFlight/App Store release.
@@ -33,15 +33,24 @@ floor elevations and sloped walls; direct AI provider configuration; safe import
 and project switching; local tab conflict recovery; IndexedDB migration; full
 library backup/restore; two-way local iPhone/web packages; editable item
 notes/photos/costs and pooled attachment history; furniture appearance fixes;
-category continuity; field keyboard editing and browser-engine CI. Earlier batches and pause hashes are recorded
+category continuity; field keyboard editing and browser-engine CI; camera preview
+and 3D resource cleanup. Earlier batches and pause hashes are recorded
 in the dated review log and git history.
 
-## 1. Next engineering batch: measured 3D resource review
+## 1. Next engineering batch: rendering benchmarks and device coverage
 
-Investigate the selected-wall material and camera-preview renderer teardown
-observations below with measured reproductions before deciding their fixes.
-Extend the desktop Safari interactive pass to actual touch-device checks.
-Keep category contract
+The measured resource batch for [#67](https://github.com/laanlabs/openPlan3D/issues/67)
+repairs blank reopened camera previews, releases renderer contexts and replaced
+scene textures, and disposes/reapplies wall highlights through rebuilds. The
+pre-fix browser measurements confirmed retained contexts and texture growth. See
+[the resource report](docs/reviews/2026-09-07-viewer-resources.md) and PR checks for
+final validation and merge/release status.
+
+Next, establish repeatable small/medium/large-home benchmarks and agreed frame-time
+and memory targets on representative desktop/phone hardware. Measure before
+changing mobile quality or replacing whole-scene rebuilds. Extend desktop Safari
+checks to actual iPhone/iPad touch devices; the resource batch's native desktop
+Safari attempt was unavailable while the Mac was locked. Keep category contract
 fixtures in both repositories synchronized when extending the catalog.
 
 Legacy saved package projects with chair fallbacks are protected on export and
@@ -91,13 +100,11 @@ These are follow-up work areas, not claims that every item is a reproduced bug.
   downloads/share sheets and storage/quota recovery. Exercise native denied camera access,
   interruption/backgrounding, long scans, multi-floor work and attachment-heavy
   saves. Run a first-room usability session with unfamiliar desktop/iPhone users.
-- **3D resource/performance audit:** investigate selected-wall highlight material
-  clones being replaced without explicit disposal, and the separate camera-preview
-  renderer lacking explicit teardown in `ThreeViewer.svelte`. These are source
-  observations; quantify memory/context growth before calling them confirmed user
-  failures. Add a repeatable small/medium/large-home benchmark, agreed desktop and
-  phone frame-time/memory targets, and measured mobile quality settings. Consider
-  updating changed objects instead of rebuilding whole scenes.
+- **3D performance:** keep the measured preview-context and scene-allocation
+  regressions passing. The confirmed cleanup defects are addressed in #67/#68.
+  Add small/medium/large-home benchmarks, agreed desktop and phone frame-time/memory
+  targets, and measured mobile quality settings. Consider updating changed objects
+  instead of rebuilding whole scenes only after measuring the benefit.
 - **Area/geometry agreement:** define whether area is measured at interior wall
   faces or another boundary, reconcile native raster-based areas with web polygons,
   and test room split/merge identity and schedules. Matching area totals are not
