@@ -32,7 +32,9 @@ async function colors(page: Page) {
       const [r, g, b] = [pixels[i], pixels[i + 1], pixels[i + 2]];
       if (r > 50 && r > g * 1.5 && r > b * 1.5) result.red++;
       if (g > 50 && g > r * 1.5 && g > b * 1.5) result.green++;
-      if (b > 50 && b > r * 1.5 && b > g * 1.5) result.blue++;
+      // The selected navy (#191970) remains dark under scene lighting. Require
+      // a clear blue hue above the shadow floor, rather than bright blue pixels.
+      if (b > 20 && b > r * 1.5 && b > g * 1.5) result.blue++;
     }
     return result;
   });
@@ -48,6 +50,7 @@ for (const width of [1440, 390]) test(`furniture tint, finish and resource reuse
   await openFixture(page); await open3D(page);
   await expect.poll(async () => (await colors(page)).green).toBeGreaterThan(50);
   expect((await colors(page)).red).toBeGreaterThan(50);
+  expect((await colors(page)).blue).toBeLessThan(25);
   expect(observed.models.filter(url => chairURL.test(url))).toHaveLength(1);
   await page.getByRole('button', { name: 'Make Walls Transparent', exact: true }).click();
   await expect.poll(async () => (await colors(page)).green).toBeGreaterThan(50);
