@@ -22,7 +22,7 @@ intercepting field editing, and preserves furniture dimensions while replacing
 empty/invalid drafts. See [the browser report](docs/reviews/2026-09-07-cross-browser-editing.md)
 and PR checks for final engine results and merge/release status.
 
-Local validation: **544 web unit tests, 53 XCTest tests**, production build and
+Local validation: **562 web unit tests, 53 XCTest tests**, production build and
 audit pass; type checks report zero errors and 23 existing Svelte warnings.
 Desktop and phone-width browser checks cover labels, editing, persistence and
 3D. Native source availability remains separate from TestFlight/App Store release.
@@ -34,10 +34,11 @@ and project switching; local tab conflict recovery; IndexedDB migration; full
 library backup/restore; two-way local iPhone/web packages; editable item
 notes/photos/costs and pooled attachment history; furniture appearance fixes;
 category continuity; field keyboard editing and browser-engine CI; camera preview
-and 3D resource cleanup. Earlier batches and pause hashes are recorded
+and 3D resource cleanup; repeatable furnished-home benchmarks and preservation of
+3D views during metadata edits. Earlier batches and pause hashes are recorded
 in the dated review log and git history.
 
-## 1. Next engineering batch: rendering benchmarks and device coverage
+## 1. Next engineering batch: measured rendering improvements and device coverage
 
 The measured resource batch for [#67](https://github.com/laanlabs/openPlan3D/issues/67)
 repairs blank reopened camera previews, releases renderer contexts and replaced
@@ -46,9 +47,21 @@ pre-fix browser measurements confirmed retained contexts and texture growth. See
 [the resource report](docs/reviews/2026-09-07-viewer-resources.md) and PR checks for
 final validation and merge/release status.
 
-Next, establish repeatable small/medium/large-home benchmarks and agreed frame-time
-and memory targets on representative desktop/phone hardware. Measure before
-changing mobile quality or replacing whole-scene rebuilds. Extend desktop Safari
+The furnished-home batch for [#69](https://github.com/laanlabs/openPlan3D/issues/69)
+adds deterministic small/medium/large fixtures, desktop/DPR-2 phone-viewport CI
+measurements, and a scene snapshot that avoids rebuilding on project names and
+item notes/costs/photos. Geometry, finishes, history and area-unit changes still
+refresh. See [the benchmark report](docs/reviews/2026-09-07-rendering-benchmarks.md)
+for results and measurement limits; CI software rendering is not a device budget.
+
+First fix the reproduced [phone top-down framing bug (#71)](https://github.com/laanlabs/openPlan3D/issues/71):
+the large fixture's outer room columns are cropped at 390×900 after clicking
+Top-Down View. Fit the camera to both axes using aspect ratio and field of view,
+with containment tests for single/stacked floors and narrow viewports.
+
+Then measure the same fixtures on representative desktop/phone hardware and agree
+frame-time and memory targets. Use those results to choose shared geometry,
+object-level visual updates or mobile quality controls. Extend desktop Safari
 checks to actual iPhone/iPad touch devices; the resource batch's native desktop
 Safari attempt was unavailable while the Mac was locked. Keep category contract
 fixtures in both repositories synchronized when extending the catalog.
@@ -102,9 +115,10 @@ These are follow-up work areas, not claims that every item is a reproduced bug.
   saves. Run a first-room usability session with unfamiliar desktop/iPhone users.
 - **3D performance:** keep the measured preview-context and scene-allocation
   regressions passing. The confirmed cleanup defects are addressed in #67/#68.
-  Add small/medium/large-home benchmarks, agreed desktop and phone frame-time/memory
-  targets, and measured mobile quality settings. Consider updating changed objects
-  instead of rebuilding whole scenes only after measuring the benefit.
+  Use the new furnished-home benchmarks to agree desktop/phone frame-time and
+  memory targets on real hardware. Metadata edits now preserve the scene; visual
+  edits still rebuild it. Measure shared geometry, object-level updates and mobile
+  quality settings before choosing the next optimization.
 - **Area/geometry agreement:** define whether area is measured at interior wall
   faces or another boundary, reconcile native raster-based areas with web polygons,
   and test room split/merge identity and schedules. Matching area totals are not
@@ -166,7 +180,7 @@ These are follow-up work areas, not claims that every item is a reproduced bug.
 1. Fetch both repositories and confirm clean `main` against `origin/main`; reread
    open GitHub issues and #30 for release updates. Start a focused `codex/…` branch
    from current main after checking the browser batch merge status.
-2. Start with measured resource checks. Preserve unknown fields,
+2. Start with the rendering benchmark report and hardware calibration. Preserve unknown fields,
    explicit clears, independent import copies, fractional transforms and pooled
    local attachments. Do not rely on temporary QA directories as source artifacts.
 3. Web baseline: Node 24/npm; run `NODE_ENV=production npm run check`,

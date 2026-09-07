@@ -15,6 +15,7 @@
   import { assembleFloorStack } from '$lib/utils/floorStack';
   import { setFloorCameraPose } from '$lib/utils/floorCamera';
   import { frameScene } from '$lib/utils/frameScene';
+  import { sceneSignature } from '$lib/utils/sceneSignature';
   import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
   import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
   import MaterialPicker from './MaterialPicker.svelte';
@@ -40,6 +41,7 @@
   let pointerControls: PointerLockControls;
   let animId: number;
   let currentFloor = $state.raw<Floor | null>(null);
+  let renderedSignature: string | null = null;
   let wallGroup: THREE.Group;
 
   // Raycasting for wall selection in 3D
@@ -1808,7 +1810,11 @@
     }
   }
 
-  function rebuildScene() {
+  function rebuildScene(force = false) {
+    const project = get(currentProject);
+    if (!project || !currentFloor) return;
+    const signature = sceneSignature(project, currentFloor, showAllFloors, get(projectSettings).units);
+    if (!force && signature === renderedSignature) return;
     const walkingPosition = walkthroughMode ? camera.position.clone() : null;
     const walkingRotation = walkthroughMode ? camera.quaternion.clone() : null;
     if (showAllFloors) {
@@ -1831,6 +1837,7 @@
       cameraPreviewDirty = true;
     }
     markSceneDirty();
+    renderedSignature = signature;
   }
 
   function applyWallTransparency() {
@@ -2006,7 +2013,8 @@
 
     // Rebuild 3D scene when photo textures finish loading
     const stopTextures = setTextureLoadCallback(() => {
-      if (currentFloor) rebuildScene();
+      // New image pixels are not represented in the project's value snapshot.
+      if (currentFloor) rebuildScene(true);
     });
 
     const resizeObs = new ResizeObserver(onResize);
@@ -2020,7 +2028,10 @@
       currentFloor = f;
       if (f) rebuildScene();
     });
-
+    // Room area labels are textures and must refresh when display units change.
+    const stopSettings = projectSettings.subscribe(() => {
+      if (currentFloor) rebuildScene();
+    });
 
     const unsubSel = selectedElementId.subscribe((id) => {
       selectedWallId3D = id;
@@ -2034,6 +2045,7 @@
       stopTextures();
       resizeObs.disconnect();
       unsub();
+      stopSettings();
       unsubSel();
       cancelAnimationFrame(animId);
       document.removeEventListener('keydown', onKeyDown, false);

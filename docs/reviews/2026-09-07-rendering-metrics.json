@@ -1,0 +1,609 @@
+{
+  "baseline": {
+    "commit": "beb5579fc09d4333d0bc3fc034cc7da45d5969ab",
+    "run": "https://github.com/laanlabs/openPlan3D/actions/runs/34169982466",
+    "samples": [
+      {
+        "fixtureVersion": 1,
+        "size": "large",
+        "profile": "desktop",
+        "environment": {
+          "browser": "chromium",
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "dpr": 1,
+          "ci": true,
+          "renderer": "CI uses software rendering; phone profile is a viewport, not a device"
+        },
+        "project": {
+          "floors": 3,
+          "rooms": 48,
+          "walls": 120,
+          "furniture": 288,
+          "activeFurniture": 96,
+          "jsonBytes": 76697,
+          "distinctModelRequests": 3
+        },
+        "firstDrawMs": 23627.145705000003,
+        "readyMs": 23629.971400999988,
+        "renameMs": 40878.89436199999,
+        "stackMs": 2789.27571300001,
+        "renameAllocations": {
+          "Buffer": 3446,
+          "Texture": 24,
+          "Program": 5,
+          "Framebuffer": 0,
+          "Renderbuffer": 0
+        },
+        "activeResources": {
+          "Buffer": 2188,
+          "Texture": 35,
+          "Program": 9,
+          "Framebuffer": 10,
+          "Renderbuffer": 6
+        },
+        "stackedResources": {
+          "Buffer": 3028,
+          "Texture": 38,
+          "Program": 9,
+          "Framebuffer": 10,
+          "Renderbuffer": 6
+        },
+        "dragFrameIntervalMs": {
+          "median": 283.29999999998836,
+          "p95": 650,
+          "samples": 39
+        }
+      },
+      {
+        "fixtureVersion": 1,
+        "size": "large",
+        "profile": "phone-viewport",
+        "environment": {
+          "browser": "chromium",
+          "viewport": {
+            "width": 390,
+            "height": 900
+          },
+          "dpr": 2,
+          "ci": true,
+          "renderer": "CI uses software rendering; phone profile is a viewport, not a device"
+        },
+        "project": {
+          "floors": 3,
+          "rooms": 48,
+          "walls": 120,
+          "furniture": 288,
+          "activeFurniture": 96,
+          "jsonBytes": 76697,
+          "distinctModelRequests": 3
+        },
+        "firstDrawMs": 20239.22137299998,
+        "readyMs": 20239.95642599999,
+        "renameMs": 35091.43226,
+        "stackMs": 2885.9443150000006,
+        "renameAllocations": {
+          "Buffer": 3446,
+          "Texture": 24,
+          "Program": 5,
+          "Framebuffer": 0,
+          "Renderbuffer": 0
+        },
+        "activeResources": {
+          "Buffer": 2188,
+          "Texture": 35,
+          "Program": 9,
+          "Framebuffer": 10,
+          "Renderbuffer": 6
+        },
+        "stackedResources": {
+          "Buffer": 3028,
+          "Texture": 38,
+          "Program": 9,
+          "Framebuffer": 10,
+          "Renderbuffer": 6
+        },
+        "dragFrameIntervalMs": {
+          "median": 283.1999999999971,
+          "p95": 616.7000000000116,
+          "samples": 39
+        }
+      },
+      {
+        "fixtureVersion": 1,
+        "size": "medium",
+        "profile": "desktop",
+        "environment": {
+          "browser": "chromium",
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "dpr": 1,
+          "ci": true,
+          "renderer": "CI uses software rendering; phone profile is a viewport, not a device"
+        },
+        "project": {
+          "floors": 2,
+          "rooms": 18,
+          "walls": 48,
+          "furniture": 108,
+          "activeFurniture": 54,
+          "jsonBytes": 30335,
+          "distinctModelRequests": 3
+        },
+        "firstDrawMs": 1481.741320999994,
+        "readyMs": 1482.4560179999971,
+        "renameMs": 28825.356646999993,
+        "stackMs": 908.331263,
+        "renameAllocations": {
+          "Buffer": 2054,
+          "Texture": 13,
+          "Program": 5,
+          "Framebuffer": 0,
+          "Renderbuffer": 0
+        },
+        "activeResources": {
+          "Buffer": 1356,
+          "Texture": 24,
+          "Program": 9,
+          "Framebuffer": 10,
+          "Renderbuffer": 6
+        },
+        "stackedResources": {
+          "Buffer": 1624,
+          "Texture": 26,
+          "Program": 9,
+          "Framebuffer": 10,
+          "Renderbuffer": 6
+        },
+        "dragFrameIntervalMs": {
+          "median": 349.8999999999942,
+          "p95": 1666.6000000000058,
+          "samples": 39
+        }
+      },
+      {
+        "fixtureVersion": 1,
+        "size": "medium",
+        "profile": "phone-viewport",
+        "environment": {
+          "browser": "chromium",
+          "viewport": {
+            "width": 390,
+            "height": 900
+          },
+          "dpr": 2,
+          "ci": true,
+          "renderer": "CI uses software rendering; phone profile is a viewport, not a device"
+        },
+        "project": {
+          "floors": 2,
+          "rooms": 18,
+          "walls": 48,
+          "furniture": 108,
+          "activeFurniture": 54,
+          "jsonBytes": 30335,
+          "distinctModelRequests": 3
+        },
+        "firstDrawMs": 7499.857754999997,
+        "readyMs": 7500.451483999997,
+        "renameMs": 23424.28630600001,
+        "stackMs": 849.04559899999,
+        "renameAllocations": {
+          "Buffer": 2054,
+          "Texture": 13,
+          "Program": 5,
+          "Framebuffer": 0,
+          "Renderbuffer": 0
+        },
+        "activeResources": {
+          "Buffer": 1356,
+          "Texture": 24,
+          "Program": 9,
+          "Framebuffer": 10,
+          "Renderbuffer": 6
+        },
+        "stackedResources": {
+          "Buffer": 1624,
+          "Texture": 26,
+          "Program": 9,
+          "Framebuffer": 10,
+          "Renderbuffer": 6
+        },
+        "dragFrameIntervalMs": {
+          "median": 283.3000000000029,
+          "p95": 1633.2999999999956,
+          "samples": 39
+        }
+      },
+      {
+        "fixtureVersion": 1,
+        "size": "small",
+        "profile": "desktop",
+        "environment": {
+          "browser": "chromium",
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "dpr": 1,
+          "ci": true,
+          "renderer": "CI uses software rendering; phone profile is a viewport, not a device"
+        },
+        "project": {
+          "floors": 1,
+          "rooms": 4,
+          "walls": 12,
+          "furniture": 24,
+          "activeFurniture": 24,
+          "jsonBytes": 7361,
+          "distinctModelRequests": 3
+        },
+        "firstDrawMs": 2586.170233,
+        "readyMs": 2587.83306,
+        "renameMs": 18676.561159999997,
+        "stackMs": 375.8580539999966,
+        "renameAllocations": {
+          "Buffer": 1014,
+          "Texture": 6,
+          "Program": 5,
+          "Framebuffer": 0,
+          "Renderbuffer": 0
+        },
+        "activeResources": {
+          "Buffer": 716,
+          "Texture": 17,
+          "Program": 8,
+          "Framebuffer": 10,
+          "Renderbuffer": 6
+        },
+        "stackedResources": {
+          "Buffer": 716,
+          "Texture": 18,
+          "Program": 8,
+          "Framebuffer": 10,
+          "Renderbuffer": 6
+        },
+        "dragFrameIntervalMs": {
+          "median": 349.90000000000146,
+          "p95": 2183.2000000000007,
+          "samples": 39
+        }
+      },
+      {
+        "fixtureVersion": 1,
+        "size": "small",
+        "profile": "phone-viewport",
+        "environment": {
+          "browser": "chromium",
+          "viewport": {
+            "width": 390,
+            "height": 900
+          },
+          "dpr": 2,
+          "ci": true,
+          "renderer": "CI uses software rendering; phone profile is a viewport, not a device"
+        },
+        "project": {
+          "floors": 1,
+          "rooms": 4,
+          "walls": 12,
+          "furniture": 24,
+          "activeFurniture": 24,
+          "jsonBytes": 7361,
+          "distinctModelRequests": 3
+        },
+        "firstDrawMs": 1344.945255,
+        "readyMs": 1345.9333179999999,
+        "renameMs": 17158.255662000003,
+        "stackMs": 329.42305599999963,
+        "renameAllocations": {
+          "Buffer": 1014,
+          "Texture": 6,
+          "Program": 5,
+          "Framebuffer": 0,
+          "Renderbuffer": 0
+        },
+        "activeResources": {
+          "Buffer": 716,
+          "Texture": 17,
+          "Program": 8,
+          "Framebuffer": 10,
+          "Renderbuffer": 6
+        },
+        "stackedResources": {
+          "Buffer": 716,
+          "Texture": 18,
+          "Program": 8,
+          "Framebuffer": 10,
+          "Renderbuffer": 6
+        },
+        "dragFrameIntervalMs": {
+          "median": 333.29999999999563,
+          "p95": 3449.9000000000015,
+          "samples": 39
+        }
+      }
+    ]
+  },
+  "updated": {
+    "commit": "2d7500898a1b8223f445ad43ad58557922971e50",
+    "run": "https://github.com/laanlabs/openPlan3D/actions/runs/34170139773",
+    "note": "Five complete samples passed; the combined suite reached its 10-minute timeout during the sixth. Final CI splits profiles into separate jobs. These are preliminary measurements, not final CI status.",
+    "samples": [
+      {
+        "fixtureVersion": 1,
+        "size": "large",
+        "profile": "desktop",
+        "environment": {
+          "browser": "chromium",
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "dpr": 1,
+          "ci": true,
+          "renderer": "CI uses software rendering; phone profile is a viewport, not a device"
+        },
+        "project": {
+          "floors": 3,
+          "rooms": 48,
+          "walls": 120,
+          "furniture": 288,
+          "activeFurniture": 96,
+          "jsonBytes": 76697,
+          "distinctModelRequests": 3
+        },
+        "firstDrawMs": 32851.11805300001,
+        "readyMs": 32851.840349000006,
+        "renameMs": 619.8689580000064,
+        "stackMs": 62997.68610200001,
+        "renameAllocations": {
+          "Buffer": 0,
+          "Texture": 0,
+          "Program": 0,
+          "Framebuffer": 0,
+          "Renderbuffer": 0
+        },
+        "activeResources": {
+          "Buffer": 2188,
+          "Texture": 35,
+          "Program": 9,
+          "Framebuffer": 10,
+          "Renderbuffer": 6
+        },
+        "stackedResources": {
+          "Buffer": 3028,
+          "Texture": 38,
+          "Program": 9,
+          "Framebuffer": 10,
+          "Renderbuffer": 6
+        },
+        "dragFrameIntervalMs": {
+          "median": 466.6000000000058,
+          "p95": 11166.199999999997,
+          "samples": 39
+        }
+      },
+      {
+        "fixtureVersion": 1,
+        "size": "medium",
+        "profile": "desktop",
+        "environment": {
+          "browser": "chromium",
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "dpr": 1,
+          "ci": true,
+          "renderer": "CI uses software rendering; phone profile is a viewport, not a device"
+        },
+        "project": {
+          "floors": 2,
+          "rooms": 18,
+          "walls": 48,
+          "furniture": 108,
+          "activeFurniture": 54,
+          "jsonBytes": 30335,
+          "distinctModelRequests": 3
+        },
+        "firstDrawMs": 15172.665610000011,
+        "readyMs": 15174.561841000002,
+        "renameMs": 972.7222970000003,
+        "stackMs": 35275.207398,
+        "renameAllocations": {
+          "Buffer": 0,
+          "Texture": 0,
+          "Program": 0,
+          "Framebuffer": 0,
+          "Renderbuffer": 0
+        },
+        "activeResources": {
+          "Buffer": 1356,
+          "Texture": 24,
+          "Program": 9,
+          "Framebuffer": 10,
+          "Renderbuffer": 6
+        },
+        "stackedResources": {
+          "Buffer": 1624,
+          "Texture": 26,
+          "Program": 9,
+          "Framebuffer": 10,
+          "Renderbuffer": 6
+        },
+        "dragFrameIntervalMs": {
+          "median": 499.8999999999942,
+          "p95": 1899.9000000000087,
+          "samples": 39
+        }
+      },
+      {
+        "fixtureVersion": 1,
+        "size": "medium",
+        "profile": "phone-viewport",
+        "environment": {
+          "browser": "chromium",
+          "viewport": {
+            "width": 390,
+            "height": 900
+          },
+          "dpr": 2,
+          "ci": true,
+          "renderer": "CI uses software rendering; phone profile is a viewport, not a device"
+        },
+        "project": {
+          "floors": 2,
+          "rooms": 18,
+          "walls": 48,
+          "furniture": 108,
+          "activeFurniture": 54,
+          "jsonBytes": 30335,
+          "distinctModelRequests": 3
+        },
+        "firstDrawMs": 2543.1716289999968,
+        "readyMs": 3042.746831999997,
+        "renameMs": 716.0739150000009,
+        "stackMs": 30785.690107000002,
+        "renameAllocations": {
+          "Buffer": 0,
+          "Texture": 0,
+          "Program": 0,
+          "Framebuffer": 0,
+          "Renderbuffer": 0
+        },
+        "activeResources": {
+          "Buffer": 1356,
+          "Texture": 24,
+          "Program": 9,
+          "Framebuffer": 10,
+          "Renderbuffer": 6
+        },
+        "stackedResources": {
+          "Buffer": 1624,
+          "Texture": 26,
+          "Program": 9,
+          "Framebuffer": 10,
+          "Renderbuffer": 6
+        },
+        "dragFrameIntervalMs": {
+          "median": 400,
+          "p95": 2249.899999999994,
+          "samples": 39
+        }
+      },
+      {
+        "fixtureVersion": 1,
+        "size": "small",
+        "profile": "desktop",
+        "environment": {
+          "browser": "chromium",
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "dpr": 1,
+          "ci": true,
+          "renderer": "CI uses software rendering; phone profile is a viewport, not a device"
+        },
+        "project": {
+          "floors": 1,
+          "rooms": 4,
+          "walls": 12,
+          "furniture": 24,
+          "activeFurniture": 24,
+          "jsonBytes": 7361,
+          "distinctModelRequests": 3
+        },
+        "firstDrawMs": 2422.926251,
+        "readyMs": 2424.113835,
+        "renameMs": 1220.6500350000006,
+        "stackMs": 25212.889846000002,
+        "renameAllocations": {
+          "Buffer": 0,
+          "Texture": 0,
+          "Program": 0,
+          "Framebuffer": 0,
+          "Renderbuffer": 0
+        },
+        "activeResources": {
+          "Buffer": 716,
+          "Texture": 17,
+          "Program": 8,
+          "Framebuffer": 10,
+          "Renderbuffer": 6
+        },
+        "stackedResources": {
+          "Buffer": 716,
+          "Texture": 18,
+          "Program": 8,
+          "Framebuffer": 10,
+          "Renderbuffer": 6
+        },
+        "dragFrameIntervalMs": {
+          "median": 150,
+          "p95": 866.7000000000044,
+          "samples": 39
+        }
+      },
+      {
+        "fixtureVersion": 1,
+        "size": "small",
+        "profile": "phone-viewport",
+        "environment": {
+          "browser": "chromium",
+          "viewport": {
+            "width": 390,
+            "height": 900
+          },
+          "dpr": 2,
+          "ci": true,
+          "renderer": "CI uses software rendering; phone profile is a viewport, not a device"
+        },
+        "project": {
+          "floors": 1,
+          "rooms": 4,
+          "walls": 12,
+          "furniture": 24,
+          "activeFurniture": 24,
+          "jsonBytes": 7361,
+          "distinctModelRequests": 3
+        },
+        "firstDrawMs": 1571.194041,
+        "readyMs": 1572.3253189999998,
+        "renameMs": 163.00392499999998,
+        "stackMs": 11778.187065999999,
+        "renameAllocations": {
+          "Buffer": 0,
+          "Texture": 0,
+          "Program": 0,
+          "Framebuffer": 0,
+          "Renderbuffer": 0
+        },
+        "activeResources": {
+          "Buffer": 716,
+          "Texture": 17,
+          "Program": 8,
+          "Framebuffer": 10,
+          "Renderbuffer": 6
+        },
+        "stackedResources": {
+          "Buffer": 716,
+          "Texture": 18,
+          "Program": 8,
+          "Framebuffer": 10,
+          "Renderbuffer": 6
+        },
+        "dragFrameIntervalMs": {
+          "median": 466.6999999999971,
+          "p95": 2099.899999999998,
+          "samples": 39
+        }
+      }
+    ]
+  }
+}

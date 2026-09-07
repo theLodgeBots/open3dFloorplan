@@ -9,6 +9,7 @@ node_modules
 /build
 /playwright-report
 /test-results
+/benchmark-results
 firebase-debug.log
 
 # OS

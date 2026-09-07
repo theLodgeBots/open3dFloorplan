@@ -413,3 +413,14 @@ restore/dispose their materials before rebuilds and reapply the selection. Local
 validation passes 544 unit tests. See [the resource report](2026-09-07-viewer-resources.md)
 for measurements, browser checks and their limits. Broader hardware performance
 benchmarks, physical-device coverage and the release/cost gates in #30 remain.
+
+
+## Twenty-second batch: furnished-home benchmarks and metadata editing
+
+Issue #69 adds deterministic small/medium/large local projects and a separate
+Chromium benchmark job with desktop/phone-viewport measurements. Project names
+and item metadata no longer rebuild the 3D scene or reset its camera; geometry,
+finishes, history and area units still refresh. Local validation passes 562 unit
+tests. See [the benchmark report](2026-09-07-rendering-benchmarks.md) for results,
+measurement limits and browser validation. Hardware calibration, further visual
+edit performance, physical-device coverage and the #30 release/cost gates remain.
