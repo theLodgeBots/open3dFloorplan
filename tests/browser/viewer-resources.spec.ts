@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { resolve } from 'node:path';
+import { readFile } from 'node:fs/promises';
 
 // CI-only instrumentation of the browser's WebGL API. No app internals or debug
 // hooks: retain contexts deliberately so GC cannot disguise missing teardown.
@@ -42,9 +43,13 @@ async function placeCamera(page: Page) {
   await expect(page.getByRole('button', { name: 'Close camera', exact: true })).toBeVisible();
 }
 
-test('camera previews release their WebGL context and render on every reopen', async ({ page }, testInfo) => {
+for (const width of [1440, 390]) test(`camera previews release resources across reopen, reposition and capture at ${width}px`, async ({ page }, testInfo) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width, height: 900 });
   await observeGPU(page);
-  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  const errors: string[] = [], external: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('request', request => { if (/^https?:/.test(request.url()) && new URL(request.url()).origin !== 'http://127.0.0.1:4188') external.push(request.url()); });
   const samples: any[] = [];
   try {
     await page.goto('/editor');
@@ -58,9 +63,29 @@ test('camera previews release their WebGL context and render on every reopen', a
       await expect.poll(async () => (await gpu(page)).filter((item: any) => !item.lost).length).toBe(1);
     }
     await placeCamera(page);
+    await page.getByRole('button', { name: 'Reposition', exact: true }).click();
+    await expect.poll(async () => (await gpu(page)).filter((item: any) => !item.lost).length).toBe(1);
+    const main = page.getByRole('region', { name: '3D floor plan viewer' }).locator('canvas').last();
+    const bounds = await main.boundingBox();
+    await main.click({ position: { x: bounds!.width * 0.45, y: bounds!.height * 0.5 } });
+    await expect.poll(async () => (await gpu(page)).filter((item: any) => !item.lost && item.width === 384 && item.draws > 0).length).toBe(1);
+    for (let photo = 0; photo < 2; photo++) {
+      const pending = page.waitForEvent('download');
+      await page.getByRole('button', { name: '📸 Capture 1920×1080', exact: true }).click();
+      const bytes = await readFile((await (await pending).path())!);
+      expect(bytes.subarray(1, 4).toString()).toBe('PNG');
+      expect(bytes.readUInt32BE(16)).toBe(1920); expect(bytes.readUInt32BE(20)).toBe(1080);
+      await expect.poll(async () => (await gpu(page)).filter((item: any) => !item.lost).length).toBe(2);
+      samples.push({ phase: `photo-${photo}`, contexts: await gpu(page) });
+    }
     await page.getByRole('button', { name: '2D', exact: true }).click();
     await expect.poll(async () => (await gpu(page)).filter((item: any) => !item.lost).length).toBe(0);
-    expect(errors).toEqual([]);
+    await page.getByRole('button', { name: '3D', exact: true }).click();
+    await placeCamera(page);
+    await expect.poll(async () => (await gpu(page)).filter((item: any) => !item.lost && item.draws > 0).length).toBe(2);
+    await page.getByRole('button', { name: '2D', exact: true }).click();
+    await expect.poll(async () => (await gpu(page)).filter((item: any) => !item.lost).length).toBe(0);
+    expect(errors).toEqual([]); expect(external).toEqual([]);
   } finally {
     samples.push({ phase: 'final', contexts: await gpu(page) });
     await testInfo.attach('webgl-resource-counts', { body: JSON.stringify(samples, null, 2), contentType: 'application/json' });
@@ -82,6 +107,11 @@ test('textured scene rebuilds retain a bounded number of GPU resources', async (
     await page.getByRole('button', { name: '─ Wall 1', exact: true }).click();
     await page.getByRole('button', { name: '3D', exact: true }).click();
     await page.waitForLoadState('networkidle');
+    await page.getByRole('button', { name: 'Edit Mode', exact: true }).click();
+    const canvas = page.getByRole('region', { name: '3D floor plan viewer' }).locator('canvas').last();
+    const bounds = await canvas.boundingBox();
+    await canvas.click({ position: { x: bounds!.width * 0.4, y: bounds!.height * 0.6 } });
+    await expect(page.getByRole('spinbutton', { name: 'Thickness (cm)', exact: true })).toBeVisible();
     const cycle = async () => {
       for (const name of ['Show All Floors Stacked', 'Active Floor Only']) {
         const before = (await gpu(page))[0].draws;

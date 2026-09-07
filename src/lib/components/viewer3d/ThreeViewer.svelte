@@ -20,7 +20,8 @@
   import MaterialPicker from './MaterialPicker.svelte';
   import { getCatalogItem, furnitureCatalog, furnitureCategories } from '$lib/utils/furnitureCatalog';
   import type { FurnitureDef } from '$lib/utils/furnitureCatalog';
-  import { disposeModel } from '$lib/utils/furnitureModelResources';
+  import { createWallHighlight } from '$lib/utils/wallHighlight';
+  import { disposeModel, ownTexture } from '$lib/utils/furnitureModelResources';
   import { createFurnitureModelWithGLB } from '$lib/utils/furnitureModelLoader';
   import { addFurniture } from '$lib/stores/project';
   import { detectRooms, resolveRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
@@ -46,7 +47,7 @@
   const mouse = new THREE.Vector2();
   const wallMeshMap = new Map<THREE.Object3D, string>(); // mesh → wallId
   let selectedWallId3D: string | null = null;
-  const originalEmissive = new Map<THREE.Object3D, THREE.Color>();
+  const wallHighlight = createWallHighlight();
 
   // 3D Edit mode — enables click-to-select
   let editMode = $state(false);
@@ -108,6 +109,7 @@
   let cameraPreviewOpen = $state(false);
   let cameraPreviewCanvas = $state<HTMLCanvasElement | null>(null);
   let cameraPreviewRenderer: THREE.WebGLRenderer | null = null;
+  let previewAnimId: number | undefined;
   let cameraPlaced = $state(false);
   let cameraDragMode = $state<'position' | 'lookat' | null>(null);
   let cameraYaw = $state(0);   // degrees, 0 = initial direction
@@ -171,16 +173,13 @@
     offRenderer.shadowMap.enabled = true;
     offRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
     offRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-    const helperVisible = cameraHelper?.visible ?? true;
     try {
-      if (cameraHelper) cameraHelper.visible = false;
-      setSpritesVisible(false);
-      offRenderer.render(scene!, interiorCamera!);
-      return offRenderer.domElement.toDataURL('image/png');
+      return withInteriorScene(() => {
+        offRenderer.render(scene, interiorCamera!);
+        return offRenderer.domElement.toDataURL('image/png');
+      }, false);
     } finally {
-      if (cameraHelper) cameraHelper.visible = helperVisible;
-      setSpritesVisible(true);
-      offRenderer.dispose();
+      releaseRenderer(offRenderer);
     }
   }
 
@@ -412,14 +411,6 @@
     }
   }
 
-  /** Hide/show all label sprites in the scene (room names, etc.) */
-  function setSpritesVisible(visible: boolean) {
-    if (!scene) return;
-    scene.traverse((obj) => {
-      if (obj instanceof THREE.Sprite) obj.visible = visible;
-    });
-  }
-
   function captureInteriorPhoto() {
     if (!scene || !interiorCamera) return;
     updateInteriorCamera();
@@ -435,19 +426,15 @@
     offRenderer.toneMapping = THREE.ACESFilmicToneMapping;
     offRenderer.toneMappingExposure = 1.0;
 
-    // Hide camera marker and room labels during capture
-    if (cameraHelper) cameraHelper.visible = false;
-    setSpritesVisible(false);
-    if (cameraXrayWalls) setWallsXray(true);
-
-    offRenderer.render(scene, interiorCamera);
-
-    if (cameraHelper) cameraHelper.visible = true;
-    setSpritesVisible(true);
-    if (cameraXrayWalls) setWallsXray(false);
-
-    const dataUrl = offRenderer.domElement.toDataURL('image/png');
-    offRenderer.dispose();
+    let dataUrl: string;
+    try {
+      dataUrl = withInteriorScene(() => {
+        offRenderer.render(scene, interiorCamera!);
+        return offRenderer.domElement.toDataURL('image/png');
+      });
+    } finally {
+      releaseRenderer(offRenderer);
+    }
 
     // Download
     const link = document.createElement('a');
@@ -455,6 +442,62 @@
     link.download = `${projectName}-interior-photo.png`;
     link.href = dataUrl;
     link.click();
+  }
+
+  function releaseRenderer(target: THREE.WebGLRenderer) {
+    try { target.dispose(); }
+    finally { target.forceContextLoss(); }
+  }
+
+  function releaseCameraPreview() {
+    if (previewAnimId !== undefined) cancelAnimationFrame(previewAnimId);
+    previewAnimId = undefined;
+    if (cameraPreviewRenderer) {
+      releaseRenderer(cameraPreviewRenderer);
+      cameraPreviewRenderer = null;
+    }
+  }
+
+  function attachCameraPreview(canvas: HTMLCanvasElement) {
+    cameraPreviewCanvas = canvas;
+    cameraPreviewDirty = true;
+    return { destroy() {
+      releaseCameraPreview();
+      cameraPreviewCanvas = null;
+    } };
+  }
+
+  function closeCamera() {
+    cancelAIRender();
+    releaseCameraPreview();
+    cameraPreviewOpen = cameraPlaced = cameraPlacementMode = false;
+    previewDragStart = null;
+    if (cameraHelper) {
+      clearGroup(cameraHelper);
+      cameraHelper.removeFromParent();
+      cameraHelper = null;
+    }
+    interiorCamera = null;
+    aiRenderOpen = false; aiRenderResult = null; aiRenderError = null;
+    markSceneDirty();
+  }
+
+  /** All temporary presentation changes are restored even if rendering fails. */
+  function withInteriorScene<T>(render: () => T, xray = cameraXrayWalls): T {
+    const helperVisible = cameraHelper?.visible ?? true;
+    const sprites = new Map<THREE.Sprite, boolean>();
+    scene.traverse(obj => {
+      if (obj instanceof THREE.Sprite) { sprites.set(obj, obj.visible); obj.visible = false; }
+    });
+    try {
+      if (cameraHelper) cameraHelper.visible = false;
+      if (xray) setWallsXray(true);
+      return render();
+    } finally {
+      if (xray) setWallsXray(false);
+      if (cameraHelper) cameraHelper.visible = helperVisible;
+      for (const [sprite, visible] of sprites) sprite.visible = visible;
+    }
   }
 
   function renderCameraPreview() {
@@ -468,27 +511,25 @@
       cameraPreviewRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
       cameraPreviewRenderer.toneMapping = THREE.ACESFilmicToneMapping;
       cameraPreviewRenderer.toneMappingExposure = 1.0;
+      cameraPreviewRenderer.setSize(384, 216);
+      cameraPreviewRenderer.setPixelRatio(1);
     }
-    cameraPreviewRenderer.setSize(384, 216);
-    cameraPreviewRenderer.setPixelRatio(1);
-
-    if (cameraHelper) cameraHelper.visible = false;
-    setSpritesVisible(false);
-    if (cameraXrayWalls) setWallsXray(true);
-    cameraPreviewRenderer.render(scene, interiorCamera);
-    if (cameraHelper) cameraHelper.visible = true;
-    setSpritesVisible(true);
-    if (cameraXrayWalls) setWallsXray(false);
+    withInteriorScene(() => cameraPreviewRenderer!.render(scene, interiorCamera!));
     cameraPreviewDirty = false;
   }
 
-  // Auto-render preview + update 3D marker when dirty flag is set
+  // Cancel pending callbacks when the panel disappears or another update wins.
   $effect(() => {
     if (cameraPreviewDirty && cameraPreviewCanvas && cameraPlaced) {
-      requestAnimationFrame(() => {
+      previewAnimId = requestAnimationFrame(() => {
+        previewAnimId = undefined;
         updateCameraMarkerFromState();
         renderCameraPreview();
       });
+      return () => {
+        if (previewAnimId !== undefined) cancelAnimationFrame(previewAnimId);
+        previewAnimId = undefined;
+      };
     }
   });
 
@@ -584,7 +625,7 @@
         cx.strokeRect(x + offset, y, 62, 30);
       }
     }
-    const tex = new THREE.CanvasTexture(c);
+    const tex = ownTexture(new THREE.CanvasTexture(c));
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     tex.repeat.set(10, 10);
     return tex;
@@ -673,7 +714,7 @@
     grad.addColorStop(1.0, '#b8b0a0');
     cx.fillStyle = grad;
     cx.fillRect(0, 0, 4, 512);
-    skyTexture = new THREE.CanvasTexture(skyCanvas);
+    skyTexture = ownTexture(new THREE.CanvasTexture(skyCanvas));
     // Use as scene background (maps onto equirectangular projection)
     skyTexture.mapping = THREE.EquirectangularReflectionMapping;
     scene.background = skyTexture;
@@ -715,7 +756,7 @@
     for (let y = 0; y <= 1024; y += gridStep * 4) {
       gctx.beginPath(); gctx.moveTo(0, y); gctx.lineTo(1024, y); gctx.stroke();
     }
-    const groundTex = new THREE.CanvasTexture(groundCanvas);
+    const groundTex = ownTexture(new THREE.CanvasTexture(groundCanvas));
     groundTex.wrapS = groundTex.wrapT = THREE.RepeatWrapping;
     groundTex.repeat.set(groundSize / 4000, groundSize / 4000);
     const groundMat = new THREE.MeshStandardMaterial({
@@ -980,11 +1021,11 @@
       const cx = c.getContext('2d')!;
       cx.fillStyle = color;
       cx.fillRect(0, 0, 64, 64);
-      const tex = new THREE.CanvasTexture(c);
+      const tex = ownTexture(new THREE.CanvasTexture(c));
       tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
       return tex;
     }
-    const tex = new THREE.CanvasTexture(canvas);
+    const tex = ownTexture(new THREE.CanvasTexture(canvas));
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     // Each texture tile covers ~200cm of real wall
     const tileSizeCm = 200;
@@ -1134,11 +1175,8 @@
   }
 
   function clearGroup(group: THREE.Object3D) {
-    while (group.children.length) {
-      const child = group.children[0];
-      disposeModel(child);
-      group.remove(child);
-    }
+    disposeModel(group);
+    group.clear();
   }
 
   function addOpeningFrame(wall: Wall, position: number, width: number, bottom: number, height: number, depth: number, material: THREE.Material) {
@@ -1155,7 +1193,9 @@
   }
 
   function buildWalls(floor: Floor) {
+    wallHighlight.clear();
     clearGroup(wallGroup);
+    cameraHelper = null;
     wallMeshMap.clear();
 
     const defaultInteriorMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
@@ -1546,7 +1586,7 @@
         const floorMat = getMaterial(room.floorTexture);
         const floorCanvas = getFloorTextureCanvas(room.floorTexture);
         if (floorCanvas) {
-          const tex = new THREE.CanvasTexture(floorCanvas);
+          const tex = ownTexture(new THREE.CanvasTexture(floorCanvas));
           tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
           // Tile every 200cm — now UVs are 0-1, so repeat = room size / tile size
           const tileSizeCm = 200;
@@ -1599,7 +1639,7 @@
       ctx2.fillStyle = '#d1d5db';
       ctx2.fillText(formatArea(room.area, get(projectSettings).units), 128, 50);
 
-      const tex = new THREE.CanvasTexture(canvas);
+      const tex = ownTexture(new THREE.CanvasTexture(canvas));
       const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true });
       const sprite = new THREE.Sprite(spriteMat);
       sprite.position.set(centroid.x, 30, centroid.y);
@@ -1669,7 +1709,7 @@
     ctx.textAlign = 'center';
     ctx.fillText(name, 128, 32);
 
-    const tex = new THREE.CanvasTexture(canvas);
+    const tex = ownTexture(new THREE.CanvasTexture(canvas));
     const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true });
     const sprite = new THREE.Sprite(spriteMat);
 
@@ -1779,6 +1819,7 @@
       sceneGround.position.y = -1;
       buildWalls(currentFloor);
     }
+    wallHighlight.apply(wallMeshMap, selectedWallId3D);
     if (walkingPosition && walkingRotation) {
       camera.position.copy(walkingPosition);
       camera.position.y = activeFloorElevation + eyeHeight;
@@ -1806,7 +1847,9 @@
 
   function toggleWallTransparency() {
     wallsTransparent = !wallsTransparent;
+    wallHighlight.clear();
     applyWallTransparency();
+    wallHighlight.apply(wallMeshMap, selectedWallId3D);
     markSceneDirty();
   }
 
@@ -1971,53 +2014,18 @@
 
     const unsub = activeFloor.subscribe((f) => {
       if (currentFloor?.id !== f?.id) {
-        cancelAIRender();
+        closeCamera();
         if (walkthroughMode) exitWalkthroughMode();
-        cameraPlaced = false;
-        cameraPreviewOpen = false;
-        cameraPlacementMode = false;
       }
       currentFloor = f;
       if (f) rebuildScene();
     });
 
 
-    // Highlight selected wall in 3D
-    // Store original materials so we can restore them (shared materials must not be mutated)
-    const originalMaterials = new Map<THREE.Mesh, THREE.Material | THREE.Material[]>();
     const unsubSel = selectedElementId.subscribe((id) => {
-      // Restore previously highlighted meshes to their original materials
-      for (const [mesh, origMat] of originalMaterials) {
-        mesh.material = origMat;
-      }
-      originalMaterials.clear();
-      originalEmissive.clear();
       selectedWallId3D = id;
-      if (!id) return;
-      // Highlight matching wall meshes by cloning their materials
-      for (const [mesh, wallId] of wallMeshMap) {
-        if (wallId === id && mesh instanceof THREE.Mesh) {
-          originalMaterials.set(mesh, mesh.material);
-          // Clone materials so we don't mutate shared instances
-          if (Array.isArray(mesh.material)) {
-            mesh.material = mesh.material.map((m: THREE.Material) => {
-              const cloned = m.clone();
-              if (cloned instanceof THREE.MeshStandardMaterial) {
-                cloned.emissive.set(0x3388ff);
-                cloned.emissiveIntensity = 0.3;
-              }
-              return cloned;
-            });
-          } else {
-            const cloned = mesh.material.clone();
-            if (cloned instanceof THREE.MeshStandardMaterial) {
-              cloned.emissive.set(0x3388ff);
-              cloned.emissiveIntensity = 0.3;
-            }
-            mesh.material = cloned;
-          }
-        }
-      }
+      wallHighlight.apply(wallMeshMap, id);
+      markSceneDirty();
     });
 
     return () => {
@@ -2030,11 +2038,16 @@
       cancelAnimationFrame(animId);
       document.removeEventListener('keydown', onKeyDown, false);
       document.removeEventListener('keyup', onKeyUp, false);
+      releaseCameraPreview();
+      wallHighlight.clear();
       removeGhostPreview();
+      skyTexture.dispose();
+      sunLight.shadow.dispose();
       clearGroup(scene);
+      wallMeshMap.clear();
       pointerControls.dispose();
       controls.dispose();
-      renderer.dispose();
+      releaseRenderer(renderer);
     };
   });
 </script>
@@ -2185,7 +2198,7 @@
           <button class="text-xs text-blue-400 hover:text-blue-300" onclick={() => { cancelAIRender(); aiRenderOpen = !aiRenderOpen; }}>
             {aiRenderOpen ? 'Hide AI' : '✨ AI Render'}
           </button>
-          <button class="text-gray-400 hover:text-white text-lg leading-none" onclick={() => { cancelAIRender(); cameraPreviewOpen = false; if (cameraHelper) { wallGroup.remove(cameraHelper); cameraHelper = null; } cameraPlaced = false; aiRenderOpen = false; aiRenderResult = null; aiRenderError = null; }} aria-label="Close camera">✕</button>
+          <button class="text-gray-400 hover:text-white text-lg leading-none" onclick={closeCamera} aria-label="Close camera">✕</button>
         </div>
       </div>
       <!-- Preview canvas with drag-to-rotate -->
@@ -2195,7 +2208,7 @@
         onpointermove={(e) => { if (!previewDragStart) return; const dx = e.clientX - previewDragStart.x; const dy = e.clientY - previewDragStart.y; cameraYaw = previewDragStart.yaw + dx * 0.5; cameraPitch = Math.max(-45, Math.min(45, previewDragStart.pitch - dy * 0.3)); cameraPreviewDirty = true; }}
         onpointerup={() => { previewDragStart = null; }}
       >
-        <canvas bind:this={cameraPreviewCanvas} width="384" height="216" class="w-full pointer-events-none"></canvas>
+        <canvas use:attachCameraPreview aria-label="Interior camera preview" width="384" height="216" class="w-full pointer-events-none"></canvas>
         <div class="absolute bottom-1 left-1 text-[10px] text-white/50 pointer-events-none">Drag to look around</div>
       </div>
 

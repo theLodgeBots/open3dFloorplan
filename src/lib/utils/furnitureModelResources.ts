@@ -9,6 +9,13 @@ const sources = new Map<string, Promise<THREE.Group | null>>();
 const disposed = new WeakSet<THREE.Object3D>();
 const ownedTextures = new WeakSet<THREE.Texture>();
 
+/** Register an instance-owned texture wrapper. Its image/canvas may still be
+ * shared; disposing a THREE.Texture releases GPU state without destroying it. */
+export function ownTexture<T extends THREE.Texture>(texture: T): T {
+  ownedTextures.add(texture);
+  return texture;
+}
+
 export function cloneModel(source: THREE.Group): THREE.Group {
   const clone = source.clone(true);
   const geometries = new Map<THREE.BufferGeometry, THREE.BufferGeometry>();
@@ -18,7 +25,7 @@ export function cloneModel(source: THREE.Group): THREE.Group {
     if (materials.has(original)) return materials.get(original)!;
     const result = original.clone();
     for (const [key, value] of Object.entries(result)) if (value instanceof THREE.Texture) {
-      if (!textures.has(value)) { const copy = value.clone(); textures.set(value, copy); ownedTextures.add(copy); }
+      if (!textures.has(value)) { const copy = ownTexture(value.clone()); textures.set(value, copy); }
       (result as any)[key] = textures.get(value);
     }
     materials.set(original, result);
@@ -46,7 +53,7 @@ export async function loadCatalogModel(file: string): Promise<THREE.Group | null
 export function isModelDisposed(root: THREE.Object3D) { return disposed.has(root); }
 
 /** Also marks pending furniture containers so late model loads cannot revive them.
- * Global wall/floor texture caches retain ownership of their textures. */
+ * Unregistered shared textures retain their original owner. */
 export function disposeModel(root: THREE.Object3D) {
   const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>();
   const textures = new Set<THREE.Texture>();
@@ -62,5 +69,5 @@ export function disposeModel(root: THREE.Object3D) {
   });
   for (const geometry of geometries) geometry.dispose();
   for (const material of materials) material.dispose();
-  for (const texture of textures) texture.dispose();
+  for (const texture of textures) { ownedTextures.delete(texture); texture.dispose(); }
 }
