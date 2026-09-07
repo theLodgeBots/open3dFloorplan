@@ -1,5 +1,9 @@
 # OpenPlan3D: current state and improvement roadmap
 
+**Current handoff:** [NEXT.md](../../NEXT.md) records the remaining work as of
+September 6, 2026. The initial findings and older “next” sections below are
+historical; implementation progress is recorded in the subsequent batch log.
+
 Reviewed September 5, 2026. Local working review of the web and iOS repositories, community issues and PRs, and Planner 5D's current advertised capabilities.
 
 **Recommendation:** make the existing product dependable, establish faithful project exchange between iPhone and web, then expand design and presentation features. There is already enough functionality to support a useful free floor planner. The immediate gap is consistency and trust in the result.

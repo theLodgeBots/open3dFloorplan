@@ -6,6 +6,9 @@ Design floor plans in an intuitive 2D editor, then instantly preview them in a f
 
 **🌐 Try it live: [app.openplan3d.com](https://app.openplan3d.com/)**
 
+Maintainers: see [NEXT.md](NEXT.md) for the current backlog, verified baseline,
+iPhone release gates and Firebase cost constraints.
+
 <p align="center">
   <img src="plan1_2d.jpg" alt="2D Floor Plan View" width="48%">
   <img src="plan1_3d.jpg" alt="3D Floor Plan View" width="48%">
