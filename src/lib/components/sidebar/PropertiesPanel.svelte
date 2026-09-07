@@ -603,7 +603,7 @@
     {#if selectedFurniture.catalogId === 'imported_object'}
       <p class="mb-3 text-xs text-gray-500 break-words">Original category: {selectedFurniture.sourceCategory || 'Unknown'}. Shown as a neutral box.</p>
     {:else if selectedFurniture.catalogId === 'stairs'}
-      <p class="mb-3 text-xs text-gray-500">Imported stair preview. Use building stairs for editable risers and floor connections.</p>
+      <p class="mb-3 text-xs text-gray-500">Imported stair preview. Use building stairs to edit risers and stair layouts.</p>
     {/if}
     <div class="space-y-3">
       <!-- Color -->
