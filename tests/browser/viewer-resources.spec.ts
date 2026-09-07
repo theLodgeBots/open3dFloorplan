@@ -54,13 +54,17 @@ for (const width of [1440, 390]) test(`camera previews release resources across 
   try {
     await page.goto('/editor');
     await page.getByRole('button', { name: '3D', exact: true }).click();
+    let closedResources: unknown;
     for (let cycle = 0; cycle < 3; cycle++) {
       await placeCamera(page);
       await expect.poll(async () => (await gpu(page)).filter((item: any) => !item.lost && item.width === 384 && item.height === 216 && item.connected && item.draws > 0).length).toBe(1);
       samples.push({ phase: `open-${cycle}`, contexts: await gpu(page) });
       await page.getByRole('button', { name: 'Close camera', exact: true }).click();
-      samples.push({ phase: `close-${cycle}`, contexts: await gpu(page) });
       await expect.poll(async () => (await gpu(page)).filter((item: any) => !item.lost).length).toBe(1);
+      const closed = await gpu(page);
+      samples.push({ phase: `close-${cycle}`, contexts: closed });
+      if (cycle === 0) closedResources = closed[0].live;
+      else expect(closed[0].live).toEqual(closedResources); // removed markers do not accumulate on the main renderer
     }
     await placeCamera(page);
     await page.getByRole('button', { name: 'Reposition', exact: true }).click();
@@ -107,6 +111,7 @@ test('textured scene rebuilds retain a bounded number of GPU resources', async (
     await page.getByRole('button', { name: '─ Wall 1', exact: true }).click();
     await page.getByRole('button', { name: '3D', exact: true }).click();
     await page.waitForLoadState('networkidle');
+    await expect.poll(async () => (await gpu(page))[0]?.draws ?? 0).toBeGreaterThan(0);
     await page.getByRole('button', { name: 'Edit Mode', exact: true }).click();
     const canvas = page.getByRole('region', { name: '3D floor plan viewer' }).locator('canvas').last();
     const bounds = await canvas.boundingBox();

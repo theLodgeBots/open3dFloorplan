@@ -402,3 +402,14 @@ repaired, with fractional values, text clipboard/undo and local recovery retaine
 See [the browser report](2026-09-07-cross-browser-editing.md) for validation and
 remaining device coverage. Measured 3D resource work is the next engineering batch;
 native distribution and the Firebase release/billing gates remain in #30.
+
+
+## Twenty-first batch: camera previews and measured 3D resource cleanup
+
+Issue #67 reproduces blank reopened previews, retained WebGL contexts and texture
+allocation growth across scene rebuilds. Camera canvases and renderers now share a
+lifecycle; scene-generated textures have explicit ownership, and wall highlights
+restore/dispose their materials before rebuilds and reapply the selection. Local
+validation passes 544 unit tests. See [the resource report](2026-09-07-viewer-resources.md)
+for measurements, browser checks and their limits. Broader hardware performance
+benchmarks, physical-device coverage and the release/cost gates in #30 remain.
