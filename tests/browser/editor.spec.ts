@@ -140,6 +140,20 @@ test('catalog and 3D use bounded, cacheable assets with zero startup model downl
   expect(oak).toBeTruthy();
   expect(oak!.bytes).toBeLessThan(120_000);
   for (const asset of assets) expect(asset.cacheControl).toContain('immutable');
+  // Decode through the same browser image cache used by Three's ImageLoader.
+  // Comparing pixels also proves the warm asset is complete and usable.
+  const decodedOak = () => page.evaluate(async url => {
+    const image = new Image(); image.src = url; await image.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
+    const ctx = canvas.getContext('2d')!; ctx.drawImage(image, 0, 0);
+    const bytes = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    const hash = await crypto.subtle.digest('SHA-256', bytes);
+    return { width: canvas.width, height: canvas.height, hash: Array.from(new Uint8Array(hash)) };
+  }, oak!.url);
+  const coldPixels = await decodedOak();
+  expect(coldPixels.width).toBeGreaterThan(0);
+  expect(coldPixels.height).toBeGreaterThan(0);
 
   const cold = await page.evaluate(() => performance.getEntriesByType('resource').map(entry => {
     const resource = entry as PerformanceResourceTiming;
@@ -148,26 +162,25 @@ test('catalog and 3D use bounded, cacheable assets with zero startup model downl
   await page.getByRole('button', { name: '2D', exact: true }).click();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('Saved ✓', { exact: true })).toBeVisible();
-  const warmAssetStart = assets.length;
   await page.reload();
   await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
   // Prove the previously loaded 3D assets remain usable without network access.
-  // WebKit's cached-image encodedBodySize can be zero; timing alone is not
-  // reliable evidence that the full image came from cache in every engine.
+  // WebKit can report zero cached encodedBodySize, and Firefox can reuse an
+  // image without a new timing entry. Decode/hash offline instead of relying
+  // on those engine-specific timing fields as the cache proof.
   await context.setOffline(true);
   await page.getByRole('button', { name: '3D', exact: true }).click();
   await expect(page.getByRole('region', { name: '3D floor plan viewer' }).locator('canvas').first()).toBeVisible();
   await page.waitForLoadState('networkidle');
   await Promise.all(pending);
+  const warmPixels = await decodedOak();
+  expect(warmPixels).toEqual(coldPixels);
   const warm = await page.evaluate(() => performance.getEntriesByType('resource').map(entry => {
     const resource = entry as PerformanceResourceTiming;
     return { url: resource.name, transferBytes: resource.transferSize, encodedBytes: resource.encodedBodySize };
   }));
-  const warmOak = warm.find(x => x.url === oak!.url);
-  expect(warmOak).toBeTruthy();
-  expect(warmOak!.transferBytes).toBe(0);
-  expect(assets.slice(warmAssetStart).find(asset => asset.url === oak!.url)?.bytes).toBe(oak!.bytes);
-  await testInfo.attach('asset-transfers', { body: JSON.stringify({ startup, catalogModels, cold, warm }, null, 2), contentType: 'application/json' });
+  for (const entry of warm.filter(x => /\.(glb|webp)(?:\?|$)/.test(x.url))) expect(entry.transferBytes).toBe(0);
+  await testInfo.attach('asset-transfers', { body: JSON.stringify({ startup, catalogModels, cold, warm, coldPixels, warmPixels }, null, 2), contentType: 'application/json' });
   await context.setOffline(false);
   await page.getByRole('button', { name: '2D', exact: true }).click();
   expect(errors).toEqual([]);
