@@ -159,18 +159,18 @@
   }
   function onFurnitureWidth(e: Event) {
     if (!selectedFurniture) return;
-    const v = Math.max(1, inputToCm(Number((e.target as HTMLInputElement).value)) || 1);
-    updateFurniture(selectedFurniture.id, { width: v });
+    dimensionInput(e, selectedFurniture.width ?? getCatalogItem(selectedFurniture.catalogId)?.width ?? 100,
+      value => updateFurniture(selectedFurniture!.id, { width: value }));
   }
   function onFurnitureDepth(e: Event) {
     if (!selectedFurniture) return;
-    const v = Math.max(1, inputToCm(Number((e.target as HTMLInputElement).value)) || 1);
-    updateFurniture(selectedFurniture.id, { depth: v });
+    dimensionInput(e, selectedFurniture.depth ?? getCatalogItem(selectedFurniture.catalogId)?.depth ?? 80,
+      value => updateFurniture(selectedFurniture!.id, { depth: value }));
   }
   function onFurnitureHeight(e: Event) {
     if (!selectedFurniture) return;
-    const v = Math.max(1, inputToCm(Number((e.target as HTMLInputElement).value)) || 1);
-    updateFurniture(selectedFurniture.id, { height: v });
+    dimensionInput(e, selectedFurniture.height ?? getCatalogItem(selectedFurniture.catalogId)?.height ?? 80,
+      value => updateFurniture(selectedFurniture!.id, { height: value }));
   }
   function onFurnitureMaterial(e: Event) {
     if (!selectedFurniture) return;
@@ -643,7 +643,7 @@
         <input 
           type="number" 
           value={displayValue(selectedFurniture.width ?? getCatalogItem(selectedFurniture.catalogId)?.width ?? 100)} 
-          oninput={onFurnitureWidth} min="1"
+          oninput={onFurnitureWidth} onblur={onFurnitureWidth} min={settings.units === 'imperial' ? 1 / 2.54 : 1} step="any"
           class="w-full px-2 py-1 border border-gray-200 rounded text-sm" 
         />
       </label>
@@ -652,7 +652,7 @@
         <input 
           type="number" 
           value={displayValue(selectedFurniture.depth ?? getCatalogItem(selectedFurniture.catalogId)?.depth ?? 80)} 
-          oninput={onFurnitureDepth} min="1"
+          oninput={onFurnitureDepth} onblur={onFurnitureDepth} min={settings.units === 'imperial' ? 1 / 2.54 : 1} step="any"
           class="w-full px-2 py-1 border border-gray-200 rounded text-sm" 
         />
       </label>
@@ -661,7 +661,7 @@
         <input 
           type="number" 
           value={displayValue(selectedFurniture.height ?? getCatalogItem(selectedFurniture.catalogId)?.height ?? 80)} 
-          oninput={onFurnitureHeight} min="1"
+          oninput={onFurnitureHeight} onblur={onFurnitureHeight} min={settings.units === 'imperial' ? 1 / 2.54 : 1} step="any"
           class="w-full px-2 py-1 border border-gray-200 rounded text-sm" 
         />
       </label>

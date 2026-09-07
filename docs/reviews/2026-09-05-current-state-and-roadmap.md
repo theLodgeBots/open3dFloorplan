@@ -391,3 +391,14 @@ legacy chair fallbacks remain protected on export. Local validation passes 537
 web unit tests and 53 XCTest tests. See [the category report](2026-09-07-furniture-categories.md)
 for compatibility details and PR verification. Browser coverage, native release
 and Firebase cost gates remain the next priorities.
+
+## Twentieth batch: browser coverage and field keyboard editing
+
+Issue #65 adds full production-browser CI for Chromium, Firefox and WebKit with
+one shared build and an aggregate status gate. Interactive Safari QA reproduced
+canvas shortcuts stealing text-field input; keyboard regressions also exposed
+empty furniture dimensions being committed as 1 cm. Both editing paths are
+repaired, with fractional values, text clipboard/undo and local recovery retained.
+See [the browser report](2026-09-07-cross-browser-editing.md) for validation and
+remaining device coverage. Measured 3D resource work is the next engineering batch;
+native distribution and the Firebase release/billing gates remain in #30.

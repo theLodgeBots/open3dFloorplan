@@ -96,7 +96,7 @@ test('import, numeric edit, undo/redo, save/reload and export preserve a multi-f
   expect(externalRequests).toEqual([]);
 });
 
-test('catalog and 3D use bounded, cacheable assets with zero startup model downloads', async ({ page }, testInfo) => {
+test('catalog and 3D use bounded, cacheable assets with zero startup model downloads', async ({ page, context }, testInfo) => {
   const errors: string[] = [];
   const assets: { url: string; cacheControl: string | undefined; bytes: number }[] = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -148,11 +148,17 @@ test('catalog and 3D use bounded, cacheable assets with zero startup model downl
   await page.getByRole('button', { name: '2D', exact: true }).click();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('Saved ✓', { exact: true })).toBeVisible();
+  const warmAssetStart = assets.length;
   await page.reload();
   await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
+  // Prove the previously loaded 3D assets remain usable without network access.
+  // WebKit's cached-image encodedBodySize can be zero; timing alone is not
+  // reliable evidence that the full image came from cache in every engine.
+  await context.setOffline(true);
   await page.getByRole('button', { name: '3D', exact: true }).click();
   await expect(page.getByRole('region', { name: '3D floor plan viewer' }).locator('canvas').first()).toBeVisible();
   await page.waitForLoadState('networkidle');
+  await Promise.all(pending);
   const warm = await page.evaluate(() => performance.getEntriesByType('resource').map(entry => {
     const resource = entry as PerformanceResourceTiming;
     return { url: resource.name, transferBytes: resource.transferSize, encodedBytes: resource.encodedBodySize };
@@ -160,8 +166,9 @@ test('catalog and 3D use bounded, cacheable assets with zero startup model downl
   const warmOak = warm.find(x => x.url === oak!.url);
   expect(warmOak).toBeTruthy();
   expect(warmOak!.transferBytes).toBe(0);
-  expect(warmOak!.encodedBytes).toBe(oak!.bytes);
+  expect(assets.slice(warmAssetStart).find(asset => asset.url === oak!.url)?.bytes).toBe(oak!.bytes);
   await testInfo.attach('asset-transfers', { body: JSON.stringify({ startup, catalogModels, cold, warm }, null, 2), contentType: 'application/json' });
+  await context.setOffline(false);
   await page.getByRole('button', { name: '2D', exact: true }).click();
   expect(errors).toEqual([]);
 });

@@ -60,6 +60,14 @@ for (const width of [1440, 390]) test(`field keyboard editing cannot select or p
   await itemWidth.pressSequentially('78.125');
   await itemWidth.press('Tab');
   await expect(itemWidth).toHaveValue('78.125');
+  for (const dimension of ['Width (cm)', 'Depth (cm)', 'Height (cm)']) {
+    const input = page.getByRole('spinbutton', { name: dimension, exact: true });
+    const value = await input.inputValue();
+    for (const draft of ['', '0', '-1']) {
+      await input.fill(draft); await input.press('Tab');
+      await expect(input).toHaveValue(value);
+    }
+  }
   // Seed the canvas clipboard with furniture before using the text clipboard.
   await page.getByRole('button', { name: 'Save', exact: true }).press('ControlOrMeta+c');
   const notes = page.getByRole('textbox', { name: 'Item notes', exact: true });

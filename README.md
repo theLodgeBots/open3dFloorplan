@@ -118,6 +118,8 @@ requires the build and every browser job to pass. Engine-specific failure
 screenshots/traces and HTML reports are retained for seven days; the shared build
 expires after one day. To run one engine, use
 `npm run test:browser -- --project=firefox` (or `chromium` / `webkit`).
+Firefox's Linux CI job uses a virtual display and software OpenGL for real 3D
+rendering (`xvfb-run -a npm run test:browser -- --project=firefox --headed`).
 Linux WebKit is engine coverage, not a substitute for shipping Safari or physical
 iPhone/iPad checks. Drawing, touch gestures and native share sheets still need
 separate interactive/device checks.

@@ -61,7 +61,14 @@ jobs:
           name: browser-build
           path: build/
       - run: npx playwright install --with-deps ${{ matrix.browser }}
-      - run: npm run test:browser -- --project=${{ matrix.browser }}
+      - name: Chromium and WebKit regressions
+        if: matrix.browser != 'firefox'
+        run: npm run test:browser -- --project=${{ matrix.browser }}
+      - name: Firefox regressions with a virtual display for WebGL
+        if: matrix.browser == 'firefox'
+        run: xvfb-run -a npm run test:browser -- --project=firefox --headed
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
       - name: Browser report and failure traces
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
