@@ -6,7 +6,9 @@ import common from './playwright.config';
 export default defineConfig({ ...common,
   testDir: './tests/benchmarks', testMatch: '**/*.bench.ts',
   outputDir: 'benchmark-results', globalTimeout: 10 * 60_000,
-  timeout: 180_000, retries: 0,
+  // The large software-rendered scene took almost three minutes in calibration.
+  // Leave per-case headroom; the suite/job limits still bound a stalled runner.
+  timeout: 240_000, retries: 0,
   expect: { timeout: 60_000 },
   reporter: [['list']],
   projects: [
