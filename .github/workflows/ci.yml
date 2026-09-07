@@ -79,11 +79,41 @@ jobs:
             test-results/
           retention-days: 7
 
+  benchmark:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+        env:
+          NODE_ENV: production
+          NPM_CONFIG_INCLUDE: dev
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: browser-build
+          path: build/
+      - run: npx playwright install --with-deps chromium
+      - run: npm run benchmark:viewer
+      - name: Rendering measurements and failure evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rendering-benchmarks
+          path: benchmark-results/
+          retention-days: 3
+
   # Keep the existing check name as an aggregate gate: success includes every
   # engine, and a failed/skipped dependency must not silently pass this job.
   check:
     if: ${{ always() }}
-    needs: [build, browser]
+    needs: [build, browser, benchmark]
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
@@ -91,4 +121,5 @@ jobs:
         env:
           BUILD_RESULT: ${{ needs.build.result }}
           BROWSER_RESULT: ${{ needs.browser.result }}
-        run: test "$BUILD_RESULT" = success && test "$BROWSER_RESULT" = success
+          BENCHMARK_RESULT: ${{ needs.benchmark.result }}
+        run: test "$BUILD_RESULT" = success && test "$BROWSER_RESULT" = success && test "$BENCHMARK_RESULT" = success
