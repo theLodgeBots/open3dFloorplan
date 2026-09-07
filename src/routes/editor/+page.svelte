@@ -189,9 +189,21 @@
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   });
+  function onEditorKeydown(e: KeyboardEvent) {
+    const target = e.target as HTMLElement | null;
+    const typing = !!target && (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable);
+    const mod = e.ctrlKey || e.metaKey;
+    if (e.key === 'p' && mod) { e.preventDefault(); printOpen = true; }
+    if ((e.key === 'k' && mod) || (e.key === '/' && !mod && !e.altKey && !typing)) {
+      e.preventDefault(); commandPaletteOpen = !commandPaletteOpen;
+    }
+    if (e.key === '?' && !mod && !e.altKey && !typing) { showHelp = !showHelp; e.preventDefault(); }
+    if (e.key === 'Escape' && showHelp) showHelp = false;
+    if (e.key === 'l' && !mod && !e.altKey && !typing) showLayers = !showLayers;
+  }
 </script>
 
-<svelte:window on:keydown={(e) => { if (e.key === 'p' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); printOpen = true; } if ((e.key === 'k' && (e.ctrlKey || e.metaKey)) || (e.key === '/' && !e.ctrlKey && !e.metaKey && (e.target as HTMLElement)?.tagName !== 'INPUT' && (e.target as HTMLElement)?.tagName !== 'TEXTAREA')) { e.preventDefault(); commandPaletteOpen = !commandPaletteOpen; } if (e.key === '?' && !e.ctrlKey && !e.metaKey) { showHelp = !showHelp; e.preventDefault(); } if (e.key === 'Escape' && showHelp) { showHelp = false; } if (e.key === 'l' && !e.ctrlKey && !e.metaKey && !e.altKey && (e.target as HTMLElement)?.tagName !== 'INPUT') { showLayers = !showLayers; } }} />
+<svelte:window on:keydown={onEditorKeydown} />
 
 {#if ready}
   <div class="h-screen flex flex-col overflow-hidden">

@@ -123,11 +123,12 @@
   });
 </script>
 
-<div class="w-56 bg-white border-l border-gray-200 flex flex-col overflow-hidden text-xs select-none">
-  <div class="px-3 py-2 border-b border-gray-100 font-semibold text-gray-700 text-sm flex items-center gap-1.5">
+<!-- Keep the list above the 45vh phone properties sheet, with room for the 3rem toolbar. -->
+<div class="w-56 bg-white border-l border-gray-200 flex flex-col overflow-hidden text-xs select-none {(selId || $selectedRoomId || floor?.backgroundImage) ? 'max-md:max-h-[calc(55vh-3rem)]' : ''}">
+  <div class="shrink-0 px-3 py-2 border-b border-gray-100 font-semibold text-gray-700 text-sm flex items-center gap-1.5">
     🗂 Layers
   </div>
-  <div class="flex-1 overflow-y-auto">
+  <div class="flex-1 min-h-0 overflow-y-auto">
     {#each categories as cat}
       <div class="border-b border-gray-50 relative">
         <!-- Category header -->
