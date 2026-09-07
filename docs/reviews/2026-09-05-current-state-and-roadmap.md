@@ -372,3 +372,7 @@ A versioned ZIP carries the current edited plan, referenced attachments and reta
 ## Seventeenth batch: local item details and photos
 
 Issue #59 adds web editing for retained item notes, furniture/opening costs, room photos/classification/ceiling metadata and wall construction materials. Local photo import resizes and reuses bytes, with explicit detach/delete behavior and project/history budgets. Saved versions share attachment bytes and retain backup/quota recovery; both old array histories and the new pooled format can be restored. Actual Swift metadata returns, desktop/mobile browser workflows and failure paths verify preservation. See [package and local-storage details](../project-package-v1.md). Catalog/rendering fidelity and native distribution remain further work; Firebase migration/billing gates remain in #30.
+
+## Eighteenth batch: consistent furniture rendering
+
+Issue #61 preserves chosen furniture colors/finishes and translucent placement previews after GLB loading, isolates disposable instance resources, and shares lazy model requests with catalog thumbnails. Late completions cannot revive removed scenes; failed files retain procedural fallbacks without repeated downloads. A fireplace no longer renders as a toaster, and wall transparency leaves furniture finishes intact. See [rendering behavior and verification](2026-09-06-furniture-rendering.md). Broader catalog parity, native rendering/distribution and the cost gates in #30 remain follow-up work.

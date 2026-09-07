@@ -1,0 +1,66 @@
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { catalogAssetUrl } from './catalogAssetUrl';
+
+const loader = new GLTFLoader();
+// Only bundled catalog filenames reach this cache. Templates live for the page session;
+// thumbnails and placed instances own their disposable geometry, materials and textures.
+const sources = new Map<string, Promise<THREE.Group | null>>();
+const disposed = new WeakSet<THREE.Object3D>();
+const ownedTextures = new WeakSet<THREE.Texture>();
+
+export function cloneModel(source: THREE.Group): THREE.Group {
+  const clone = source.clone(true);
+  const geometries = new Map<THREE.BufferGeometry, THREE.BufferGeometry>();
+  const materials = new Map<THREE.Material, THREE.Material>();
+  const textures = new Map<THREE.Texture, THREE.Texture>();
+  const material = (original: THREE.Material) => {
+    if (materials.has(original)) return materials.get(original)!;
+    const result = original.clone();
+    for (const [key, value] of Object.entries(result)) if (value instanceof THREE.Texture) {
+      if (!textures.has(value)) { const copy = value.clone(); textures.set(value, copy); ownedTextures.add(copy); }
+      (result as any)[key] = textures.get(value);
+    }
+    materials.set(original, result);
+    return result;
+  };
+  clone.traverse(child => {
+    if (!(child instanceof THREE.Mesh)) return;
+    const original = child.geometry;
+    if (!geometries.has(original)) geometries.set(original, original.clone());
+    child.geometry = geometries.get(original)!;
+    child.material = Array.isArray(child.material) ? child.material.map(material) : material(child.material);
+    child.castShadow = true; child.receiveShadow = true;
+  });
+  return clone;
+}
+
+/** A failed file stays a procedural fallback until reload, avoiding retries on every edit. */
+export async function loadCatalogModel(file: string): Promise<THREE.Group | null> {
+  if (!sources.has(file)) sources.set(file, loader.loadAsync(catalogAssetUrl(`/models/${file}.glb`))
+    .then(gltf => gltf.scene).catch(() => null));
+  const source = await sources.get(file)!;
+  return source ? cloneModel(source) : null;
+}
+
+export function isModelDisposed(root: THREE.Object3D) { return disposed.has(root); }
+
+/** Also marks pending furniture containers so late model loads cannot revive them.
+ * Global wall/floor texture caches retain ownership of their textures. */
+export function disposeModel(root: THREE.Object3D) {
+  const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>();
+  const textures = new Set<THREE.Texture>();
+  root.traverse(child => {
+    if (disposed.has(child)) return;
+    disposed.add(child);
+    const renderable = child as THREE.Mesh;
+    if (renderable.geometry) geometries.add(renderable.geometry);
+    if (renderable.material) for (const material of Array.isArray(renderable.material) ? renderable.material : [renderable.material]) {
+      materials.add(material);
+      for (const value of Object.values(material)) if (value instanceof THREE.Texture && ownedTextures.has(value)) textures.add(value);
+    }
+  });
+  for (const geometry of geometries) geometry.dispose();
+  for (const material of materials) material.dispose();
+  for (const texture of textures) texture.dispose();
+}

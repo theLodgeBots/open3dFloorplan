@@ -4,8 +4,7 @@
  * Cached as data URLs after first render.
  */
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { catalogAssetUrl } from './catalogAssetUrl';
+import { disposeModel, loadCatalogModel } from './furnitureModelResources';
 
 const SIZE = 128;
 const cache = new Map<string, string>();
@@ -37,19 +36,6 @@ function ensureRenderer() {
   camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 100);
 }
 
-const loader = new GLTFLoader();
-
-function loadModel(file: string): Promise<THREE.Group> {
-  return new Promise((resolve, reject) => {
-    loader.load(
-      catalogAssetUrl(`/models/${file}.glb`),
-      (gltf) => resolve(gltf.scene),
-      undefined,
-      reject
-    );
-  });
-}
-
 export function getThumbnail(file: string): string | null {
   return cache.get(file) ?? null;
 }
@@ -59,9 +45,11 @@ export async function generateThumbnail(file: string): Promise<string | null> {
   if (pending.has(file)) return pending.get(file)!;
 
   const promise = (async () => {
+    let model: THREE.Group | null = null;
     try {
       ensureRenderer();
-      const model = await loadModel(file);
+      model = await loadCatalogModel(file);
+      if (!model) return null;
 
       // Clear scene of previous models (keep lights)
       const toRemove: THREE.Object3D[] = [];
@@ -104,16 +92,15 @@ export async function generateThumbnail(file: string): Promise<string | null> {
 
       scene!.remove(model);
       cache.set(file, dataUrl);
-      pending.delete(file);
       return dataUrl;
     } catch {
-      pending.delete(file);
       return null;
+    } finally {
+      if (model) { scene?.remove(model); disposeModel(model); }
+      pending.delete(file);
     }
   })();
 
   pending.set(file, promise);
   return promise;
 }
-
-/** Get the GLB filename for a catalog ID (mirrors MODEL_MAP keys) */
