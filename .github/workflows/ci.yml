@@ -83,6 +83,10 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [desktop, phone-viewport]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -100,12 +104,12 @@ jobs:
           name: browser-build
           path: build/
       - run: npx playwright install --with-deps chromium
-      - run: npm run benchmark:viewer
+      - run: npm run benchmark:viewer -- --project=${{ matrix.profile }}
       - name: Rendering measurements and failure evidence
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: rendering-benchmarks
+          name: rendering-benchmarks-${{ matrix.profile }}
           path: benchmark-results/
           retention-days: 3
 

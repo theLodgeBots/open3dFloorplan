@@ -114,7 +114,7 @@ WebKit, covering import/edit/undo/save/reload/export, damaged-file recovery,
 iPhone project packages, photos, catalog loading, 3D and cold/warm asset transfers.
 Each engine runs in a separate job against the same production build, with an
 isolated Node server and analytics/cloud uploads disabled. The final `check` job
-requires the build and every browser job to pass. Engine-specific failure
+requires the build, every browser job and the rendering benchmark assertions to pass. Engine-specific failure
 screenshots/traces and HTML reports are retained for seven days; the shared build
 expires after one day. To run one engine, use
 `npm run test:browser -- --project=firefox` (or `chromium` / `webkit`).
@@ -123,6 +123,14 @@ rendering (`xvfb-run -a npm run test:browser -- --project=firefox --headed`).
 Linux WebKit is engine coverage, not a substitute for shipping Safari or physical
 iPhone/iPad checks. Drawing, touch gestures and native share sheets still need
 separate interactive/device checks.
+
+Furnished-home benchmarks run in two Chromium profile jobs against that same build.
+`npm run benchmark:fixtures` generates three importable local projects;
+`npm run benchmark:viewer` measures desktop and DPR-2 phone viewports and writes
+JSON metrics to `benchmark-results`. CI retains these artifacts for three days.
+Timings on shared software-rendered runners are informational; allocation,
+resource-release and local-only request checks are enforced. See
+[the benchmark method and limits](docs/reviews/2026-09-07-rendering-benchmarks.md).
 
 ### Production Build
 
