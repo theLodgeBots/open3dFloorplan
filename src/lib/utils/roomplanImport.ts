@@ -10,6 +10,7 @@ import type { Floor, Wall, Door, Window, FurnitureItem, Room, Point, Project } f
 import { createDefaultProject, createDefaultFloor } from '$lib/stores/project';
 import { detectRooms, getRoomPolygon } from '$lib/utils/roomDetection';
 import { validateRoomPlan } from './roomplanValidation';
+import { importedFurnitureCategory } from './furnitureCategories';
 export { validateRoomPlan, isRoomPlanJson } from './roomplanValidation';
 
 function uid(): string {
@@ -121,33 +122,6 @@ function mapWindowType(cat: any): Window['type'] {
   if (key === 'slidingWindow') return 'sliding';
   if (key === 'bayWindow') return 'bay';
   return 'standard';
-}
-
-function mapFurnitureCatalogId(cat: any, dims: number[]): string {
-  const key = getCategoryKey(cat);
-  const widthM = dims[0];
-  const heightM = dims[1];
-
-  const mapping: Record<string, () => string> = {
-    sofa: () => widthM > 1.5 ? 'sofa' : 'loveseat',
-    table: () => heightM > 0.6 ? 'dining_table' : 'coffee_table',
-    chair: () => 'chair',
-    bed: () => widthM > 1.4 ? 'bed_queen' : 'bed_twin',
-    storage: () => 'storage',
-    toilet: () => 'toilet',
-    bathtub: () => 'bathtub',
-    sink: () => 'sink_b',
-    refrigerator: () => 'fridge',
-    stove: () => 'stove',
-    oven: () => 'oven',
-    dishwasher: () => 'dishwasher',
-    television: () => 'television',
-    washerDryer: () => 'washer_dryer',
-    fireplace: () => 'fireplace',
-    stairs: () => 'storage',
-  };
-
-  return mapping[key]?.() ?? 'chair';
 }
 
 function mapSectionLabel(label: string): string {
@@ -706,11 +680,9 @@ export function importRoomPlan(jsonData: any, options: RoomPlanImportOptions = r
     // `rotation` convention is atan2(dy, dx) in data coords (see snapFurnitureToWall
     // / drawFurnitureItem), so derive it from the transform columns directly.
     const angle2d = Math.atan2(ro.transform[2], ro.transform[0]);
-    const catalogId = mapFurnitureCatalogId(ro.category, ro.dimensions);
-
     furniture.push({
       id: ro.identifier,
-      catalogId,
+      ...importedFurnitureCategory(getCategoryKey(ro.category), centimetres(ro.dimensions[0])),
       position: toOurPoint(pos.x, pos.z),
       rotation: (angle2d * 180) / Math.PI,
       scale: { x: 1, y: 1, z: 1 },

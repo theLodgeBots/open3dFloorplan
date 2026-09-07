@@ -1,73 +1,47 @@
 # Next work and pause handoff
 
-Updated September 6, 2026. This is the current backlog for the web app and iPhone
+Updated September 7, 2026. This is the current backlog for the web app and iPhone
 companion. It supersedes the historical “next” sections in the
 [original review and batch log](docs/reviews/2026-09-05-current-state-and-roadmap.md).
 Priorities below are proposed order, not release dates or a claim of complete
 Planner 5D parity.
 
-## Saved baseline
+## Current implementation baseline
 
-- Web implementation is merged and pushed to `main` at `e812ecf`
-  ([PR #62](https://github.com/laanlabs/openPlan3D/pull/62)). Furniture colors,
-  finishes, placement previews and lazy model/resource handling are repaired.
-  See the [rendering report](docs/reviews/2026-09-06-furniture-rendering.md).
-- Companion implementation is merged and pushed to `main` at `54f4326`
-  ([iOS PR #6](https://github.com/laanlabs/openplan3d-ios/pull/6)). Local project
-  packages and the shared metadata contract are implemented. This is source
-  availability, not a TestFlight/App Store release.
-- Both working trees were clean and had only the local `main` branch when this
-  handoff was prepared. All implementation PRs are merged; no PR is open in
-  either repository. The only open web issues are **#63 and #30**; there are no
-  open companion issues. Documentation commits follow the implementation hashes
-  above.
-- Last implementation validation: **482 web unit tests, 53 browser tests**, audit,
-  type checks and production build passed; type checks retain **23 existing
-  Svelte warnings and zero errors**. Both
-  [PR CI](https://github.com/laanlabs/openPlan3D/actions/runs/34074100614) and
-  [main CI](https://github.com/laanlabs/openPlan3D/actions/runs/34074484516) passed.
-  Latest native validation: **51 XCTest tests passed** on iPhone 17 Pro / iOS 26.5
-  simulator. Latest web changes were also checked in the live browser at desktop
-  and phone widths. Phone-width browser checks do not replace physical iPhone QA.
+The furniture category batch for [#63](https://github.com/laanlabs/openPlan3D/issues/63)
+is implemented in both repositories. Package/RoomPlan imports share category
+rules, native display aliases recognize web IDs, unknown categories remain
+identifiable, and imported stairs have a procedural preview. Source categories,
+IDs, fractional dimensions and metadata survive actual native return packages.
+See [the batch report](docs/reviews/2026-09-07-furniture-categories.md) and GitHub
+PR checks for merge/release status and final browser CI results.
+
+Local validation: **537 web unit tests, 53 XCTest tests**, production build and
+audit pass; type checks report zero errors and 23 existing Svelte warnings.
+Desktop and phone-width browser checks cover labels, editing, persistence and
+3D. Native source availability remains separate from TestFlight/App Store release.
 
 Already delivered: storage safety and recovery; connected editing and numeric
 dimensions; named-room exports and physical PDF scale; dependency remediation;
 floor elevations and sloped walls; direct AI provider configuration; safe imports
 and project switching; local tab conflict recovery; IndexedDB migration; full
 library backup/restore; two-way local iPhone/web packages; editable item
-notes/photos/costs and pooled attachment history; furniture appearance fixes.
-Do not reopen these as unimplemented roadmap items without a new reproduction.
+notes/photos/costs and pooled attachment history; furniture appearance fixes;
+category continuity. The earlier eighteen batches and pause hashes are recorded
+in the dated review log and git history.
 
-## 1. Next engineering batch: furniture category continuity
+## 1. Next engineering batch: browser coverage and 3D resource review
 
-Track in [#63: Map iPhone and web furniture categories faithfully without changing
-retained identities](https://github.com/laanlabs/openPlan3D/issues/63).
+Expand meaningful import/edit/save/reload/export coverage beyond Chromium to
+Firefox and WebKit, then perform actual touch-device checks. Investigate the
+selected-wall material and camera-preview renderer teardown observations below
+with measured reproductions before deciding their fixes. Keep category contract
+fixtures in both repositories synchronized when extending the catalog.
 
-**Confirmed defect:** package imports accept an exact web catalog ID or fall back
-to `chair`. Native categories such as `bed`, `refrigerator`, `sink` and
-`washerdryer` can therefore look like chairs. In the other direction, native
-glyphs recognize generic categories while web packages can contain `bed_queen`
-or `fridge`. The RoomPlan JSON importer has a separate, partial mapping.
-
-- Define explicit shared category/alias fixtures and display mappings for both
-  clients. Reconcile `washerDryer`/`washerdryer`, bed sizes, tables, sofas and
-  appliances. Audit the existing stairs-to-storage mapping too.
-- Preserve original category, stable IDs, fractional dimensions, transforms,
-  metadata and unknown fields in unchanged returns. The current native export
-  special-cases the `chair` fallback; changing only the import lookup would risk
-  rewriting native identities on export.
-- Use appropriate existing models/glyphs for known categories and an honest,
-  distinguishable fallback for unknown ones. Mapping must not download all models
-  at startup or introduce Firebase uploads.
-- Acceptance: actual Swift ↔ web package fixtures cover beds, refrigerators,
-  sinks, washer/dryers, sofas and unknown categories; 2D/3D previews, edits,
-  save/reload and return exports preserve identity and dimensions.
-
-Start in `src/lib/utils/projectPackageBridge.ts`,
-`src/lib/utils/roomplanImport.ts`, and the companion's
-`openPlan3d/Utilities/FurnitureSymbol.swift`, `Views/PlanEditorView.swift` and
-`Views/RoomPreviewView.swift`. Keep the
-[package contract](docs/project-package-v1.md) current in both repositories.
+Legacy saved package projects with chair fallbacks are protected on export and
+re-import. A later usability improvement can refresh those old local previews
+on opening while preserving recovery data; do not guess categories for old
+RoomPlan chair imports that have no retained source.
 
 ## 2. Release and Firebase cost gates
 
@@ -178,9 +152,9 @@ These are follow-up work areas, not claims that every item is a reproduced bug.
 ## Resume checklist
 
 1. Fetch both repositories and confirm clean `main` against `origin/main`; reread
-   #63 and #30 for updates. Start the next focused `codex/…` branch from current
-   main. There is no unfinished implementation branch to recover from this pause.
-2. Start with #63 and real cross-platform fixtures. Preserve unknown fields,
+   open GitHub issues and #30 for release updates. Start a focused `codex/…` branch
+   from current main after checking the category batch merge status.
+2. Start with browser coverage and measured resource checks. Preserve unknown fields,
    explicit clears, independent import copies, fractional transforms and pooled
    local attachments. Do not rely on temporary QA directories as source artifacts.
 3. Web baseline: Node 24/npm; run `NODE_ENV=production npm run check`,

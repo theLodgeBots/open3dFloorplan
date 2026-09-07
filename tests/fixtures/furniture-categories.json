@@ -1,0 +1,275 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "category": "sofa",
+      "widthCm": 160.125,
+      "catalogId": "sofa",
+      "nativeCategory": "sofa"
+    },
+    {
+      "category": "chair",
+      "widthCm": 160.125,
+      "catalogId": "chair",
+      "nativeCategory": "chair"
+    },
+    {
+      "category": "table",
+      "widthCm": 160.125,
+      "catalogId": "table",
+      "nativeCategory": "table"
+    },
+    {
+      "category": "storage",
+      "widthCm": 160.125,
+      "catalogId": "storage",
+      "nativeCategory": "storage"
+    },
+    {
+      "category": "toilet",
+      "widthCm": 160.125,
+      "catalogId": "toilet",
+      "nativeCategory": "toilet"
+    },
+    {
+      "category": "bathtub",
+      "widthCm": 160.125,
+      "catalogId": "bathtub",
+      "nativeCategory": "bathtub"
+    },
+    {
+      "category": "stove",
+      "widthCm": 160.125,
+      "catalogId": "stove",
+      "nativeCategory": "stove"
+    },
+    {
+      "category": "oven",
+      "widthCm": 160.125,
+      "catalogId": "oven",
+      "nativeCategory": "oven"
+    },
+    {
+      "category": "dishwasher",
+      "widthCm": 160.125,
+      "catalogId": "dishwasher",
+      "nativeCategory": "dishwasher"
+    },
+    {
+      "category": "television",
+      "widthCm": 160.125,
+      "catalogId": "television",
+      "nativeCategory": "television"
+    },
+    {
+      "category": "fireplace",
+      "widthCm": 160.125,
+      "catalogId": "fireplace",
+      "nativeCategory": "fireplace"
+    },
+    {
+      "category": "stairs",
+      "widthCm": 160.125,
+      "catalogId": "stairs",
+      "nativeCategory": "stairs"
+    },
+    {
+      "category": "bed",
+      "widthCm": 160.125,
+      "catalogId": "bed_queen",
+      "nativeCategory": "bed"
+    },
+    {
+      "category": "bed",
+      "widthCm": 139.875,
+      "catalogId": "bed_twin",
+      "nativeCategory": "bed"
+    },
+    {
+      "category": "refrigerator",
+      "widthCm": 160.125,
+      "catalogId": "fridge",
+      "nativeCategory": "refrigerator"
+    },
+    {
+      "category": "sink",
+      "widthCm": 160.125,
+      "catalogId": "sink_b",
+      "nativeCategory": "sink"
+    },
+    {
+      "category": "washerDryer",
+      "widthCm": 160.125,
+      "catalogId": "washer_dryer",
+      "nativeCategory": "washerDryer"
+    },
+    {
+      "category": "washerdryer",
+      "widthCm": 160.125,
+      "catalogId": "washer_dryer",
+      "nativeCategory": "washerDryer"
+    },
+    {
+      "category": "bed_queen",
+      "widthCm": 160.125,
+      "catalogId": "bed_queen",
+      "nativeCategory": "bed"
+    },
+    {
+      "category": "bed_twin",
+      "widthCm": 160.125,
+      "catalogId": "bed_twin",
+      "nativeCategory": "bed"
+    },
+    {
+      "category": "loveseat",
+      "widthCm": 160.125,
+      "catalogId": "loveseat",
+      "nativeCategory": "sofa"
+    },
+    {
+      "category": "office_chair",
+      "widthCm": 160.125,
+      "catalogId": "office_chair",
+      "nativeCategory": "chair"
+    },
+    {
+      "category": "dining_chair",
+      "widthCm": 160.125,
+      "catalogId": "dining_chair",
+      "nativeCategory": "chair"
+    },
+    {
+      "category": "patio_chair",
+      "widthCm": 160.125,
+      "catalogId": "patio_chair",
+      "nativeCategory": "chair"
+    },
+    {
+      "category": "dining_table",
+      "widthCm": 160.125,
+      "catalogId": "dining_table",
+      "nativeCategory": "table"
+    },
+    {
+      "category": "coffee_table",
+      "widthCm": 160.125,
+      "catalogId": "coffee_table",
+      "nativeCategory": "table"
+    },
+    {
+      "category": "side_table",
+      "widthCm": 160.125,
+      "catalogId": "side_table",
+      "nativeCategory": "table"
+    },
+    {
+      "category": "nightstand",
+      "widthCm": 160.125,
+      "catalogId": "nightstand",
+      "nativeCategory": "table"
+    },
+    {
+      "category": "desk",
+      "widthCm": 160.125,
+      "catalogId": "desk",
+      "nativeCategory": "table"
+    },
+    {
+      "category": "patio_table",
+      "widthCm": 160.125,
+      "catalogId": "patio_table",
+      "nativeCategory": "table"
+    },
+    {
+      "category": "bookshelf",
+      "widthCm": 160.125,
+      "catalogId": "bookshelf",
+      "nativeCategory": "storage"
+    },
+    {
+      "category": "dresser",
+      "widthCm": 160.125,
+      "catalogId": "dresser",
+      "nativeCategory": "storage"
+    },
+    {
+      "category": "wardrobe",
+      "widthCm": 160.125,
+      "catalogId": "wardrobe",
+      "nativeCategory": "storage"
+    },
+    {
+      "category": "tv_stand",
+      "widthCm": 160.125,
+      "catalogId": "tv_stand",
+      "nativeCategory": "storage"
+    },
+    {
+      "category": "counter",
+      "widthCm": 160.125,
+      "catalogId": "counter",
+      "nativeCategory": "storage"
+    },
+    {
+      "category": "fridge",
+      "widthCm": 160.125,
+      "catalogId": "fridge",
+      "nativeCategory": "refrigerator"
+    },
+    {
+      "category": "sink_k",
+      "widthCm": 160.125,
+      "catalogId": "sink_k",
+      "nativeCategory": "sink"
+    },
+    {
+      "category": "sink_b",
+      "widthCm": 160.125,
+      "catalogId": "sink_b",
+      "nativeCategory": "sink"
+    },
+    {
+      "category": "washer_dryer",
+      "widthCm": 160.125,
+      "catalogId": "washer_dryer",
+      "nativeCategory": "washerDryer"
+    },
+    {
+      "category": "future-appliance",
+      "widthCm": 160.125,
+      "catalogId": "imported_object",
+      "nativeCategory": null
+    },
+    {
+      "category": "floor_robot",
+      "widthCm": 160.125,
+      "catalogId": "imported_object",
+      "nativeCategory": null
+    },
+    {
+      "category": "constructor",
+      "widthCm": 160.125,
+      "catalogId": "imported_object",
+      "nativeCategory": null
+    },
+    {
+      "category": "toString",
+      "widthCm": 160.125,
+      "catalogId": "imported_object",
+      "nativeCategory": null
+    },
+    {
+      "category": "__proto__",
+      "widthCm": 160.125,
+      "catalogId": "imported_object",
+      "nativeCategory": null
+    },
+    {
+      "category": "",
+      "widthCm": 160.125,
+      "catalogId": "imported_object",
+      "nativeCategory": null
+    }
+  ]
+}

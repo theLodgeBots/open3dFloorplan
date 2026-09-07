@@ -902,6 +902,18 @@ const drawSymGasLine: DrawFn = (ctx, w, d, color) => {
 
 /** Registry mapping catalogId → custom draw function */
 const iconDrawers: Record<string, DrawFn> = {
+  stairs: (ctx, w, d) => {
+    ctx.fillRect(-w / 2, -d / 2, w, d);
+    ctx.strokeRect(-w / 2, -d / 2, w, d);
+    ctx.beginPath();
+    for (let i = 1; i < 10; i++) {
+      const y = -d / 2 + d * i / 10;
+      ctx.moveTo(-w / 2, y); ctx.lineTo(w / 2, y);
+    }
+    ctx.moveTo(0, d * 0.35); ctx.lineTo(0, -d * 0.35);
+    ctx.moveTo(-w * 0.15, -d * 0.2); ctx.lineTo(0, -d * 0.35); ctx.lineTo(w * 0.15, -d * 0.2);
+    ctx.stroke();
+  },
   sofa: drawSofa,
   loveseat: drawLoveseat,
   chair: drawChair,
