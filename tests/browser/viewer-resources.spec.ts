@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { resolve } from 'node:path';
 
 // CI-only instrumentation of the browser's WebGL API. No app internals or debug
 // hooks: retain contexts deliberately so GC cannot disguise missing teardown.
@@ -7,7 +8,7 @@ async function observeGPU(page: Page) {
     const contexts: any[] = [];
     (window as any).__gpuAudit = contexts;
     const getContext = HTMLCanvasElement.prototype.getContext;
-    HTMLCanvasElement.prototype.getContext = function (...args: any[]) {
+    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, ...args: any[]) {
       const context = (getContext as any).apply(this, args);
       if (!context || !String(args[0]).startsWith('webgl') || contexts.some(item => item.gl === context)) return context;
       const entry: any = { gl: context, canvas: this, draws: 0, live: {} };
@@ -63,5 +64,38 @@ test('camera previews release their WebGL context and render on every reopen', a
   } finally {
     samples.push({ phase: 'final', contexts: await gpu(page) });
     await testInfo.attach('webgl-resource-counts', { body: JSON.stringify(samples, null, 2), contentType: 'application/json' });
+  }
+});
+
+
+test('textured scene rebuilds retain a bounded number of GPU resources', async ({ page }, testInfo) => {
+  test.setTimeout(120_000);
+  await observeGPU(page);
+  const samples: any[] = [];
+  try {
+    await page.goto('/editor');
+    await page.getByRole('button', { name: 'Export', exact: true }).click();
+    const chooser = page.waitForEvent('filechooser');
+    await page.getByRole('button', { name: 'Import JSON', exact: true }).click();
+    await (await chooser).setFiles(resolve('tests/fixtures/connected-dimensions.openplan.json'));
+    await page.getByRole('button', { name: 'Save', exact: true }).press('l');
+    await page.getByRole('button', { name: '─ Wall 1', exact: true }).click();
+    await page.getByRole('button', { name: '3D', exact: true }).click();
+    await page.waitForLoadState('networkidle');
+    const cycle = async () => {
+      for (const name of ['Show All Floors Stacked', 'Active Floor Only']) {
+        const before = (await gpu(page))[0].draws;
+        await page.getByRole('button', { name, exact: true }).click();
+        await expect.poll(async () => (await gpu(page))[0].draws).toBeGreaterThan(before);
+      }
+      return (await gpu(page))[0].live;
+    };
+    await cycle(); // warm both presentation modes and lazily loaded textures
+    const baseline = await cycle();
+    samples.push({ phase: 'warmed', live: baseline });
+    for (let index = 0; index < 4; index++) samples.push({ phase: `rebuild-${index}`, live: await cycle() });
+    expect(samples.at(-1).live).toEqual(baseline);
+  } finally {
+    await testInfo.attach('scene-resource-counts', { body: JSON.stringify(samples, null, 2), contentType: 'application/json' });
   }
 });
