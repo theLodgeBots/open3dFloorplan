@@ -679,11 +679,11 @@ export function updateFurniture(id: string, updates: Partial<FurnitureItem>) {
 }
 
 /** Commit prepared metadata/photo edits only to the project that was read. */
-export function commitItemDetails(expected: Project, next: Project, description: string) {
+export function commitItemDetails(expected: Project, next: Project, description: string, coalesceKey?: string) {
   if (get(currentProject) !== expected || next.id !== expected.id) throw new Error('The project changed while the photo was being prepared. Select the photo again.');
   const valid = readProject(next);
   if (JSON.stringify(expected) === JSON.stringify(valid)) return;
-  snapshot(description);
+  snapshot(description, coalesceKey);
   valid.updatedAt = new Date();
   currentProject.set(valid);
 }
@@ -701,7 +701,7 @@ export function updateItemDetails(target: DetailTarget, patch: ItemDetails) {
   const details = { ...itemDetails(project, target), ...patch };
   validateItemDetails(details, target.kind);
   item.details = details;
-  commitItemDetails(project, next, 'Changed item details');
+  commitItemDetails(project, next, 'Changed item details', coalesceKeyFor(`details:${target.floorId}:${target.kind}`, target.id, { ...patch }));
 }
 
 export function updateRoom(id: string, updates: Partial<{ name: string; floorTexture: string; color: string; roomType: import('$lib/models/types').RoomCategory; labelOffset: import('$lib/models/types').Point | undefined }>) {

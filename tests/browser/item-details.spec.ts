@@ -101,11 +101,11 @@ for (const width of [1440, 390]) test(`item metadata and optimized photos surviv
 
 test('room, wall and opening metadata can be edited after an actual Swift return', async ({ page }) => {
   const check = observe(page);
-  await openPackage(page, resolve('tests/fixtures/swift-metadata-return.zip')); await selectFurniture(page);
+  const source = await openPackage(page, resolve('tests/fixtures/swift-metadata-return.zip')); await selectFurniture(page);
   await expect(page.getByRole('textbox', { name: 'Item notes', exact: true })).toHaveValue('Native follow-up');
   await expect(page.getByRole('spinbutton', { name: 'Item cost', exact: true })).toHaveValue('');
   await expect(page.getByRole('region', { name: 'Item details', exact: true })).toContainText('Item photos (0)');
-  await page.getByRole('button', { name: 'Select room Kitchen', exact: true }).click();
+  await page.getByRole('button', { name: `Select room ${source.floors[0].rooms[0].name}`, exact: true }).click();
   await fill(page, 'Item notes', 'Web room update');
   await fill(page, 'Room ceiling height (cm)', '297.625', true);
   await page.getByRole('combobox', { name: 'Room use', exact: true }).selectOption('office');

@@ -30,13 +30,18 @@
   }
   function save(patch: ItemDetails) {
     error = ''; status = '';
+    if (Object.entries(patch).every(([key, value]) => JSON.stringify(details[key as keyof ItemDetails]) === JSON.stringify(value))) return;
     try { updateItemDetails(target, patch); } catch (e) { error = e instanceof Error ? e.message : 'Could not update item details.'; }
   }
   function optionalNumber(event: Event, field: 'price' | 'ceilingHeight') {
     const input = event.currentTarget as HTMLInputElement;
-    if (!input.value.trim() && !input.validity.badInput) { save({ [field]: null }); return; }
+    if (!input.value.trim() && !input.validity.badInput) {
+      if (event.type === 'blur') save({ [field]: null });
+      return;
+    }
     const value = input.valueAsNumber * (field === 'ceilingHeight' && imperial ? 2.54 : 1);
     if (!input.validity.valid || !Number.isFinite(value) || (field === 'price' ? value < 0 : value <= 0 || value > 1_000_000)) {
+      if (event.type !== 'blur') return;
       error = field === 'price' ? 'Enter a cost of zero or more, or clear the field.' : 'Enter a positive ceiling height, or clear the field to use the default.';
       input.value = details[field] == null ? '' : String(details[field]! / (field === 'ceilingHeight' && imperial ? 2.54 : 1));
       return;
@@ -96,12 +101,12 @@
   <h3 class="text-sm font-semibold text-gray-700">Item details</h3>
   {#if target.kind === 'walls' || supportsPhotos}
     <label class="block text-xs text-gray-600">Item notes
-      <textarea value={details.note ?? ''} rows="3" maxlength="20000" onchange={e => save({ note: e.currentTarget.value || null })} class="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm"></textarea>
+      <textarea value={details.note ?? ''} rows="3" maxlength="20000" oninput={e => save({ note: e.currentTarget.value || null })} class="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm"></textarea>
     </label>
   {/if}
   {#if supportsCost}
     <label class="block text-xs text-gray-600">Item cost
-      <input type="number" min="0" step="any" value={details.price ?? ''} onchange={e => optionalNumber(e, 'price')} class="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm" />
+      <input type="number" min="0" step="any" value={details.price ?? ''} oninput={e => optionalNumber(e, 'price')} onblur={e => optionalNumber(e, 'price')} class="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm" />
     </label>
     <p class="text-xs text-gray-500">Use the same currency throughout the project. Clear the field to leave the cost unset.</p>
   {/if}
@@ -123,7 +128,7 @@
       </select>
     </label>
     <label class="block text-xs text-gray-600">Room ceiling height ({imperial ? 'in' : 'cm'})
-      <input type="number" min="0" step="any" placeholder="Use plan default" value={details.ceilingHeight == null ? '' : details.ceilingHeight / (imperial ? 2.54 : 1)} onchange={e => optionalNumber(e, 'ceilingHeight')} class="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm" />
+      <input type="number" min="0" step="any" placeholder="Use plan default" value={details.ceilingHeight == null ? '' : details.ceilingHeight / (imperial ? 2.54 : 1)} oninput={e => optionalNumber(e, 'ceilingHeight')} onblur={e => optionalNumber(e, 'ceilingHeight')} class="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm" />
     </label>
     <p class="text-xs text-gray-500">This room override travels to iPhone. Edit wall heights to change the web 3D geometry.</p>
   {/if}
