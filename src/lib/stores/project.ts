@@ -4,6 +4,9 @@ import { planWallResize, finitePoint, validPositiveDimension, validOpeningPositi
 import { getOuterWalls } from '$lib/utils/outerWalls';
 import { nextFloorLevel, floorElevations, validFloorElevation, DEFAULT_FLOOR_SPACING } from '$lib/utils/floors';
 import { getWallStartHeight, getWallEndHeight, getWallHeightAt, validWallHeight } from '$lib/models/types';
+import type { DetailTarget, ItemDetails } from '$lib/models/types';
+import { detailItem, itemDetails, validateItemDetails } from '$lib/utils/itemDetails';
+import { readProject } from '$lib/utils/projectValidation';
 
 
 function uid(): string {
@@ -65,6 +68,13 @@ interface UndoEntry {
 }
 const undoStack: UndoEntry[] = [];
 const redoStack: UndoEntry[] = [];
+function pushHistory(stack: UndoEntry[], entry: UndoEntry) {
+  stack.push(entry);
+  // Photos must not multiply into an unbounded string history. Always retain
+  // the latest step, even for an existing project larger than this budget.
+  let bytes = stack.reduce((sum, item) => sum + item.state.length * 2, 0);
+  while (stack.length > 1 && (stack.length > 50 || bytes > 32 * 1024 * 1024)) bytes -= stack.shift()!.state.length * 2;
+}
 
 /** Reactive store exposing undo history for the UndoHistoryPanel */
 export const undoHistoryStore = writable<{ entries: { description: string; timestamp: number }[]; currentIndex: number }>({ entries: [], currentIndex: -1 });
@@ -117,8 +127,7 @@ export function endUndoGroup(description?: string) {
   if (undoGroupDepth <= 0) return;
   undoGroupDepth--;
   if (undoGroupDepth === 0 && undoGroupSnapshot !== null) {
-    undoStack.push({ state: undoGroupSnapshot, description: description || _nextDescription || 'Group action', timestamp: Date.now() });
-    if (undoStack.length > 50) undoStack.shift();
+    pushHistory(undoStack, { state: undoGroupSnapshot, description: description || _nextDescription || 'Group action', timestamp: Date.now() });
     redoStack.length = 0;
     undoGroupSnapshot = null;
     _nextDescription = '';
@@ -145,8 +154,7 @@ function snapshot(description?: string, coalesceKey?: string) {
     redoStack.length = 0;
     return;
   }
-  undoStack.push({ state: JSON.stringify(p), description: description || _nextDescription || 'Edit', timestamp: now });
-  if (undoStack.length > 50) undoStack.shift();
+  pushHistory(undoStack, { state: JSON.stringify(p), description: description || _nextDescription || 'Edit', timestamp: now });
   redoStack.length = 0;
   _nextDescription = '';
   _lastCoalesceKey = coalesceKey ?? null;
@@ -186,7 +194,7 @@ export function undo() {
   const prev = undoStack.pop();
   if (!prev) return;
   const cur = get(currentProject);
-  if (cur) redoStack.push({ state: JSON.stringify(cur), description: prev.description, timestamp: prev.timestamp });
+  if (cur) pushHistory(redoStack, { state: JSON.stringify(cur), description: prev.description, timestamp: prev.timestamp });
   restoreHistoryProject(prev.state);
   syncHistoryStore();
 }
@@ -196,7 +204,7 @@ export function redo() {
   const next = redoStack.pop();
   if (!next) return;
   const cur = get(currentProject);
-  if (cur) undoStack.push({ state: JSON.stringify(cur), description: next.description, timestamp: next.timestamp });
+  if (cur) pushHistory(undoStack, { state: JSON.stringify(cur), description: next.description, timestamp: next.timestamp });
   restoreHistoryProject(next.state);
   syncHistoryStore();
 }
@@ -216,10 +224,10 @@ export function jumpToUndoStep(targetIndex: number) {
   // Push current + all states between current and target onto redo
   const stepsBack = total - targetIndex;
   // Move states from undoStack to redoStack
-  redoStack.push({ state: JSON.stringify(cur), description: 'Current state', timestamp: Date.now() });
+  pushHistory(redoStack, { state: JSON.stringify(cur), description: 'Current state', timestamp: Date.now() });
   for (let i = 0; i < stepsBack - 1; i++) {
     const entry = undoStack.pop()!;
-    redoStack.push(entry);
+    pushHistory(redoStack, entry);
   }
   const target = undoStack.pop()!;
   restoreHistoryProject(target.state);
@@ -668,6 +676,32 @@ export function updateFurniture(id: string, updates: Partial<FurnitureItem>) {
     const fi = f.furniture.find((fi) => fi.id === id);
     if (fi) Object.assign(fi, updates);
   }, undefined, coalesceKeyFor('furniture', id, updates));
+}
+
+/** Commit prepared metadata/photo edits only to the project that was read. */
+export function commitItemDetails(expected: Project, next: Project, description: string, coalesceKey?: string) {
+  if (get(currentProject) !== expected || next.id !== expected.id) throw new Error('The project changed while the photo was being prepared. Select the photo again.');
+  const valid = readProject(next);
+  if (JSON.stringify(expected) === JSON.stringify(valid)) return;
+  snapshot(description, coalesceKey);
+  valid.updatedAt = new Date();
+  currentProject.set(valid);
+}
+
+export function updateItemDetails(target: DetailTarget, patch: ItemDetails) {
+  const project = get(currentProject);
+  if (!project || project.activeFloorId !== target.floorId) return;
+  const next = readProject(project), floor = next.floors.find(f => f.id === target.floorId)!;
+  if (target.kind === 'rooms' && !detailItem(next, target)) {
+    const detected = get(detectedRoomsStore).find(r => r.id === target.id);
+    if (detected) floor.rooms.push(structuredClone(detected));
+  }
+  const item = detailItem(next, target);
+  if (!item) return;
+  const details = { ...itemDetails(project, target), ...patch };
+  validateItemDetails(details, target.kind);
+  item.details = details;
+  commitItemDetails(project, next, 'Changed item details', coalesceKeyFor(`details:${target.floorId}:${target.kind}`, target.id, { ...patch }));
 }
 
 export function updateRoom(id: string, updates: Partial<{ name: string; floorTexture: string; color: string; roomType: import('$lib/models/types').RoomCategory; labelOffset: import('$lib/models/types').Point | undefined }>) {

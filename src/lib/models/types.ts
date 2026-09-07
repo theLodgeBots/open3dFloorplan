@@ -1,6 +1,26 @@
 export interface Point { x: number; y: number; }
 
+/** Shared item metadata. Null explicitly clears a retained native value. */
+export interface ItemDetails {
+  note?: string | null;
+  price?: number | null;
+  photos?: string[];
+  material?: string | null;
+  roomType?: string | null;
+  ceilingHeight?: number | null; // centimetres; metadata, not a wall-height edit
+}
+export type DetailKind = 'walls' | 'doors' | 'windows' | 'furniture' | 'rooms';
+export type DetailTarget = { floorId: string; kind: DetailKind; id: string };
+export type PackageMapping = { id: string; kind: string; webId: string; floorId?: string }[];
+export interface ProjectPackageState {
+  version: 1;
+  native: Record<string, any>;
+  mapping: PackageMapping;
+  assets: Record<string, string>; // assets/<filename> → base64 bytes, one copy per file
+}
+
 export interface Wall {
+  details?: ItemDetails;
   id: string;
   start: Point;
   end: Point;
@@ -44,6 +64,7 @@ export function getWallHeightAt(wall: Wall, t: number): number {
 export type RoomCategory = 'indoor' | 'outdoor' | 'garage' | 'utility';
 
 export interface Room {
+  details?: ItemDetails;
   id: string;
   name: string;
   walls: string[];
@@ -56,6 +77,7 @@ export interface Room {
 }
 
 export interface Door {
+  details?: ItemDetails;
   id: string;
   wallId: string;
   position: number; // 0-1 along wall
@@ -67,6 +89,7 @@ export interface Door {
 }
 
 export interface Window {
+  details?: ItemDetails;
   id: string;
   wallId: string;
   position: number; // 0-1 along wall
@@ -77,6 +100,7 @@ export interface Window {
 }
 
 export interface FurnitureItem {
+  details?: ItemDetails;
   id: string;
   catalogId: string;
   position: Point;
@@ -204,6 +228,8 @@ export interface Floor {
 }
 
 export interface Project {
+  attachmentNames?: Record<string, string>;
+  projectPackage?: ProjectPackageState;
   id: string;
   name: string;
   description?: string;
