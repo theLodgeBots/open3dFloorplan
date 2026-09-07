@@ -116,6 +116,9 @@ test('a failed candidate save keeps the import in memory and its original safe i
   expect((await library(page))[source.id]).toEqual(source);
   await page.evaluate(() => { (window as any).failProjectWrites = false; });
   await page.getByRole('button', { name: 'Retry save', exact: true }).click();
+  // A click starts asynchronous IndexedDB work; wait for the committed save
+  // before navigating away, as the user-facing status instructs.
+  await expect(page.getByText('Saved ✓', { exact: true })).toBeVisible();
   await page.reload(); expect((await exportJSON(page)).id).toBe(copy.id);
   check();
 });

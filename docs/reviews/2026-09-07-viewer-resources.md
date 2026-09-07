@@ -26,6 +26,11 @@ collection cannot hide missing teardown. In Firefox:
   on these measured expectations. The retained counts are allocations, not GPU
   byte estimates, JavaScript heap measurements or frame-time benchmarks.
 
+The first post-fix Firefox run (all 61 tests passed) kept the same scene at **13
+textures** through every measured rebuild. Closing a preview retained only the
+main context, whose buffers/programs returned to 10/3 each time; leaving 3D left
+zero live measured contexts. Final three-engine results are attached to PR #68.
+
 ## Changes
 
 - The preview renderer follows its canvas lifetime. Closing, repositioning,
@@ -45,6 +50,10 @@ collection cannot hide missing teardown. In Firefox:
   dirty so the new highlight is rendered promptly.
 
 ## Validation
+
+The full suite also exposed an existing save-retry test reloading the page while
+its IndexedDB transaction was still pending. It now waits for the visible
+`Saved ✓` confirmation before checking persistence after reload.
 
 Local validation: **544 unit tests**, zero type errors, 23 existing Svelte
 warnings and production build pass. The ownership tests exercise 100 repeated
