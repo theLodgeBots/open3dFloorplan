@@ -12,7 +12,7 @@
   import { snapFurnitureToWalls } from '$lib/utils/furnitureGeometry';
   import { getCatalogItem, getFurnitureSize, type FurnitureDef } from '$lib/utils/furnitureCatalog';
   import { drawFurnitureIcon } from '$lib/utils/furnitureIcons';
-  import { handleGlobalShortcut } from '$lib/utils/shortcuts';
+  import { handleGlobalShortcut, isEditingField } from '$lib/utils/shortcuts';
   import ContextMenu from './ContextMenu.svelte';
   import { roomPresets, placePreset } from '$lib/utils/roomPresets';
   import { getWallTextureCanvas, getFloorTextureCanvas, setTextureLoadCallback } from '$lib/utils/textureGenerator';
@@ -3112,14 +3112,19 @@
   }
 
   function onKeyDown(e: KeyboardEvent) {
+    // This listener is on window, so field keystrokes reach it too. Keep every
+    // canvas action (including Space, select/copy/paste and annotation deletion)
+    // out of focused inputs; only the explicit Save shortcut is global there.
+    if (isEditingField(e.target)) {
+      handleGlobalShortcut(e);
+      return;
+    }
     shiftDown = e.shiftKey;
     if (e.code === 'Space') { spaceDown = true; e.preventDefault(); return; }
 
     // Exact-length entry while drawing a wall (issue #6):
     // type a number, then Enter places the wall at exactly that length.
-    const keyTargetTag = (e.target as HTMLElement)?.tagName;
-    const inFormField = keyTargetTag === 'INPUT' || keyTargetTag === 'TEXTAREA' || keyTargetTag === 'SELECT';
-    if (currentTool === 'wall' && wallStart && !editingTextAnnotationId && !inFormField && !e.metaKey && !e.ctrlKey) {
+    if (currentTool === 'wall' && wallStart && !editingTextAnnotationId && !e.metaKey && !e.ctrlKey) {
       if (/^[0-9.]$/.test(e.key)) {
         typedWallLength += e.key;
         markDirty();
