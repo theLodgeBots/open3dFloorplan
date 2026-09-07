@@ -247,8 +247,14 @@ export const furnitureCatalog: FurnitureDef[] = [
   { id: 'sym_gas_line', name: 'Gas Line', category: 'Plumbing', icon: '⛽', color: '#f59e0b', width: 15, depth: 15, height: 0, symbol: true },
 ];
 
+// Import previews stay out of the placement catalog and need no model downloads.
+const importPreviews: FurnitureDef[] = [
+  { id: 'imported_object', name: 'Unrecognized item', category: 'Imported', icon: '📦', color: '#94a3b8', width: 50, depth: 50, height: 50 },
+  { id: 'stairs', name: 'Imported stairs', category: 'Imported', icon: '🪜', color: '#78716c', width: 90, depth: 300, height: 200 },
+];
+
 export function getCatalogItem(id: string): FurnitureDef | undefined {
-  return furnitureCatalog.find(f => f.id === id);
+  return furnitureCatalog.find(f => f.id === id) ?? importPreviews.find(f => f.id === id);
 }
 
 /**

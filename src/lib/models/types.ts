@@ -103,6 +103,8 @@ export interface FurnitureItem {
   details?: ItemDetails;
   id: string;
   catalogId: string;
+  /** Original unsupported import category, used only by the imported_object preview. */
+  sourceCategory?: string;
   position: Point;
   rotation: number;
   scale: { x: number; y: number; z: number };

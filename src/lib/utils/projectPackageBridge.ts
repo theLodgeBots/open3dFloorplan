@@ -2,7 +2,8 @@ import type { Project, DetailKind, PackageMapping } from '$lib/models/types';
 import { createDefaultFloor, createDefaultProject } from '$lib/stores/project';
 import { readProject } from './projectValidation';
 import { detectRooms, getRoomPolygon, roomCentroid } from './roomDetection';
-import { getCatalogItem, getFurnitureSize } from './furnitureCatalog';
+import { getFurnitureSize } from './furnitureCatalog';
+import { exportedFurnitureCategory, importedFurnitureCategory } from './furnitureCategories';
 import { packageError, safePackagePath } from './projectPackageZip';
 import { nativeItemDetails, withNativeDetails } from './itemDetails';
 
@@ -124,7 +125,7 @@ export function nativeToWeb(plan: ObjectMap, mapping: PackageMapping, title: str
     const openings = plan.openings.filter((o: any) => wallIds.has(key(o.wallID)));
     floor.doors = openings.filter((o: any) => o.kind === 'door').map((o: any) => ({ details: nativeItemDetails(o, 'doors'), id: mapped(o.id), wallId: mapped(o.wallID), position: o.position, width: cm(o.width), height: cm(o.height ?? 2), type: ['single', 'double', 'sliding'].includes(o.style) ? o.style : o.style === 'patio' ? 'sliding' : 'single', swingDirection: o.hingeLeft === false ? 'left' : 'right', flipSide: o.opensInward === false }));
     floor.windows = openings.filter((o: any) => o.kind === 'window').map((o: any) => ({ details: nativeItemDetails(o, 'windows'), id: mapped(o.id), wallId: mapped(o.wallID), position: o.position, width: cm(o.width), height: cm(o.height ?? 1.2), sillHeight: cm(o.sillHeight ?? 0.9), type: o.style === 'sliding' ? 'sliding' : 'fixed' }));
-    floor.furniture = plan.furniture.filter((f: any) => (f.level ?? 0) === level).map((f: any) => ({ details: nativeItemDetails(f, 'furniture'), id: mapped(f.id), catalogId: getCatalogItem(f.category) ? f.category : 'chair', position: point(f.center), rotation: f.angle * 180 / Math.PI, width: cm(f.width), depth: cm(f.depth), scale: { x: 1, y: 1, z: 1 } }));
+    floor.furniture = plan.furniture.filter((f: any) => (f.level ?? 0) === level).map((f: any) => ({ details: nativeItemDetails(f, 'furniture'), id: mapped(f.id), ...importedFurnitureCategory(f.category, cm(f.width)), position: point(f.center), rotation: f.angle * 180 / Math.PI, width: cm(f.width), depth: cm(f.depth), scale: { x: 1, y: 1, z: 1 } }));
     const detected = detectRooms(floor.walls);
     floor.rooms = plan.rooms.filter((r: any) => (r.level ?? 0) === level).map((r: any) => {
       const center = point(r.center), match = detected.find(room => inside(center, getRoomPolygon(room, floor.walls)));
@@ -213,7 +214,7 @@ export function webToNative(project: Project, original: ObjectMap | undefined, p
     }
     for (const item of floor.furniture) {
       const id = identity('furniture', item.id, floor.id), old = nativeOriginal('furniture', id), size = getFurnitureSize(item);
-      plan.furniture.push({ ...old, id, category: old.category && !getCatalogItem(old.category) && item.catalogId === 'chair' ? old.category : item.catalogId, center: point(item.position, 0.01), angle: item.rotation * Math.PI / 180, width: meters(size.width || 1), depth: meters(size.depth || 1), level });
+      plan.furniture.push({ ...old, id, category: exportedFurnitureCategory(item), center: point(item.position, 0.01), angle: item.rotation * Math.PI / 180, width: meters(size.width || 1), depth: meters(size.depth || 1), level });
     }
     for (const room of floor.rooms) {
       const id = identity('rooms', room.id, floor.id), old = nativeOriginal('rooms', id), polygon = getRoomPolygon(room, floor.walls), center = polygon.length ? roomCentroid(polygon) : point(old.center ?? { x: 0, y: 0 });

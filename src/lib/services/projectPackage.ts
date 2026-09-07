@@ -4,8 +4,9 @@ import { PACKAGE_LIMIT, jsonBytes, packageJSON, packageError, readPackageZip, wr
 import { applyNativeEdits, nativeAssetNames, nativeToWeb, validatePackageMapping, validatePackagePlan, webToNative, type PackageMapping } from '$lib/utils/projectPackageBridge';
 import { prepareLibraryRestore } from './libraryRestore';
 import type { DetailKind } from '$lib/models/types';
+import { furnitureCatalog } from '$lib/utils/furnitureCatalog';
 
-type PackageState = { version: 1; native: Record<string, any>; mapping: PackageMapping; assets: Record<string, string> };
+type PackageState = { version: 1; furnitureCategoriesVersion?: 1; native: Record<string, any>; mapping: PackageMapping; assets: Record<string, string> };
 const docs = ['manifest.json', 'plan.json', 'web.json', 'baseline.json', 'mapping.json'];
 const reservedAssets = new Set(['plan.json', 'room.json', 'room.usdz', 'session.json', 'manifest.json', 'info.json', 'thumbnail.jpg']);
 function validateLocalImages(project: Project) {
@@ -49,10 +50,25 @@ function readState(project: Project): PackageState | undefined {
   const state = (project as any).projectPackage;
   if (state === undefined) return undefined;
   if (!state || state.version !== 1 || !state.assets || typeof state.assets !== 'object' || Array.isArray(state.assets)) packageError('Unrecognized retained package data. Download a JSON backup to preserve it.');
-  return { version: 1, native: validatePackagePlan(state.native), mapping: validatePackageMapping(state.mapping), assets: state.assets };
+  if (state.furnitureCategoriesVersion !== undefined && state.furnitureCategoriesVersion !== 1) packageError('Unsupported retained furniture-category version.');
+  return { version: 1, furnitureCategoriesVersion: state.furnitureCategoriesVersion, native: validatePackagePlan(state.native), mapping: validatePackageMapping(state.mapping), assets: state.assets };
+}
+function upgradeLegacyFurniture(project: Project, native: Record<string, any>, mapping: PackageMapping, projection = nativeToWeb(native, mapping, project.name)) {
+  // Earlier importers used chairs for every non-catalog category. Upgrade only
+  // that precise fallback, retaining edits and explicitly different selections.
+  for (const entry of mapping.filter(m => m.kind === 'furniture')) {
+    const old = native.furniture.find((item: any) => item.id.toLowerCase() === entry.id.toLowerCase());
+    const item = project.floors.find(f => f.id === entry.floorId)?.furniture.find(f => f.id === entry.webId);
+    const preview = projection.floors.find(f => f.id === entry.floorId)?.furniture.find(f => f.id === entry.webId);
+    if (old && !furnitureCatalog.some(def => def.id === old.category) && item?.catalogId === 'chair' && preview) {
+      item.catalogId = preview.catalogId;
+      if (preview.sourceCategory !== undefined) item.sourceCategory = preview.sourceCategory;
+    }
+  }
 }
 export function projectPackageBytes(value: Project): Uint8Array {
   const project = readProject(value), state = readState(project);
+  if (state && state.furnitureCategoriesVersion === undefined) upgradeLegacyFurniture(project, state.native, state.mapping);
   validateLocalImages(project);
   delete (project as any).projectPackage;
   const { plan, mapping } = webToNative(project, state?.native, state?.mapping);
@@ -84,7 +100,7 @@ export function projectPackageBytes(value: Project): Uint8Array {
   return writePackageZip({
     'manifest.json': jsonBytes({ format: 'openplan3d-project', version: 1, producer: 'web', title: project.name }),
     'plan.json': jsonBytes(plan), 'web.json': jsonBytes(project),
-    'baseline.json': jsonBytes({ ...plan, openplanItemDetailsVersion: 1, openplanUnderlayFloorId: underlayFloorId, openplanAssetChecksums: Object.fromEntries(Object.entries(assets).map(([path, data]) => [path, crc32(data)])) }),
+    'baseline.json': jsonBytes({ ...plan, openplanItemDetailsVersion: 1, openplanFurnitureCategoriesVersion: 1, openplanUnderlayFloorId: underlayFloorId, openplanAssetChecksums: Object.fromEntries(Object.entries(assets).map(([path, data]) => [path, crc32(data)])) }),
     'mapping.json': jsonBytes({ entries: mapping }), ...assets,
   });
 }
@@ -105,7 +121,9 @@ export function readProjectPackage(bytes: Uint8Array): { project: Project; asset
     if ((source as any).projectPackage !== undefined) packageError('Nested project packages are not supported.');
     const baseline = validatePackagePlan(packageJSON(files['baseline.json']));
     if (baseline.openplanItemDetailsVersion !== undefined && baseline.openplanItemDetailsVersion !== 1) packageError('Unsupported item-details baseline version.');
+    if (baseline.openplanFurnitureCategoriesVersion !== undefined && baseline.openplanFurnitureCategoriesVersion !== 1) packageError('Unsupported furniture-category baseline version.');
     const before = nativeToWeb(baseline, mapping, manifest.title), after = nativeToWeb(plan, mapping, manifest.title);
+    if (baseline.openplanFurnitureCategoriesVersion === undefined) upgradeLegacyFurniture(source, baseline, mapping, before);
     project = applyNativeEdits(source, before, after);
     // Older web releases retain unknown detail fields but cannot apply native
     // metadata edits to them. Their baseline has no detail-version marker, so
@@ -137,7 +155,7 @@ export function readProjectPackage(bytes: Uint8Array): { project: Project; asset
   // Rebuild identities for the current native plan, retaining source web IDs.
   const resolved = webToNative(project, plan, mapping);
   for (const filename of nativeAssetNames(resolved.plan)) if (!assets[`assets/${filename}`]) packageError(`Missing attachment: ${filename}.`);
-  (project as any).projectPackage = { version: 1, native: plan, mapping: resolved.mapping, assets: Object.fromEntries(Object.entries(assets).map(([name, data]) => [name, encode64(data)])) } satisfies PackageState;
+  (project as any).projectPackage = { version: 1, furnitureCategoriesVersion: 1, native: plan, mapping: resolved.mapping, assets: Object.fromEntries(Object.entries(assets).map(([name, data]) => [name, encode64(data)])) } satisfies PackageState;
   return { project: readProject(project), assets: Object.keys(assets).length, warnings: [PACKAGE_NOTICE, ...(plan.underlay && !underlayBackground(plan, assets) ? ['The tracing image format is retained for iPhone but cannot be previewed here.'] : [])] };
 }
 export async function prepareProjectPackage(file: File) {

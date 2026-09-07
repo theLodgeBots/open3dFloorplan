@@ -1,7 +1,7 @@
 # OpenPlan3D: current state and improvement roadmap
 
 **Current handoff:** [NEXT.md](../../NEXT.md) records the remaining work as of
-September 6, 2026. The initial findings and older “next” sections below are
+September 7, 2026. The initial findings and older “next” sections below are
 historical; implementation progress is recorded in the subsequent batch log.
 
 Reviewed September 5, 2026. Local working review of the web and iOS repositories, community issues and PRs, and Planner 5D's current advertised capabilities.
@@ -380,3 +380,14 @@ Issue #59 adds web editing for retained item notes, furniture/opening costs, roo
 ## Eighteenth batch: consistent furniture rendering
 
 Issue #61 preserves chosen furniture colors/finishes and translucent placement previews after GLB loading, isolates disposable instance resources, and shares lazy model requests with catalog thumbnails. Late completions cannot revive removed scenes; failed files retain procedural fallbacks without repeated downloads. A fireplace no longer renders as a toaster, and wall transparency leaves furniture finishes intact. See [rendering behavior and verification](2026-09-06-furniture-rendering.md). Broader catalog parity, native rendering/distribution and the cost gates in #30 remain follow-up work.
+
+
+## Nineteenth batch: furniture category continuity
+
+Issue #63 adds shared display mappings for native/web furniture, neutral unknown
+previews, procedural imported stairs and native alias-aware glyphs/icons/heights.
+Original categories and dimensions survive actual Swift return packages and
+legacy chair fallbacks remain protected on export. Local validation passes 537
+web unit tests and 53 XCTest tests. See [the category report](2026-09-07-furniture-categories.md)
+for compatibility details and PR verification. Browser coverage, native release
+and Firebase cost gates remain the next priorities.

@@ -37,6 +37,17 @@ export function createFurnitureModel(catalogId: string, def: FurnitureDef): THRE
   const h = height;
 
   switch (catalogId) {
+    case 'stairs': {
+      // Scan/import preview; building stairs remain separately editable.
+      const steps = 10;
+      for (let i = 0; i < steps; i++) {
+        const stepHeight = h * (i + 1) / steps;
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, stepHeight, d / steps), createMaterial(color));
+        mesh.position.set(0, stepHeight / 2, d / 2 - (i + 0.5) * d / steps);
+        group.add(mesh);
+      }
+      break;
+    }
     case 'sofa':
       createSofa(group, w, d, h, color);
       break;
