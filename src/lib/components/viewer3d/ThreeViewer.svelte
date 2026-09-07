@@ -20,7 +20,7 @@
   import MaterialPicker from './MaterialPicker.svelte';
   import { getCatalogItem, furnitureCatalog, furnitureCategories } from '$lib/utils/furnitureCatalog';
   import type { FurnitureDef } from '$lib/utils/furnitureCatalog';
-  import { createFurnitureModel } from '$lib/utils/furnitureModels3d';
+  import { disposeModel } from '$lib/utils/furnitureModelResources';
   import { createFurnitureModelWithGLB } from '$lib/utils/furnitureModelLoader';
   import { addFurniture } from '$lib/stores/project';
   import { detectRooms, resolveRooms, getRoomPolygon, roomCentroid } from '$lib/utils/roomDetection';
@@ -952,33 +952,7 @@
     if (!cat || cat.symbol) return;
     const model = createFurnitureModelWithGLB(catalogId, cat, () => {
       if (renderer && scene && camera) renderer.render(scene, camera);
-    });
-    // Make semi-transparent
-    model.traverse((child: any) => {
-      if (child instanceof THREE.Mesh) {
-        if (Array.isArray(child.material)) {
-          child.material = child.material.map((m: THREE.Material) => {
-            const c = m.clone();
-            if (c instanceof THREE.MeshStandardMaterial) {
-              c.transparent = true;
-              c.opacity = 0.5;
-              c.emissive = new THREE.Color(0x4488ff);
-              c.emissiveIntensity = 0.3;
-            }
-            return c;
-          });
-        } else {
-          const c = child.material.clone();
-          if (c instanceof THREE.MeshStandardMaterial) {
-            c.transparent = true;
-            c.opacity = 0.5;
-            c.emissive = new THREE.Color(0x4488ff);
-            c.emissiveIntensity = 0.3;
-          }
-          child.material = c;
-        }
-      }
-    });
+    }, { ghost: true });
     model.visible = false;
     ghostGroup = model;
     scene.add(ghostGroup);
@@ -987,13 +961,7 @@
   function removeGhostPreview() {
     if (ghostGroup) {
       scene.remove(ghostGroup);
-      ghostGroup.traverse((obj: any) => {
-        if (obj.geometry) obj.geometry.dispose();
-        if (obj.material) {
-          if (Array.isArray(obj.material)) obj.material.forEach((m: any) => m.dispose());
-          else obj.material.dispose();
-        }
-      });
+      disposeModel(ghostGroup);
       ghostGroup = null;
     }
   }
@@ -1165,16 +1133,10 @@
     }
   }
 
-  function clearGroup(group: THREE.Group) {
+  function clearGroup(group: THREE.Object3D) {
     while (group.children.length) {
       const child = group.children[0];
-      child.traverse((obj: any) => {
-        if (obj.geometry) obj.geometry.dispose();
-        if (obj.material) {
-          if (Array.isArray(obj.material)) obj.material.forEach((m: any) => m.dispose());
-          else obj.material.dispose();
-        }
-      });
+      disposeModel(child);
       group.remove(child);
     }
   }
@@ -1524,7 +1486,7 @@
       const model = createFurnitureModelWithGLB(fi.catalogId, furnitureDef, () => {
         // Re-render when GLB model finishes loading
         if (renderer && scene && camera) renderer.render(scene, camera);
-      });
+      }, { color: fi.color, material: fi.material });
       model.position.set(fi.position.x, 1.5, fi.position.y);
       model.rotation.y = -(fi.rotation * Math.PI) / 180;
       // Note: fi.scale is 2D editor scale — don't override 3D model scaling from scaleToFit
@@ -1667,6 +1629,7 @@
     // Columns
     buildColumns(floor);
 
+    applyWallTransparency();
     autoCenterCamera();
   }
 
@@ -1829,15 +1792,21 @@
     markSceneDirty();
   }
 
+  function applyWallTransparency() {
+    // Only active-floor wall bodies belong to this control; furniture finishes,
+    // glass openings and reference-floor opacity keep their own settings.
+    for (const child of wallMeshMap.keys()) if (child instanceof THREE.Mesh) {
+      for (const material of Array.isArray(child.material) ? child.material : [child.material]) {
+        material.transparent = wallsTransparent;
+        material.opacity = wallsTransparent ? 0.15 : 1;
+        material.needsUpdate = true;
+      }
+    }
+  }
+
   function toggleWallTransparency() {
     wallsTransparent = !wallsTransparent;
-    wallGroup.traverse((child) => {
-      if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
-        child.material.transparent = wallsTransparent;
-        child.material.opacity = wallsTransparent ? 0.15 : 1.0;
-        child.material.needsUpdate = true;
-      }
-    });
+    applyWallTransparency();
     markSceneDirty();
   }
 
@@ -2061,6 +2030,8 @@
       cancelAnimationFrame(animId);
       document.removeEventListener('keydown', onKeyDown, false);
       document.removeEventListener('keyup', onKeyUp, false);
+      removeGhostPreview();
+      clearGroup(scene);
       pointerControls.dispose();
       controls.dispose();
       renderer.dispose();

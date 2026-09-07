@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { furnitureFinishes } from '$lib/utils/furnitureFinishes';
   import { onDestroy } from 'svelte';
   import ItemDetailsPanel from './ItemDetailsPanel.svelte';
   import type { DetailTarget } from '$lib/models/types';
@@ -173,7 +174,7 @@
   }
   function onFurnitureMaterial(e: Event) {
     if (!selectedFurniture) return;
-    updateFurniture(selectedFurniture.id, { material: (e.target as HTMLSelectElement).value });
+    updateFurniture(selectedFurniture.id, { material: (e.target as HTMLSelectElement).value || undefined });
   }
   function onFurnitureRotation(e: Event) {
     if (!selectedFurniture) return;
@@ -664,20 +665,19 @@
       <label class="block">
         <span class="text-xs text-gray-500">Material</span>
         <select 
-          value={selectedFurniture.material ?? 'Wood'} 
+          value={selectedFurniture.material ?? ''}
           onchange={onFurnitureMaterial} 
           class="w-full px-2 py-1 border border-gray-200 rounded text-sm"
         >
-          <option value="Wood">Wood</option>
-          <option value="Metal">Metal</option>
-          <option value="Fabric">Fabric</option>
-          <option value="Leather">Leather</option>
-          <option value="Glass">Glass</option>
-          <option value="Plastic">Plastic</option>
-          <option value="Stone">Stone</option>
-          <option value="Ceramic">Ceramic</option>
+          <option value="">Original materials</option>
+          {#if selectedFurniture.material && !Object.hasOwn(furnitureFinishes, selectedFurniture.material)}
+            <option value={selectedFurniture.material}>{selectedFurniture.material} (retained)</option>
+          {/if}
+          {#each Object.keys(furnitureFinishes) as finish}<option value={finish}>{finish}</option>{/each}
         </select>
       </label>
+
+      <p class="text-xs text-gray-500">Color tints the 3D model; materials adjust its finish. Reset to defaults restores the original appearance.</p>
       
       <!-- Rotation -->
       <label class="block">

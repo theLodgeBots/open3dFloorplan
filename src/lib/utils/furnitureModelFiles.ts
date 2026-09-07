@@ -6,7 +6,7 @@ const MODEL_FILES: Record<string, string> = {
   tv_stand: 'cabinetTelevision',
   bookshelf: 'bookcaseOpen',
   side_table: 'sideTable',
-  fireplace: 'toaster',
+  // Fireplace uses its procedural fireplace; no matching bundled GLB.
   television: 'televisionModern',
   storage: 'bookcaseClosed',
   table: 'tableCross',
@@ -115,5 +115,5 @@ const MODEL_FILES: Record<string, string> = {
 };
 
 export function getModelFile(catalogId: string): string | null {
-  return MODEL_FILES[catalogId] ?? null;
+  return Object.hasOwn(MODEL_FILES, catalogId) ? MODEL_FILES[catalogId] : null;
 }

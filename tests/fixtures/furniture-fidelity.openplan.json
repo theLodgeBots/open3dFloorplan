@@ -1,0 +1,77 @@
+{
+  "id": "qa-furniture-fidelity",
+  "name": "QA Furniture Fidelity",
+  "floors": [
+    {
+      "id": "dimensions-floor",
+      "name": "Showroom",
+      "level": 0,
+      "walls": [],
+      "rooms": [],
+      "doors": [],
+      "windows": [],
+      "furniture": [
+        {
+          "id": "chair-red",
+          "catalogId": "chair",
+          "position": {
+            "x": -140,
+            "y": 0
+          },
+          "rotation": 0,
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          },
+          "color": "#ff0000",
+          "width": 100,
+          "depth": 100,
+          "height": 110
+        },
+        {
+          "id": "chair-green",
+          "catalogId": "chair",
+          "position": {
+            "x": 140,
+            "y": 0
+          },
+          "rotation": 0,
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          },
+          "color": "#00ff00",
+          "width": 100,
+          "depth": 100,
+          "height": 110
+        },
+        {
+          "id": "fireplace",
+          "catalogId": "fireplace",
+          "position": {
+            "x": 0,
+            "y": -230
+          },
+          "rotation": 0,
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        }
+      ],
+      "stairs": [],
+      "columns": [],
+      "guides": [],
+      "measurements": [],
+      "annotations": [],
+      "textAnnotations": [],
+      "groups": []
+    }
+  ],
+  "activeFloorId": "dimensions-floor",
+  "createdAt": "2026-09-05T00:00:00.000Z",
+  "updatedAt": "2026-09-05T00:00:00.000Z"
+}
