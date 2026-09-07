@@ -71,6 +71,7 @@ for (const size of Object.keys(benchmarkSizes) as BenchmarkSize[]) test(`${size}
   await testInfo.attach('render-benchmark', { path, contentType: 'application/json' });
   expect(errors).toEqual([]); expect(external).toEqual([]);
   expect(assets.size).toBe(3);
+  expect(Object.values(renameAllocations)).toEqual(Object.keys(renameAllocations).map(() => 0));
   await page.getByRole('button', { name: '2D', exact: true }).click();
   await expect.poll(async () => (await gpu(page)).filter((context: any) => !context.lost).length).toBe(0);
 });
