@@ -102,18 +102,25 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 npm test
 npm run check
 npm run build
-npx playwright install --with-deps chromium
+npx playwright install --with-deps chromium firefox webkit
 npm run test:browser
 ```
 
 GitHub Actions runs these checks for pull requests and pushes to `main`.
 The regression suite covers local storage failures, autosave status, room metadata
 and exports, and keyboard tools. Use `npm run test:watch` while working on a fix.
-Production-browser CI covers import/edit/undo/save/reload/export, damaged-file
-recovery, catalog loading, 3D and cold/warm asset transfers. It starts an isolated
-Node server with analytics and cloud uploads disabled. Failure screenshots/traces
-and the HTML report are retained for seven days. Drawing and touch gestures still
-need separate interactive/device checks.
+Production-browser CI runs the same regression suite in Chromium, Firefox and
+WebKit, covering import/edit/undo/save/reload/export, damaged-file recovery,
+iPhone project packages, photos, catalog loading, 3D and cold/warm asset transfers.
+Each engine runs in a separate job against the same production build, with an
+isolated Node server and analytics/cloud uploads disabled. The final `check` job
+requires the build and every browser job to pass. Engine-specific failure
+screenshots/traces and HTML reports are retained for seven days; the shared build
+expires after one day. To run one engine, use
+`npm run test:browser -- --project=firefox` (or `chromium` / `webkit`).
+Linux WebKit is engine coverage, not a substitute for shipping Safari or physical
+iPhone/iPad checks. Drawing, touch gestures and native share sheets still need
+separate interactive/device checks.
 
 ### Production Build
 
