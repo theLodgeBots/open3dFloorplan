@@ -45,3 +45,18 @@ it('routes Cmd/Ctrl+S through the same save status and error handling as the Sav
   handleGlobalShortcut(keyEvent('s', { ctrlKey: true }));
   expect(manualSave).toHaveBeenCalledTimes(2);
 });
+
+it.each([
+  { tagName: 'INPUT' }, { tagName: 'TEXTAREA' }, { tagName: 'SELECT' },
+  { tagName: 'SPAN', isContentEditable: true },
+])('leaves field editing to the browser but keeps save available: %j', target => {
+  for (const modifier of ['metaKey', 'ctrlKey']) {
+    for (const key of ['z', 'y', 'a', 'c', 'v', ' ', 'Backspace']) {
+      const event = keyEvent(key, { target, [modifier]: true });
+      expect(handleGlobalShortcut(event)).toBe(false);
+      expect(event.preventDefault).not.toHaveBeenCalled();
+    }
+    expect(handleGlobalShortcut(keyEvent('s', { target, [modifier]: true }))).toBe(true);
+  }
+  expect(manualSave).toHaveBeenCalledTimes(2);
+});

@@ -16,7 +16,13 @@ IDs, fractional dimensions and metadata survive actual native return packages.
 See [the batch report](docs/reviews/2026-09-07-furniture-categories.md) and GitHub
 PR checks for merge/release status and final browser CI results.
 
-Local validation: **537 web unit tests, 53 XCTest tests**, production build and
+The browser compatibility batch for [#65](https://github.com/laanlabs/openPlan3D/issues/65)
+adds the full CI suite to Chromium, Firefox and WebKit, fixes canvas shortcuts
+intercepting field editing, and preserves furniture dimensions while replacing
+empty/invalid drafts. See [the browser report](docs/reviews/2026-09-07-cross-browser-editing.md)
+and PR checks for final engine results and merge/release status.
+
+Local validation: **541 web unit tests, 53 XCTest tests**, production build and
 audit pass; type checks report zero errors and 23 existing Svelte warnings.
 Desktop and phone-width browser checks cover labels, editing, persistence and
 3D. Native source availability remains separate from TestFlight/App Store release.
@@ -27,15 +33,15 @@ floor elevations and sloped walls; direct AI provider configuration; safe import
 and project switching; local tab conflict recovery; IndexedDB migration; full
 library backup/restore; two-way local iPhone/web packages; editable item
 notes/photos/costs and pooled attachment history; furniture appearance fixes;
-category continuity. The earlier eighteen batches and pause hashes are recorded
+category continuity; field keyboard editing and browser-engine CI. Earlier batches and pause hashes are recorded
 in the dated review log and git history.
 
-## 1. Next engineering batch: browser coverage and 3D resource review
+## 1. Next engineering batch: measured 3D resource review
 
-Expand meaningful import/edit/save/reload/export coverage beyond Chromium to
-Firefox and WebKit, then perform actual touch-device checks. Investigate the
-selected-wall material and camera-preview renderer teardown observations below
-with measured reproductions before deciding their fixes. Keep category contract
+Investigate the selected-wall material and camera-preview renderer teardown
+observations below with measured reproductions before deciding their fixes.
+Extend the desktop Safari interactive pass to actual touch-device checks.
+Keep category contract
 fixtures in both repositories synchronized when extending the catalog.
 
 Legacy saved package projects with chair fallbacks are protected on export and
@@ -80,9 +86,9 @@ quotas. See the [cost audit](docs/reviews/2026-09-05-firebase-cost-audit.md) and
 
 These are follow-up work areas, not claims that every item is a reproduced bug.
 
-- **Browser and device coverage:** expand the Chromium CI suite to Firefox and
-  WebKit; test actual iPhone/iPad touch, gestures, downloads/share sheets,
-  storage/quota recovery and desktop Safari. Exercise native denied camera access,
+- **Browser and device coverage:** keep all three CI engines passing; broaden
+  the bounded desktop Safari pass and test actual iPhone/iPad touch, gestures,
+  downloads/share sheets and storage/quota recovery. Exercise native denied camera access,
   interruption/backgrounding, long scans, multi-floor work and attachment-heavy
   saves. Run a first-room usability session with unfamiliar desktop/iPhone users.
 - **3D resource/performance audit:** investigate selected-wall highlight material
@@ -141,8 +147,7 @@ These are follow-up work areas, not claims that every item is a reproduced bug.
   fixture-oriented issue/PR templates and a release checklist. Historical review
   findings and original package metadata are not authoritative current status.
 - Reduce the 23 existing Svelte warnings with focused accessibility/component
-  changes. Review the CI artifact-upload action's Node 20 deprecation warning and
-  update its pinned supported version; current checks pass. Continue dependency
+  changes. The CI artifact actions now use pinned Node 24 releases. Continue dependency
   auditing rather than treating the original resolved advisories as still open.
 - Decide whether to publish/license the currently private iOS repository, add a
   root contributor README, and clarify the two native targets/release branding.
@@ -153,8 +158,8 @@ These are follow-up work areas, not claims that every item is a reproduced bug.
 
 1. Fetch both repositories and confirm clean `main` against `origin/main`; reread
    open GitHub issues and #30 for release updates. Start a focused `codex/…` branch
-   from current main after checking the category batch merge status.
-2. Start with browser coverage and measured resource checks. Preserve unknown fields,
+   from current main after checking the browser batch merge status.
+2. Start with measured resource checks. Preserve unknown fields,
    explicit clears, independent import copies, fractional transforms and pooled
    local attachments. Do not rely on temporary QA directories as source artifacts.
 3. Web baseline: Node 24/npm; run `NODE_ENV=production npm run check`,

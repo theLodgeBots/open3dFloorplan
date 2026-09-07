@@ -9,6 +9,10 @@ export default defineConfig({
   workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
+  // Finish with reports before the job's 15-minute limit, even if a runner
+  // cannot provide graphics or many workflows fail for the same reason.
+  globalTimeout: process.env.CI ? 12 * 60_000 : undefined,
+  maxFailures: process.env.CI ? 5 : undefined,
   timeout: 60_000,
   expect: { timeout: 10_000 },
   reporter: [['list'], ['html', { open: 'never' }]],
@@ -19,7 +23,15 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 }, launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] } } },
+    {
+      name: 'chromium',
+      use: {
+        ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 },
+        launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] },
+      },
+    },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'], viewport: { width: 1440, height: 900 } } },
+    { name: 'webkit', use: { ...devices['Desktop Safari'], viewport: { width: 1440, height: 900 } } },
   ],
   webServer: {
     command: 'node build/index.js',

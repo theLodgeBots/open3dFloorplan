@@ -7,8 +7,23 @@ export interface ShortcutContext {
   save?: () => void;
 }
 
+export function isEditingField(target: EventTarget | null): boolean {
+  const element = target as HTMLElement | null;
+  return !!element && (['INPUT', 'TEXTAREA', 'SELECT'].includes(element.tagName) || element.isContentEditable === true);
+}
+
 export function handleGlobalShortcut(e: KeyboardEvent, ctx: ShortcutContext = {}): boolean {
   const mod = e.metaKey || e.ctrlKey;
+
+  // Save remains available while editing. Text selection, clipboard and undo
+  // belong to the focused field, not the plan's selection/history.
+  if (mod && e.key === 's') {
+    e.preventDefault();
+    if (ctx.save) ctx.save();
+    else void manualSave();
+    return true;
+  }
+  if (isEditingField(e.target)) return false;
 
   // Ctrl+Z undo
   if (mod && e.key === 'z' && !e.shiftKey) {
@@ -22,18 +37,7 @@ export function handleGlobalShortcut(e: KeyboardEvent, ctx: ShortcutContext = {}
     redo();
     return true;
   }
-  // Ctrl+S save
-  if (mod && e.key === 's') {
-    e.preventDefault();
-    if (ctx.save) ctx.save();
-    else void manualSave();
-    return true;
-  }
-
-  // Don't handle single-key shortcuts if user is typing in an input
-  const tag = (e.target as HTMLElement)?.tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return false;
-  if ((e.target as HTMLElement)?.isContentEditable || mod || e.altKey) return false;
+  if (mod || e.altKey) return false;
 
   if (e.key.toLowerCase() === 'm' || e.key.toLowerCase() === 'n') {
     const tool = e.key.toLowerCase() === 'm' ? 'measure' : 'annotate';

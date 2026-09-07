@@ -49,6 +49,53 @@ async function addPhoto(page: Page, path = resolve('tests/fixtures/large-item-ph
   await expect(page.getByRole('button', { name: 'Add photo', exact: true })).toBeEnabled();
 }
 
+for (const width of [1440, 390]) test(`field keyboard editing cannot select or paste plan objects at ${width}px`, async ({ page }) => {
+  const check = observe(page); await page.setViewportSize({ width, height: 900 });
+  const original = await openPackage(page); await selectFurniture(page);
+  const itemWidth = page.getByRole('spinbutton', { name: 'Width (cm)', exact: true });
+  // Use actual key events: fill() bypasses the canvas listener that used to
+  // swallow select-all and leave the old number in front of the typed value.
+  await itemWidth.press('ControlOrMeta+a');
+  await itemWidth.press('Backspace');
+  await itemWidth.pressSequentially('78.125');
+  await itemWidth.press('Tab');
+  await expect(itemWidth).toHaveValue('78.125');
+  for (const dimension of ['Width (cm)', 'Depth (cm)', 'Height (cm)']) {
+    const input = page.getByRole('spinbutton', { name: dimension, exact: true });
+    const value = await input.inputValue();
+    for (const draft of ['', '0', '-1']) {
+      await input.fill(draft); await input.press('Tab');
+      await expect(input).toHaveValue(value);
+    }
+  }
+  // Seed the canvas clipboard with furniture before using the text clipboard.
+  await page.getByRole('button', { name: 'Save', exact: true }).press('ControlOrMeta+c');
+  const notes = page.getByRole('textbox', { name: 'Item notes', exact: true });
+  await notes.press('ControlOrMeta+a');
+  await notes.pressSequentially('Soft green fabric chair');
+  await expect(notes).toHaveValue('Soft green fabric chair');
+  await notes.press('ControlOrMeta+a'); await notes.press('ControlOrMeta+c');
+  await notes.press('ArrowRight'); await notes.press('Enter'); await notes.press('ControlOrMeta+v');
+  await expect(notes).toHaveValue('Soft green fabric chair\nSoft green fabric chair');
+  await notes.press('ControlOrMeta+z');
+  await expect(notes).toHaveValue('Soft green fabric chair\n');
+  await expect(itemWidth).toHaveValue('78.125');
+  await notes.press('ControlOrMeta+a'); await notes.press('Backspace');
+  await notes.pressSequentially('Soft green fabric chair');
+  await notes.press('Tab');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.reload(); await selectFurniture(page);
+  await expect(notes).toHaveValue('Soft green fabric chair');
+  await expect(itemWidth).toHaveValue('78.125');
+  const saved = (await savedProjects(page))[original.id];
+  const expected = structuredClone(original);
+  expected.floors[0].furniture[0].width = 78.125;
+  expected.floors[0].furniture[0].details.note = 'Soft green fabric chair';
+  expect(saved.floors).toEqual(expected.floors);
+  expect(saved.settings).toEqual(original.settings);
+  check();
+});
+
 for (const width of [1440, 390]) test(`item metadata and optimized photos survive undo, save and exports at ${width}px`, async ({ page }, testInfo) => {
   const check = observe(page); await page.setViewportSize({ width, height: 900 });
   const original = await openPackage(page); await selectFurniture(page);
