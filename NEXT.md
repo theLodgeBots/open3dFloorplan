@@ -35,7 +35,8 @@ library backup/restore; two-way local iPhone/web packages; editable item
 notes/photos/costs and pooled attachment history; furniture appearance fixes;
 category continuity; field keyboard editing and browser-engine CI; camera preview
 and 3D resource cleanup; repeatable furnished-home benchmarks and preservation of
-3D views during metadata edits; responsive top-down camera framing. Earlier batches and pause hashes are recorded
+3D views during metadata edits; responsive top-down camera framing; onboarding
+hints that stay within resized viewports. Earlier batches and pause hashes are recorded
 in the dated review log and git history.
 
 ## 1. Next engineering batch: measured rendering improvements and device coverage
@@ -61,12 +62,14 @@ projection and browser pixel checks cover portrait, desktop and landscape layout
 See [the framing report](docs/reviews/2026-09-07-top-down-framing.md) and PR checks
 for validation and release status.
 
-Next, fix [onboarding hint positioning after resize (#73)](https://github.com/laanlabs/openPlan3D/issues/73).
-The phone QA pass exposed a tip retaining its wider-screen position and wrapping
-into a narrow strip. Track viewport changes and constrain the actual tip bounds,
-while preserving dismissal and seen-tip behavior.
+The [onboarding hint batch (#73)](https://github.com/laanlabs/openPlan3D/issues/73)
+tracks viewport changes and measured hint bounds, keeps the dismissal button
+visible on short screens, and cleans up animation/timer callbacks. Resizing does
+not restart the eight-second timeout; manual and automatic dismissal still retain
+seen-tip behavior. See [the hint report](docs/reviews/2026-09-07-onboarding-hints.md)
+and PR checks for browser validation and release status.
 
-Then measure the same fixtures on representative desktop/phone hardware and agree
+Next, measure the same fixtures on representative desktop/phone hardware and agree
 frame-time and memory targets. Use those results to choose shared geometry,
 object-level visual updates or mobile quality controls. Extend desktop Safari
 checks to actual iPhone/iPad touch devices; the resource batch's native desktop
