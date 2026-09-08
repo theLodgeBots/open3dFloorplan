@@ -1861,16 +1861,17 @@
   }
 
   function viewTopDown() {
-    // Calculate center of the plan
-    const box = new THREE.Box3().setFromObject(wallGroup);
-    const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.z, 500);
-
-    // Animate camera to top-down position
-    camera.position.set(center.x, (box.isEmpty() ? 0 : box.max.y) + maxDim * 1.5, center.z);
-    controls.target.copy(center);
+    if (walkthroughMode) exitWalkthroughMode();
+    // Consume pending orbit/pan deltas before setting the requested view. This
+    // public update path clears damping without reaching into control internals.
+    const damping = controls.enableDamping;
+    controls.enableDamping = false;
     controls.update();
+    controls.enableDamping = damping;
+    frameScene(camera, new THREE.Box3().setFromObject(wallGroup), controls.target,
+      { view: 'top-down', verticalInset: Math.min(64 / container.clientHeight, 0.2) });
+    controls.update();
+    markSceneDirty();
   }
 
   function toggleWalkthroughMode() {

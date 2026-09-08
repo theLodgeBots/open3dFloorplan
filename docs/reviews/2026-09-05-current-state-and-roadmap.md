@@ -424,3 +424,14 @@ finishes, history and area units still refresh. Local validation passes 562 unit
 tests. See [the benchmark report](2026-09-07-rendering-benchmarks.md) for results,
 measurement limits and browser validation. Hardware calibration, further visual
 edit performance, physical-device coverage and the #30 release/cost gates remain.
+
+
+## Twenty-third batch: responsive top-down camera framing
+
+Issue #71 fixes outside rooms being cropped at phone width and corners covered by
+the toolbar in landscape. The shared camera fit now handles a stable top-down
+orientation, overlay clearance and distant/stacked bounds. Top-Down clears pending
+orbit motion and exits walkthrough. Local validation passes 582 unit tests;
+rendered corner pixels are checked across three viewports and all CI engines.
+See [the framing report](2026-09-07-top-down-framing.md). Hardware calibration,
+physical-device coverage and the #30 release/cost gates remain.
