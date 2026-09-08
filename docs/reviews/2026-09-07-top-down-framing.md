@@ -1,6 +1,7 @@
 # Responsive top-down camera framing
 
 September 7, 2026 · [Issue #71](https://github.com/laanlabs/openPlan3D/issues/71)
+· [PR #72](https://github.com/laanlabs/openPlan3D/pull/72)
 
 ## Problem and change
 
@@ -30,7 +31,7 @@ cover changed aspect/zoom, empty floors and vertical overlay clearance.
 
 `tests/fixtures/top-down-framing.openplan.json` is an ordinary local import with
 three floors at -350, 0 and 425.5 cm and magenta columns at the four outside corners.
-The browser test checks rendered pixels in all four quadrants, distance from the
+After acknowledging the first-use hint through its UI, the browser test checks rendered pixels in all four quadrants, distance from the
 canvas edges, and overlap with viewer buttons. It exercises active/stacked views
 at 1440×900, 390×900 and 844×390, requesting Top-Down while orbit damping is in
 flight and checking again after more frames. It also checks leaving walkthrough
@@ -50,6 +51,9 @@ native Safari attempt was unavailable while the Mac was locked; hardware/device
 calibration remains follow-up work.
 
 ## Follow-up and cost
+
+The responsive pass also exposed stale onboarding-tip positioning after a viewport
+resize, tracked separately in [#73](https://github.com/laanlabs/openPlan3D/issues/73).
 
 Use the repeatable furnished-home fixtures to calibrate actual desktop/phone
 performance before choosing shared geometry, object-level updates or mobile

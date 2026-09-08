@@ -61,7 +61,12 @@ projection and browser pixel checks cover portrait, desktop and landscape layout
 See [the framing report](docs/reviews/2026-09-07-top-down-framing.md) and PR checks
 for validation and release status.
 
-Next, measure the same fixtures on representative desktop/phone hardware and agree
+Next, fix [onboarding hint positioning after resize (#73)](https://github.com/laanlabs/openPlan3D/issues/73).
+The phone QA pass exposed a tip retaining its wider-screen position and wrapping
+into a narrow strip. Track viewport changes and constrain the actual tip bounds,
+while preserving dismissal and seen-tip behavior.
+
+Then measure the same fixtures on representative desktop/phone hardware and agree
 frame-time and memory targets. Use those results to choose shared geometry,
 object-level visual updates or mobile quality controls. Extend desktop Safari
 checks to actual iPhone/iPad touch devices; the resource batch's native desktop

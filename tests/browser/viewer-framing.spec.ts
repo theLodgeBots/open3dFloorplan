@@ -17,6 +17,9 @@ test('top-down fits every corner after orbit, stacking and viewport changes', as
   await (await chooser).setFiles(resolve('tests/fixtures/top-down-framing.openplan.json'));
   await page.getByRole('button', { name: '3D', exact: true }).click();
   await page.waitForLoadState('networkidle');
+  const hint = page.getByRole('button', { name: 'Got it', exact: true });
+  if (await hint.isVisible()) await hint.click();
+  await expect(hint).not.toBeVisible();
   const canvas = page.getByRole('region', { name: '3D floor plan viewer' }).locator('canvas').last();
   const samples: any[] = [];
   const inspect = () => canvas.evaluate((node: HTMLCanvasElement) => {
