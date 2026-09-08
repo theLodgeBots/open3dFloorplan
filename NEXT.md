@@ -22,7 +22,7 @@ intercepting field editing, and preserves furniture dimensions while replacing
 empty/invalid drafts. See [the browser report](docs/reviews/2026-09-07-cross-browser-editing.md)
 and PR checks for final engine results and merge/release status.
 
-Local validation: **562 web unit tests, 53 XCTest tests**, production build and
+Local validation: **582 web unit tests, 53 XCTest tests**, production build and
 audit pass; type checks report zero errors and 23 existing Svelte warnings.
 Desktop and phone-width browser checks cover labels, editing, persistence and
 3D. Native source availability remains separate from TestFlight/App Store release.
@@ -35,7 +35,7 @@ library backup/restore; two-way local iPhone/web packages; editable item
 notes/photos/costs and pooled attachment history; furniture appearance fixes;
 category continuity; field keyboard editing and browser-engine CI; camera preview
 and 3D resource cleanup; repeatable furnished-home benchmarks and preservation of
-3D views during metadata edits. Earlier batches and pause hashes are recorded
+3D views during metadata edits; responsive top-down camera framing. Earlier batches and pause hashes are recorded
 in the dated review log and git history.
 
 ## 1. Next engineering batch: measured rendering improvements and device coverage
@@ -54,10 +54,17 @@ item notes/costs/photos. Geometry, finishes, history and area-unit changes still
 refresh. See [the benchmark report](docs/reviews/2026-09-07-rendering-benchmarks.md)
 for results and measurement limits; CI software rendering is not a device budget.
 
-First fix the reproduced [phone top-down framing bug (#71)](https://github.com/laanlabs/openPlan3D/issues/71):
-the large fixture's outer room columns are cropped at 390×900 after clicking
-Top-Down View. Fit the camera to both axes using aspect ratio and field of view,
-with containment tests for single/stacked floors and narrow viewports.
+The [top-down framing batch (#71)](https://github.com/laanlabs/openPlan3D/issues/71)
+fits both screen axes, reserves vertical overlay space, clears pending orbit
+motion and includes distant/stacked geometry in the visible depth range. Corner
+projection and browser pixel checks cover portrait, desktop and landscape layouts.
+See [the framing report](docs/reviews/2026-09-07-top-down-framing.md) and PR checks
+for validation and release status.
+
+Next, fix [onboarding hint positioning after resize (#73)](https://github.com/laanlabs/openPlan3D/issues/73).
+The phone QA pass exposed a tip retaining its wider-screen position and wrapping
+into a narrow strip. Track viewport changes and constrain the actual tip bounds,
+while preserving dismissal and seen-tip behavior.
 
 Then measure the same fixtures on representative desktop/phone hardware and agree
 frame-time and memory targets. Use those results to choose shared geometry,
