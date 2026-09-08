@@ -1,46 +1,48 @@
 <script lang="ts">
   import { getActiveTip, dismissTip, TIP_MESSAGES } from '$lib/stores/onboarding.svelte';
 
-  // Reactive binding
   let tip = $derived(getActiveTip());
   let visible = $state(false);
+  let viewportWidth = $state(1200);
+  let viewportHeight = $state(800);
+  let tipWidth = $state(280);
+  let tipHeight = $state(0);
+  const margin = 8;
 
-  let autoTimer: ReturnType<typeof setTimeout> | null = null;
+  let left = $derived(tip ? Math.max(margin, Math.min(tip.x, viewportWidth - tipWidth - margin)) : margin);
+  let top = $derived(tip ? Math.max(margin, Math.min(tip.y, viewportHeight - tipHeight - margin)) : margin);
+
   $effect(() => {
+    visible = false;
     if (tip) {
-      // Small delay for enter animation
-      visible = false;
-      requestAnimationFrame(() => { visible = true; });
-      // Auto-dismiss after 8 seconds
-      if (autoTimer) clearTimeout(autoTimer);
-      autoTimer = setTimeout(() => { dismissTip(); }, 8000);
-    } else {
-      visible = false;
-      if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+      const frame = requestAnimationFrame(() => { visible = true; });
+      const timer = setTimeout(dismissTip, 8000);
+      // Resizing only changes placement; it must not restart the dismissal timer.
+      return () => {
+        cancelAnimationFrame(frame);
+        clearTimeout(timer);
+      };
     }
   });
 </script>
 
+<svelte:window bind:innerWidth={viewportWidth} bind:innerHeight={viewportHeight} />
+
 {#if tip}
-  {@const msg = TIP_MESSAGES[tip.id]}
-  {@const clampedX = Math.min(tip.x, (typeof window !== 'undefined' ? window.innerWidth : 1200) - 320)}
-  {@const clampedY = Math.min(tip.y, (typeof window !== 'undefined' ? window.innerHeight : 800) - 100)}
   <div
-    class="fixed z-[9999] pointer-events-auto"
-    style="left:{clampedX}px;top:{clampedY}px;"
+    role="region"
+    aria-label="Getting started tip"
+    bind:offsetWidth={tipWidth}
+    bind:offsetHeight={tipHeight}
+    class="fixed z-[9999] pointer-events-auto flex flex-col gap-2 bg-slate-800 text-white rounded-xl shadow-2xl px-4 py-3 text-sm leading-relaxed transition-opacity duration-300 ease-out"
+    class:opacity-0={!visible}
+    class:opacity-100={visible}
+    style="left:{left}px;top:{top}px;width:{Math.max(0, Math.min(280, viewportWidth - margin * 2))}px;max-height:{Math.max(0, viewportHeight - margin * 2)}px;"
   >
-    <div
-      class="bg-slate-800 text-white rounded-xl shadow-2xl px-4 py-3 max-w-[280px] text-sm leading-relaxed transition-all duration-300 ease-out"
-      class:opacity-0={!visible}
-      class:translate-y-2={!visible}
-      class:opacity-100={visible}
-      class:translate-y-0={visible}
-    >
-      <p class="mb-2">{msg}</p>
-      <button
-        class="text-xs font-medium px-3 py-1 rounded-lg bg-blue-500 hover:bg-blue-400 transition-colors"
-        onclick={dismissTip}
-      >Got it</button>
-    </div>
+    <p class="min-h-0 overflow-y-auto">{TIP_MESSAGES[tip.id]}</p>
+    <button
+      class="shrink-0 self-start text-xs font-medium px-3 py-1 rounded-lg bg-blue-500 hover:bg-blue-400 transition-colors"
+      onclick={dismissTip}
+    >Got it</button>
   </div>
 {/if}

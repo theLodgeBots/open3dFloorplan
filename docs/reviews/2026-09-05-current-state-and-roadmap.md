@@ -435,3 +435,14 @@ orbit motion and exits walkthrough. Local validation passes 582 unit tests;
 rendered corner pixels are checked across three viewports and all CI engines.
 See [the framing report](2026-09-07-top-down-framing.md). Hardware calibration,
 physical-device coverage and the #30 release/cost gates remain.
+
+
+## Twenty-fourth batch: onboarding hints after viewport changes
+
+Issue #73 fixes hints retaining desktop coordinates after the screen narrows.
+Measured placement keeps the bubble inside the viewport and Got it visible in
+short layouts; animation and dismissal timers have cleanup and resizing preserves
+their deadline. Local validation passes 582 unit tests; two browser workflows add
+viewport, hit-testing, timeout and saved-dismissal checks across all three engines.
+See [the hint report](2026-09-07-onboarding-hints.md). Hardware calibration,
+physical-device coverage and the #30 release/cost gates remain.
